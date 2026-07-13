@@ -2,10 +2,16 @@ import { KnowledgeArticle, ReadingFontScale } from '../../models/AppModels';
 
 @Component
 export struct KnowledgeDetailPage {
+  @Require
+  @Prop
   article: KnowledgeArticle;
+  @Prop
   favorite: boolean = false;
+  @Prop
   useful: boolean = false;
+  @Prop
   fontScale: ReadingFontScale = 'standard';
+  @Prop
   workflowNames: string = '';
   onBack: () => void = () => {
   };

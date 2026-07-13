@@ -5,9 +5,15 @@ import { KnowledgeArticle, ReadingFontScale, User } from '../../models/AppModels
 
 @Component
 export struct ProfilePage {
+  @Require
+  @Prop
   user: User;
+  @Require
+  @Prop
   favoriteArticles: KnowledgeArticle[];
+  @Prop
   unreadCount: number = 0;
+  @Prop
   fontScale: ReadingFontScale = 'standard';
   onOpenArticle: (articleId: string) => void = () => {
   };

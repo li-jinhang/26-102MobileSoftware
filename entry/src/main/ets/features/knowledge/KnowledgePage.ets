@@ -6,8 +6,14 @@ import { KnowledgeArticle, KnowledgeCategory } from '../../models/AppModels';
 
 @Component
 export struct KnowledgePage {
+  @Require
+  @Prop
   categories: KnowledgeCategory[];
+  @Require
+  @Prop
   articles: KnowledgeArticle[];
+  @Require
+  @Prop
   favoriteKnowledgeIds: string[];
   onOpenArticle: (articleId: string) => void = () => {
   };

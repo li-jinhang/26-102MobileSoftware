@@ -2,7 +2,10 @@ import { KnowledgeArticle } from '../../models/AppModels';
 
 @Component
 export struct KnowledgeCard {
+  @Require
+  @Prop
   article: KnowledgeArticle;
+  @Prop
   favorite: boolean = false;
   onOpen: (articleId: string) => void = () => {
   };

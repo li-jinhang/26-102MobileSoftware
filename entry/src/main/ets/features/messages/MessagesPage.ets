@@ -4,6 +4,8 @@ import { NotificationItem } from '../../models/AppModels';
 
 @Component
 export struct MessagesPage {
+  @Require
+  @Prop
   notifications: NotificationItem[];
   onBack: () => void = () => {
   };

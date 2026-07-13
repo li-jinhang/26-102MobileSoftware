@@ -10,18 +10,21 @@ import {
 
 @Component
 export struct AssistantPage {
+  @Require
+  @Prop
   articles: KnowledgeArticle[];
+  @Require
+  @Prop
   templates: WorkflowTemplate[];
   @Link history: AssistantHistory[];
+  @Link question: string;
+  @Link reply: AssistantReply | null;
   onBack: () => void = () => {
   };
   onOpenArticle: (articleId: string) => void = () => {
   };
   onStartWorkflow: (templateId: string) => void = () => {
   };
-  @State question: string = '';
-  @State reply: AssistantReply | null = null;
-
   private showMessage(message: string): void {
     try {
       this.getUIContext().getPromptAction().showToast({ message: message });

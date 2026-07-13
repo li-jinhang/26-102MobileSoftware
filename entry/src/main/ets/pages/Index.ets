@@ -1,16 +1,27 @@
-import { promptAction } from '@kit.ArkUI';
+import { markNotificationRead } from '../common/services/MessageService';
+import { validateCorrection } from '../common/services/KnowledgeService';
+import { SectionBlock } from '../common/components/SectionBlock';
+import { AssistantPage } from '../features/assistant/AssistantPage';
+import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { KnowledgeDetailPage } from '../features/knowledge/KnowledgeDetailPage';
+import { KnowledgePage } from '../features/knowledge/KnowledgePage';
+import { MessagesPage } from '../features/messages/MessagesPage';
+import { ProfilePage } from '../features/profile/ProfilePage';
 import {
+  AppSubPage,
   AssistantHistory,
+  AssistantReply,
   KnowledgeArticle,
   KnowledgeCategory,
+  KnowledgeCorrection,
   NotificationItem,
+  ReadingFontScale,
   User,
   UserRole,
   WorkflowInstance,
   WorkflowTemplate
 } from '../models/AppModels';
 import {
-  askAssistant,
   authenticateUser,
   buildWorkflowInstance,
   getMockArticles,
@@ -19,42 +30,6 @@ import {
   getMockNotifications,
   getMockTemplates
 } from '../mock/MockData';
-
-@Component
-struct SectionBlock {
-  title: string = '';
-  subtitle: string = '';
-  @BuilderParam content: () => void = this.defaultBuilder;
-
-  @Builder
-  private defaultBuilder() {
-  }
-
-  build() {
-    Column({ space: 12 }) {
-      Column({ space: 4 }) {
-        Text(this.title)
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1F2A44')
-          .width('100%')
-
-        Text(this.subtitle)
-          .fontSize(12)
-          .fontColor('#667085')
-          .lineHeight(18)
-          .width('100%')
-      }
-      .alignItems(HorizontalAlign.Start)
-
-      this.content()
-    }
-    .width('100%')
-    .padding(16)
-    .backgroundColor('#FFFFFF')
-    .borderRadius(22)
-  }
-}
 
 @Entry
 @Component
@@ -69,17 +44,18 @@ struct Index {
   @State loginPassword: string = '123456';
   @State currentUser: User | null = null;
   @State activeTab: number = 0;
-  @State selectedCategoryId: string = 'all';
-  @State searchKeyword: string = '';
   @State selectedArticleId: string = 'k2';
   @State favoriteKnowledgeIds: string[] = [];
   @State workflowInstances: WorkflowInstance[] = getMockInstances();
   @State notifications: NotificationItem[] = getMockNotifications();
-  @State assistantQuestion: string = '';
-  @State assistantAnswer: string = '';
-  @State assistantRecommendedWorkflowId: string = '';
-  @State assistantRelatedKnowledgeIds: string[] = [];
   @State assistantHistory: AssistantHistory[] = [];
+  @State assistantQuestion: string = '';
+  @State assistantReply: AssistantReply | null = null;
+  @State activeSubPage: AppSubPage = 'none';
+  @State detailReturnSubPage: AppSubPage = 'none';
+  @State usefulKnowledgeIds: string[] = [];
+  @State corrections: KnowledgeCorrection[] = [];
+  @State readingFontScale: ReadingFontScale = 'standard';
 
   private copyStringArray(source: string[]): string[] {
     const target: string[] = [];
@@ -145,15 +121,6 @@ struct Index {
       list.push(item);
     });
     this.notifications = list;
-  }
-
-  private prependAssistantHistory(history: AssistantHistory): void {
-    const list: AssistantHistory[] = [];
-    list.push(history);
-    this.assistantHistory.forEach((item: AssistantHistory) => {
-      list.push(item);
-    });
-    this.assistantHistory = list;
   }
 
   build() {
@@ -284,27 +251,134 @@ struct Index {
   @Builder
   private AppShell() {
     Column() {
-      this.PageHeader();
-
-      Scroll() {
-        Column({ space: 14 }) {
-          if (this.activeTab === 0) {
-            this.WorkbenchTab();
-          } else if (this.activeTab === 1) {
-            this.KnowledgeTab();
-          } else if (this.activeTab === 2) {
-            this.WorkflowTab();
-          } else {
-            this.ProfileTab();
+      if (this.activeSubPage === 'knowledgeDetail') {
+        KnowledgeDetailPage({
+          article: this.getSelectedArticleRequired(),
+          favorite: this.isFavorite(this.selectedArticleId),
+          useful: this.usefulKnowledgeIds.includes(this.selectedArticleId),
+          fontScale: this.readingFontScale,
+          workflowNames: this.getSelectedArticleWorkflowNames(),
+          onBack: () => {
+            this.activeSubPage = this.detailReturnSubPage;
+            this.detailReturnSubPage = 'none';
+          },
+          onToggleFavorite: (articleId: string) => {
+            this.toggleFavorite(articleId);
+          },
+          onMarkUseful: (articleId: string) => {
+            this.markKnowledgeUseful(articleId);
+          },
+          onSubmitCorrection: (articleId: string, content: string): boolean => {
+            return this.submitCorrection(articleId, content);
+          },
+          onFontScaleChange: (scale: ReadingFontScale) => {
+            this.readingFontScale = scale;
+          },
+          onStartWorkflow: (templateId: string) => {
+            this.startWorkflow(templateId);
           }
-        }
-        .width('100%')
-        .padding({ left: 16, right: 16, top: 14, bottom: 20 })
-      }
-      .scrollBar(BarState.Off)
-      .layoutWeight(1)
+        })
+      } else if (this.activeSubPage === 'assistant') {
+        AssistantPage({
+          articles: this.getPublishedArticles(),
+          templates: this.templates,
+          history: $assistantHistory,
+          question: $assistantQuestion,
+          reply: $assistantReply,
+          onBack: () => {
+            this.activeSubPage = 'none';
+          },
+          onOpenArticle: (articleId: string) => {
+            this.openArticle(articleId);
+          },
+          onStartWorkflow: (templateId: string) => {
+            this.startWorkflow(templateId);
+          }
+        })
+      } else if (this.activeSubPage === 'messages') {
+        MessagesPage({
+          notifications: this.getVisibleMessages(),
+          onBack: () => {
+            this.activeSubPage = 'none';
+          },
+          onMarkRead: (notificationId: string) => {
+            this.notifications = markNotificationRead(this.notifications, notificationId);
+          },
+          onOpenKnowledge: (articleId: string) => {
+            this.openArticle(articleId);
+          },
+          onOpenWorkflow: (instanceId: string) => {
+            this.openWorkflowFromMessage(instanceId);
+          }
+        })
+      } else {
+        this.PageHeader();
 
-      this.BottomNav();
+        Scroll() {
+          Column({ space: 14 }) {
+            if (this.activeTab === 0) {
+              DashboardPage({
+                user: this.getCurrentUser(),
+                articles: this.getPublishedArticles(),
+                recentArticles: this.getRecentArticles(),
+                favoriteArticles: this.getFavoriteArticles(),
+                favoriteKnowledgeIds: this.favoriteKnowledgeIds,
+                notifications: this.getVisibleMessages(),
+                templates: this.templates,
+                todoCount: this.getDashboardTodoCount(),
+                onOpenArticle: (articleId: string) => {
+                  this.openArticle(articleId);
+                },
+                onOpenAssistant: () => {
+                  this.activeSubPage = 'assistant';
+                },
+                onOpenMessages: () => {
+                  this.activeSubPage = 'messages';
+                },
+                onStartWorkflow: (templateId: string) => {
+                  this.startWorkflow(templateId);
+                }
+              })
+            } else if (this.activeTab === 1) {
+              KnowledgePage({
+                categories: this.categories,
+                articles: this.articles,
+                favoriteKnowledgeIds: this.favoriteKnowledgeIds,
+                onOpenArticle: (articleId: string) => {
+                  this.openArticle(articleId);
+                }
+              })
+            } else if (this.activeTab === 2) {
+              this.WorkflowTab();
+            } else {
+              ProfilePage({
+                user: this.getCurrentUser(),
+                favoriteArticles: this.getFavoriteArticles(),
+                unreadCount: this.getUnreadMessageCount(),
+                fontScale: this.readingFontScale,
+                onOpenArticle: (articleId: string) => {
+                  this.openArticle(articleId);
+                },
+                onOpenMessages: () => {
+                  this.activeSubPage = 'messages';
+                },
+                onFontScaleChange: (scale: ReadingFontScale) => {
+                  this.readingFontScale = scale;
+                },
+                onLogout: () => {
+                  this.logout();
+                }
+              })
+            }
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16, top: 14, bottom: 20 })
+        }
+        .scrollBar(BarState.Off)
+        .layoutWeight(1)
+
+        this.BottomNav();
+      }
     }
     .width('100%')
     .height('100%')
@@ -337,236 +411,6 @@ struct Index {
     .width('100%')
     .padding({ left: 16, right: 16, top: 18, bottom: 14 })
     .backgroundColor('#F3F6FB')
-  }
-
-  @Builder
-  private WorkbenchTab() {
-    SectionBlock({ title: '工作概览', subtitle: `${this.getCurrentUser().name}，今天推荐先处理待办，再查看最新制度更新。` }) {
-      Row({ space: 10 }) {
-        this.StatCard('待处理', `${this.getDashboardTodoCount()}`, '#246BFD');
-        this.StatCard('知识总数', `${this.getPublishedArticles().length}`, '#12B76A');
-        this.StatCard('消息提醒', `${this.getVisibleMessages().length}`, '#F79009');
-      }
-      .width('100%')
-    }
-
-    SectionBlock({ title: '快捷流程', subtitle: '常用流程入口已根据需求文档预置为四类审批。' }) {
-      Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
-        ForEach(this.templates, (item: WorkflowTemplate) => {
-          Column({ space: 8 }) {
-            Text(item.name)
-              .fontSize(15)
-              .fontWeight(FontWeight.Medium)
-              .fontColor('#1F2A44')
-              .width('100%')
-
-            Text(item.description)
-              .fontSize(12)
-              .fontColor('#667085')
-              .lineHeight(18)
-              .width('100%')
-
-            Text(item.riskLevel === 'high' ? '含安全确认预留' : '常规流程')
-              .fontSize(11)
-              .fontColor(item.riskLevel === 'high' ? '#B54708' : '#246BFD')
-              .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-              .backgroundColor(item.riskLevel === 'high' ? '#FFF3E8' : '#EAF1FF')
-              .borderRadius(12)
-          }
-          .width('48%')
-          .margin({ bottom: 12 })
-          .padding(14)
-          .backgroundColor('#F8FAFF')
-          .borderRadius(18)
-          .onClick(() => {
-            this.startWorkflow(item.id);
-          })
-        }, (item: WorkflowTemplate) => item.id)
-      }
-      .width('100%')
-    }
-
-    SectionBlock({ title: '智能助手', subtitle: '基础版本已接入关键词问答，可从工作台直接进入使用。' }) {
-      Column({ space: 10 }) {
-        TextInput({ placeholder: '例如：报销打车费需要什么材料？', text: this.assistantQuestion })
-          .height(48)
-          .borderRadius(14)
-          .backgroundColor('#F8FAFC')
-          .padding({ left: 14, right: 14 })
-          .onChange((value: string) => {
-            this.assistantQuestion = value;
-          })
-
-        Button('立即提问')
-          .width('100%')
-          .height(44)
-          .backgroundColor('#1D4ED8')
-          .borderRadius(14)
-          .onClick(() => {
-            this.handleAskAssistant();
-          })
-
-        if (this.assistantAnswer.length > 0) {
-          Column({ space: 8 }) {
-            Text(this.assistantAnswer)
-              .fontSize(13)
-              .fontColor('#344054')
-              .lineHeight(20)
-              .width('100%')
-
-            if (this.assistantRecommendedWorkflowId.length > 0) {
-              Button(`发起${this.getTemplateName(this.assistantRecommendedWorkflowId)}`)
-                .fontSize(12)
-                .height(36)
-                .backgroundColor('#EAF1FF')
-                .fontColor('#246BFD')
-                .borderRadius(12)
-                .onClick(() => {
-                  this.startWorkflow(this.assistantRecommendedWorkflowId);
-                })
-            }
-          }
-          .width('100%')
-          .padding(14)
-          .backgroundColor('#F8FAFF')
-          .borderRadius(16)
-        }
-      }
-      .width('100%')
-    }
-
-    SectionBlock({ title: '最近知识', subtitle: '工作台展示最近浏览与高频知识，便于二次进入。' }) {
-      Column({ space: 10 }) {
-        ForEach(this.getRecentArticles(), (item: KnowledgeArticle) => {
-          this.ArticlePreview(item, true);
-        }, (item: KnowledgeArticle) => item.id)
-      }
-      .width('100%')
-    }
-
-    SectionBlock({ title: '消息提醒', subtitle: '流程状态变化与知识更新会统一汇总到这里。' }) {
-      Column({ space: 10 }) {
-        ForEach(this.getVisibleMessages().slice(0, 3), (item: NotificationItem) => {
-          Column({ space: 6 }) {
-            Text(item.title)
-              .fontSize(14)
-              .fontWeight(FontWeight.Medium)
-              .fontColor('#1F2A44')
-              .width('100%')
-
-            Text(item.content)
-              .fontSize(12)
-              .fontColor('#667085')
-              .lineHeight(18)
-              .width('100%')
-
-            Text(item.time)
-              .fontSize(11)
-              .fontColor('#98A2B3')
-          }
-          .width('100%')
-          .padding(14)
-          .backgroundColor(item.read ? '#F8FAFC' : '#EEF4FF')
-          .borderRadius(16)
-        }, (item: NotificationItem) => item.id)
-      }
-      .width('100%')
-    }
-  }
-
-  @Builder
-  private KnowledgeTab() {
-    SectionBlock({ title: '知识检索', subtitle: '支持分类浏览、关键词搜索、详情查看与收藏。' }) {
-      Column({ space: 12 }) {
-        TextInput({ placeholder: '搜索制度、流程、操作指南', text: this.searchKeyword })
-          .height(48)
-          .borderRadius(14)
-          .backgroundColor('#F8FAFC')
-          .padding({ left: 14, right: 14 })
-          .onChange((value: string) => {
-            this.searchKeyword = value;
-          })
-
-        Scroll() {
-          Row({ space: 8 }) {
-            ForEach(this.categories, (item: KnowledgeCategory) => {
-              Text(item.name)
-                .fontSize(12)
-                .fontColor(this.selectedCategoryId === item.id ? '#FFFFFF' : '#475467')
-                .padding({ left: 14, right: 14, top: 9, bottom: 9 })
-                .backgroundColor(this.selectedCategoryId === item.id ? '#246BFD' : '#F2F4F7')
-                .borderRadius(18)
-                .onClick(() => {
-                  this.selectedCategoryId = item.id;
-                })
-            }, (item: KnowledgeCategory) => item.id)
-          }
-        }
-        .scrollable(ScrollDirection.Horizontal)
-        .scrollBar(BarState.Off)
-      }
-      .width('100%')
-    }
-
-    SectionBlock({ title: '知识列表', subtitle: `共检索到 ${this.getFilteredArticles().length} 条已发布知识。` }) {
-      Column({ space: 10 }) {
-        ForEach(this.getFilteredArticles(), (item: KnowledgeArticle) => {
-          this.ArticlePreview(item, false);
-        }, (item: KnowledgeArticle) => item.id)
-      }
-      .width('100%')
-    }
-
-    if (this.getSelectedArticle() !== null) {
-      SectionBlock({ title: '知识详情', subtitle: '当前选中的知识详情会展示正文、附件与适用流程。' }) {
-        Column({ space: 10 }) {
-          Text(this.getSelectedArticleTitle())
-            .fontSize(18)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#1F2A44')
-            .width('100%')
-
-          Text(this.getSelectedArticleContent())
-            .fontSize(13)
-            .fontColor('#344054')
-            .lineHeight(22)
-            .width('100%')
-
-          Text(`标签：${this.getSelectedArticleTags()}`)
-            .fontSize(12)
-            .fontColor('#667085')
-
-          Text(`附件：${this.getSelectedArticleAttachments()}`)
-            .fontSize(12)
-            .fontColor('#667085')
-
-          Text(`适用流程：${this.getSelectedArticleWorkflowNames()}`)
-            .fontSize(12)
-            .fontColor('#667085')
-
-          Row({ space: 10 }) {
-            Button(this.isFavorite(this.selectedArticleId) ? '取消收藏' : '收藏知识')
-              .height(38)
-              .backgroundColor('#EAF1FF')
-              .fontColor('#246BFD')
-              .borderRadius(12)
-              .onClick(() => {
-                this.toggleFavorite(this.selectedArticleId);
-              })
-
-            Button('发起关联流程')
-              .height(38)
-              .backgroundColor('#FFF4ED')
-              .fontColor('#C4320A')
-              .borderRadius(12)
-              .onClick(() => {
-                this.startWorkflow(this.getSelectedArticlePrimaryWorkflowId());
-              })
-          }
-        }
-        .width('100%')
-      }
-    }
   }
 
   @Builder
@@ -636,114 +480,6 @@ struct Index {
       }
     }
 
-    if (this.assistantHistory.length > 0) {
-      SectionBlock({ title: '最近问答记录', subtitle: '基础框架保留最近问答，便于后续接入真实智能能力。' }) {
-        Column({ space: 10 }) {
-          ForEach(this.assistantHistory.slice(0, 3), (item: AssistantHistory) => {
-            Column({ space: 6 }) {
-              Text(item.question)
-                .fontSize(14)
-                .fontWeight(FontWeight.Medium)
-                .fontColor('#1F2A44')
-                .width('100%')
-
-              Text(item.answer)
-                .fontSize(12)
-                .fontColor('#667085')
-                .lineHeight(18)
-                .width('100%')
-
-              Text(item.time)
-                .fontSize(11)
-                .fontColor('#98A2B3')
-            }
-            .width('100%')
-            .padding(14)
-            .backgroundColor('#F8FAFC')
-            .borderRadius(16)
-          }, (item: AssistantHistory) => item.id)
-        }
-        .width('100%')
-      }
-    }
-  }
-
-  @Builder
-  private ProfileTab() {
-    SectionBlock({ title: '个人信息', subtitle: '基础框架已经接入角色、权限与个性化知识入口。' }) {
-      Column({ space: 10 }) {
-        Text(`${this.getCurrentUser().name} · ${this.getCurrentUser().roleLabel}`)
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1F2A44')
-
-        Text(`账号：${this.getCurrentUser().account}`)
-          .fontSize(13)
-          .fontColor('#667085')
-
-        Text(`部门：${this.getCurrentUser().department}`)
-          .fontSize(13)
-          .fontColor('#667085')
-      }
-      .width('100%')
-    }
-
-    SectionBlock({ title: '我的收藏', subtitle: '收藏知识已和知识库模块打通，可继续扩展到消息提醒。' }) {
-      Column({ space: 10 }) {
-        ForEach(this.getFavoriteArticles(), (item: KnowledgeArticle) => {
-          this.ArticlePreview(item, true);
-        }, (item: KnowledgeArticle) => item.id)
-      }
-      .width('100%')
-    }
-
-    SectionBlock({ title: '角色能力', subtitle: '系统会根据角色控制入口和待办处理能力。' }) {
-      Flex({ wrap: FlexWrap.Wrap }) {
-        ForEach(this.getCurrentUser().permissions, (item: string) => {
-          Text(item)
-            .fontSize(12)
-            .fontColor('#175CD3')
-            .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-            .backgroundColor('#EAF1FF')
-            .borderRadius(14)
-            .margin({ right: 8, bottom: 8 })
-        }, (item: string) => item)
-      }
-      .width('100%')
-    }
-
-    if (this.getCurrentUser().role !== 'employee') {
-      SectionBlock({ title: '管理预留', subtitle: '管理员与审批角色在这里预留后续的配置和日志能力入口。' }) {
-        Column({ space: 10 }) {
-          Text('1. 知识发布与下架')
-            .fontSize(13)
-            .fontColor('#344054')
-          Text('2. 用户、角色与流程模板管理')
-            .fontSize(13)
-            .fontColor('#344054')
-          Text('3. 安全确认与操作日志')
-            .fontSize(13)
-            .fontColor('#344054')
-        }
-        .width('100%')
-      }
-    }
-
-    Button('退出登录')
-      .width('100%')
-      .height(48)
-      .margin({ top: 4, bottom: 20 })
-      .backgroundColor('#FFFFFF')
-      .fontColor('#D92D20')
-      .borderRadius(16)
-      .onClick(() => {
-        this.currentUser = null;
-        this.activeTab = 0;
-        this.assistantQuestion = '';
-        this.assistantAnswer = '';
-        this.assistantRecommendedWorkflowId = '';
-        this.assistantRelatedKnowledgeIds = [];
-      })
   }
 
   @Builder
@@ -777,65 +513,6 @@ struct Index {
     .padding({ left: 10, right: 10, bottom: 8 })
     .backgroundColor('#FFFFFF')
     .borderRadius({ topLeft: 24, topRight: 24 })
-  }
-
-  @Builder
-  private StatCard(title: string, value: string, color: string) {
-    Column({ space: 6 }) {
-      Text(title)
-        .fontSize(12)
-        .fontColor('#667085')
-
-      Text(value)
-        .fontSize(24)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(color)
-    }
-    .layoutWeight(1)
-    .padding(14)
-    .backgroundColor('#F8FAFC')
-    .borderRadius(16)
-  }
-
-  @Builder
-  private ArticlePreview(item: KnowledgeArticle, openInKnowledgeTab: boolean) {
-    Column({ space: 8 }) {
-      Row() {
-        Text(item.title)
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#1F2A44')
-          .layoutWeight(1)
-
-        Text(item.categoryName)
-          .fontSize(11)
-          .fontColor('#246BFD')
-          .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-          .backgroundColor('#EAF1FF')
-          .borderRadius(12)
-      }
-
-      Text(item.summary)
-        .fontSize(12)
-        .fontColor('#667085')
-        .lineHeight(18)
-        .width('100%')
-
-      Text(`标签：${item.tags.join(' / ')} · 更新：${item.updateTime}`)
-        .fontSize(11)
-        .fontColor('#98A2B3')
-        .width('100%')
-    }
-    .width('100%')
-    .padding(14)
-    .backgroundColor('#F8FAFC')
-    .borderRadius(18)
-    .onClick(() => {
-      this.openArticle(item.id);
-      if (openInKnowledgeTab) {
-        this.activeTab = 1;
-      }
-    })
   }
 
   @Builder
@@ -902,10 +579,79 @@ struct Index {
     .borderRadius(18)
   }
 
+  private showMessage(message: string): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message });
+    } catch (error) {
+      console.error(`Index toast failed: ${error}`);
+    }
+  }
+
+  private markKnowledgeUseful(articleId: string): void {
+    if (this.usefulKnowledgeIds.includes(articleId)) {
+      return;
+    }
+    const ids: string[] = [articleId];
+    this.usefulKnowledgeIds.forEach((item: string) => {
+      ids.push(item);
+    });
+    this.usefulKnowledgeIds = ids;
+  }
+
+  private submitCorrection(articleId: string, content: string): boolean {
+    const normalized: string = validateCorrection(content);
+    if (normalized.length === 0 || this.currentUser === null) {
+      return false;
+    }
+    const correction: KnowledgeCorrection = {
+      id: `correction-${Date.now()}`,
+      articleId: articleId,
+      userId: this.currentUser.id,
+      content: normalized,
+      createTime: '刚刚'
+    };
+    const list: KnowledgeCorrection[] = [correction];
+    this.corrections.forEach((item: KnowledgeCorrection) => {
+      list.push(item);
+    });
+    this.corrections = list;
+    return true;
+  }
+
+  private getUnreadMessageCount(): number {
+    return this.getVisibleMessages().filter((item: NotificationItem) => !item.read).length;
+  }
+
+  private openWorkflowFromMessage(instanceId: string): void {
+    const exists: boolean = this.workflowInstances.some((item: WorkflowInstance) => item.id === instanceId);
+    if (!exists) {
+      this.showMessage('关联流程暂不可用。');
+      return;
+    }
+    this.activeSubPage = 'none';
+    this.detailReturnSubPage = 'none';
+    this.activeTab = 2;
+    this.showMessage('已进入流程页面。');
+  }
+
+  private logout(): void {
+    this.currentUser = null;
+    this.activeTab = 0;
+    this.activeSubPage = 'none';
+    this.selectedArticleId = 'k2';
+    this.favoriteKnowledgeIds = [];
+    this.usefulKnowledgeIds = [];
+    this.corrections = [];
+    this.assistantHistory = [];
+    this.assistantQuestion = '';
+    this.assistantReply = null;
+    this.readingFontScale = 'standard';
+  }
+
   private handleLogin(): void {
     const user: User | null = authenticateUser(this.loginAccount.trim(), this.loginPassword.trim());
     if (user === null) {
-      promptAction.showToast({ message: '账号或密码错误，请重试。' });
+      this.showMessage('账号或密码错误，请重试。');
       return;
     }
 
@@ -913,7 +659,15 @@ struct Index {
     this.favoriteKnowledgeIds = this.copyStringArray(user.favoriteKnowledgeIds);
     this.selectedArticleId = user.recentKnowledgeIds.length > 0 ? user.recentKnowledgeIds[0] : 'k1';
     this.activeTab = 0;
-    promptAction.showToast({ message: `欢迎你，${user.name}` });
+    this.activeSubPage = 'none';
+    this.detailReturnSubPage = 'none';
+    this.usefulKnowledgeIds = [];
+    this.corrections = [];
+    this.assistantHistory = [];
+    this.assistantQuestion = '';
+    this.assistantReply = null;
+    this.readingFontScale = 'standard';
+    this.showMessage(`欢迎你，${user.name}`);
   }
 
   private startWorkflow(templateId: string): void {
@@ -939,28 +693,9 @@ struct Index {
       targetId: instance.id
     };
     this.prependNotification(notification);
+    this.activeSubPage = 'none';
     this.activeTab = 2;
-    promptAction.showToast({ message: `${template.name} 已创建` });
-  }
-
-  private handleAskAssistant(): void {
-    if (this.assistantQuestion.trim().length === 0) {
-      promptAction.showToast({ message: '请输入问题后再提问。' });
-      return;
-    }
-
-    const result = askAssistant(this.assistantQuestion);
-    this.assistantAnswer = result.answer;
-    this.assistantRecommendedWorkflowId = result.recommendedWorkflowId;
-    this.assistantRelatedKnowledgeIds = this.copyStringArray(result.relatedKnowledgeIds);
-    const history: AssistantHistory = {
-      id: `${Date.now()}`,
-      question: this.assistantQuestion,
-      answer: result.answer,
-      time: '刚刚'
-    };
-    this.prependAssistantHistory(history);
-    promptAction.showToast({ message: '已返回模拟问答结果。' });
+    this.showMessage(`${template.name} 已创建`);
   }
 
   private handleWorkflowDecision(instanceId: string, isApproved: boolean): void {
@@ -1014,7 +749,7 @@ struct Index {
     };
     this.prependNotification(notification);
 
-    promptAction.showToast({ message: isApproved ? '已通过当前节点。' : '已驳回该流程。' });
+    this.showMessage(isApproved ? '已通过当前节点。' : '已驳回该流程。');
   }
 
   private openArticle(articleId: string): void {
@@ -1034,12 +769,14 @@ struct Index {
     updatedUser.recentKnowledgeIds = recentIds;
     this.currentUser = updatedUser;
     this.selectedArticleId = articleId;
+    this.detailReturnSubPage = this.activeSubPage;
+    this.activeSubPage = 'knowledgeDetail';
   }
 
   private toggleFavorite(articleId: string): void {
     if (this.favoriteKnowledgeIds.includes(articleId)) {
       this.favoriteKnowledgeIds = this.favoriteKnowledgeIds.filter((item: string) => item !== articleId);
-      promptAction.showToast({ message: '已取消收藏。' });
+      this.showMessage('已取消收藏。');
       return;
     }
 
@@ -1049,7 +786,7 @@ struct Index {
       favorites.push(item);
     });
     this.favoriteKnowledgeIds = favorites;
-    promptAction.showToast({ message: '已加入收藏。' });
+    this.showMessage('已加入收藏。');
   }
 
   private getCurrentUser(): User {
@@ -1086,18 +823,6 @@ struct Index {
 
   private getPublishedArticles(): KnowledgeArticle[] {
     return this.articles.filter((item: KnowledgeArticle) => item.status === 'published');
-  }
-
-  private getFilteredArticles(): KnowledgeArticle[] {
-    return this.getPublishedArticles().filter((item: KnowledgeArticle) => {
-      const matchCategory: boolean = this.selectedCategoryId === 'all' || item.categoryId === this.selectedCategoryId;
-      const keyword: string = this.searchKeyword.trim();
-      const matchKeyword: boolean = keyword.length === 0
-        || item.title.includes(keyword)
-        || item.summary.includes(keyword)
-        || item.tags.join(' ').includes(keyword);
-      return matchCategory && matchKeyword;
-    });
   }
 
   private getRecentArticles(): KnowledgeArticle[] {
@@ -1168,34 +893,17 @@ struct Index {
     return this.getArticleById(this.selectedArticleId);
   }
 
-  private getSelectedArticleTitle(): string {
+  private getSelectedArticleRequired(): KnowledgeArticle {
     const item: KnowledgeArticle | null = this.getSelectedArticle();
-    return item === null ? '' : item.title;
-  }
-
-  private getSelectedArticleContent(): string {
-    const item: KnowledgeArticle | null = this.getSelectedArticle();
-    return item === null ? '' : item.content;
-  }
-
-  private getSelectedArticleTags(): string {
-    const item: KnowledgeArticle | null = this.getSelectedArticle();
-    return item === null ? '' : item.tags.join(' / ');
-  }
-
-  private getSelectedArticleAttachments(): string {
-    const item: KnowledgeArticle | null = this.getSelectedArticle();
-    return item === null ? '' : item.attachments.join('、');
+    if (item !== null) {
+      return item;
+    }
+    return this.articles[0];
   }
 
   private getSelectedArticleWorkflowNames(): string {
     const item: KnowledgeArticle | null = this.getSelectedArticle();
     return item === null ? '' : item.relatedWorkflowIds.map((workflowId: string) => this.getTemplateName(workflowId)).join('、');
-  }
-
-  private getSelectedArticlePrimaryWorkflowId(): string {
-    const item: KnowledgeArticle | null = this.getSelectedArticle();
-    return item === null || item.relatedWorkflowIds.length === 0 ? 'wf1' : item.relatedWorkflowIds[0];
   }
 
   private getTemplateName(templateId: string): string {

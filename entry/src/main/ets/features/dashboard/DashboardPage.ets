@@ -9,13 +9,28 @@ import {
 
 @Component
 export struct DashboardPage {
+  @Require
+  @Prop
   user: User;
+  @Require
+  @Prop
   articles: KnowledgeArticle[];
+  @Require
+  @Prop
   recentArticles: KnowledgeArticle[];
+  @Require
+  @Prop
   favoriteArticles: KnowledgeArticle[];
+  @Require
+  @Prop
   favoriteKnowledgeIds: string[];
+  @Require
+  @Prop
   notifications: NotificationItem[];
+  @Require
+  @Prop
   templates: WorkflowTemplate[];
+  @Prop
   todoCount: number = 0;
   onOpenArticle: (articleId: string) => void = () => {
   };
