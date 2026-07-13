@@ -313,7 +313,9 @@ const mockNotifications: NotificationItem[] = [
     content: '张晓宁提交了“差旅报销 - 华南客户拜访”，请尽快审批。',
     time: '10 分钟前',
     read: false,
-    targetRoles: ['approver']
+    targetRoles: ['approver'],
+    targetType: 'workflow',
+    targetId: 'i1'
   },
   {
     id: 'n2',
@@ -321,7 +323,9 @@ const mockNotifications: NotificationItem[] = [
     content: '你的权限申请已由部门负责人通过，正在等待系统管理员处理。',
     time: '1 小时前',
     read: false,
-    targetRoles: ['employee']
+    targetRoles: ['employee'],
+    targetType: 'workflow',
+    targetId: 'i2'
   },
   {
     id: 'n3',
@@ -329,7 +333,7 @@ const mockNotifications: NotificationItem[] = [
     content: '《系统权限申请规范》已发布新版本 v1.1。',
     time: '今天',
     read: false,
-    targetRoles: ['employee', 'approver', 'systemAdmin', 'knowledgeAdmin']
+ main
   },
   {
     id: 'n4',
@@ -337,7 +341,9 @@ const mockNotifications: NotificationItem[] = [
     content: '“采购申请 - 新会议平板”已触发安全确认，请系统管理员处理。',
     time: '今天',
     read: true,
-    targetRoles: ['systemAdmin']
+    targetRoles: ['systemAdmin'],
+    targetType: 'none',
+    targetId: ''
   }
 ];
 
@@ -495,7 +501,9 @@ function cloneNotification(item: NotificationItem): NotificationItem {
     content: item.content,
     time: item.time,
     read: item.read,
-    targetRoles: copyUserRoleArray(item.targetRoles)
+    targetRoles: copyUserRoleArray(item.targetRoles),
+    targetType: item.targetType,
+    targetId: item.targetId
   };
 }
 

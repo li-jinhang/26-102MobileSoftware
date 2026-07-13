@@ -1,6 +1,5 @@
 export type UserRole = 'employee' | 'approver' | 'knowledgeAdmin' | 'systemAdmin';
-export type WorkflowStatus = '草稿' | '待审批' | '审批中' | '待二次确认' | '已驳回' | '已通过' | '已归档';
-export type ApprovalDecision = 'submitted' | 'approved' | 'rejected' | 'securityConfirmed';
+ main
 
 export interface User {
   id: string;
@@ -87,6 +86,16 @@ export interface NotificationItem {
   time: string;
   read: boolean;
   targetRoles: UserRole[];
+  targetType: NotificationTargetType;
+  targetId: string;
+}
+
+export interface KnowledgeCorrection {
+  id: string;
+  articleId: string;
+  userId: string;
+  content: string;
+  createTime: string;
 }
 
 export interface AssistantReply {

@@ -1,33 +1,81 @@
-import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
+import { describe, expect, it } from '@ohos/hypium';
+import { KnowledgeArticle, NotificationItem } from '../main/ets/models/AppModels';
+import {
+  filterPublishedArticles,
+  searchKnowledge,
+  validateCorrection
+} from '../main/ets/common/services/KnowledgeService';
+import { buildAssistantReply } from '../main/ets/common/services/AssistantService';
+import {
+  filterNotifications,
+  markNotificationRead
+} from '../main/ets/common/services/MessageService';
 
 export default function localUnitTest() {
-  describe('localUnitTest', () => {
-    // Defines a test suite. Two parameters are supported: test suite name and test suite function.
-    beforeAll(() => {
-      // Presets an action, which is performed only once before all test cases of the test suite start.
-      // This API supports only one parameter: preset action function.
+  describe('memberAServiceTest', () => {
+    const published: KnowledgeArticle = {
+      id: 'k1',
+      title: '差旅报销制度',
+      summary: '发票规范',
+      content: '正文',
+      categoryId: 'c2',
+      categoryName: '财务报销',
+      tags: ['报销'],
+      updateTime: '2026-07-13',
+      version: 'v1.0',
+      status: 'published',
+      attachments: [],
+      relatedWorkflowIds: ['wf2']
+    };
+    const removed: KnowledgeArticle = {
+      id: 'k2',
+      title: '旧制度',
+      summary: '旧内容',
+      content: '正文',
+      categoryId: 'c2',
+      categoryName: '财务报销',
+      tags: ['废止'],
+      updateTime: '2026-07-01',
+      version: 'v0.9',
+      status: 'removed',
+      attachments: [],
+      relatedWorkflowIds: []
+    };
+
+    it('filters non-published knowledge', 0, () => {
+      expect(filterPublishedArticles([published, removed]).length).assertEqual(1);
     });
-    beforeEach(() => {
-      // Presets an action, which is performed before each unit test case starts.
-      // The number of execution times is the same as the number of test cases defined by **it**.
-      // This API supports only one parameter: preset action function.
+
+    it('combines category and keyword search', 0, () => {
+      expect(searchKnowledge([published, removed], 'c2', ' 发票 ').length).assertEqual(1);
+      expect(searchKnowledge([published, removed], 'c1', '发票').length).assertEqual(0);
     });
-    afterEach(() => {
-      // Presets a clear action, which is performed after each unit test case ends.
-      // The number of execution times is the same as the number of test cases defined by **it**.
-      // This API supports only one parameter: clear action function.
+
+    it('validates correction text', 0, () => {
+      expect(validateCorrection('   ')).assertEqual('');
+      expect(validateCorrection(' 日期已经过期 ')).assertEqual('日期已经过期');
     });
-    afterAll(() => {
-      // Presets a clear action, which is performed after all test cases of the test suite end.
-      // This API supports only one parameter: clear action function.
+
+    it('rejects empty assistant input', 0, () => {
+      expect(buildAssistantReply('   ')).assertNull();
+      const reply = buildAssistantReply('打车费怎么报销');
+      expect(reply === null ? '' : reply.recommendedWorkflowId).assertEqual('wf2');
     });
-    it('assertContain', 0, () => {
-      // Defines a test case. This API supports three parameters: test case name, filter parameter, and test case function.
-      let a = 'abc';
-      let b = 'b';
-      // Defines a variety of assertion methods, which are used to declare expected boolean conditions.
-      expect(a).assertContain(b);
-      expect(a).assertEqual(a);
+
+    it('filters unread messages and marks one read immutably', 0, () => {
+      const message: NotificationItem = {
+        id: 'n1',
+        title: '更新',
+        content: '内容',
+        time: '现在',
+        read: false,
+        targetRoles: ['employee'],
+        targetType: 'knowledge',
+        targetId: 'k1'
+      };
+      expect(filterNotifications([message], true).length).assertEqual(1);
+      expect(markNotificationRead([message], 'n1')[0].read).assertTrue();
+      expect(message.read).assertFalse();
     });
   });
 }
