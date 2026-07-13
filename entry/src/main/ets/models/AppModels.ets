@@ -1,4 +1,7 @@
 export type UserRole = 'employee' | 'approver' | 'knowledgeAdmin' | 'systemAdmin';
+export type AppSubPage = 'none' | 'knowledgeDetail' | 'assistant' | 'messages';
+export type ReadingFontScale = 'small' | 'standard' | 'large';
+export type NotificationTargetType = 'knowledge' | 'workflow' | 'none';
 
 export interface User {
   id: string;
@@ -65,6 +68,16 @@ export interface NotificationItem {
   time: string;
   read: boolean;
   targetRoles: UserRole[];
+  targetType: NotificationTargetType;
+  targetId: string;
+}
+
+export interface KnowledgeCorrection {
+  id: string;
+  articleId: string;
+  userId: string;
+  content: string;
+  createTime: string;
 }
 
 export interface AssistantReply {

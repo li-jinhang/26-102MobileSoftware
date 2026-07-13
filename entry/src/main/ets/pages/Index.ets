@@ -934,7 +934,9 @@ struct Index {
       content: `${this.getCurrentUser().name} 发起了新的${template.name}，当前等待处理。`,
       time: '刚刚',
       read: false,
-      targetRoles: template.id === 'wf4' ? ['systemAdmin', 'employee'] : ['approver', 'employee']
+      targetRoles: template.id === 'wf4' ? ['systemAdmin', 'employee'] : ['approver', 'employee'],
+      targetType: 'workflow',
+      targetId: instance.id
     };
     this.prependNotification(notification);
     this.activeTab = 2;
@@ -1006,7 +1008,9 @@ struct Index {
       content: isApproved ? '待办流程已处理，申请人将收到新的状态提醒。' : '申请人需要根据审批意见补充并再次提交。',
       time: '刚刚',
       read: false,
-      targetRoles: ['employee', 'approver', 'systemAdmin']
+      targetRoles: ['employee', 'approver', 'systemAdmin'],
+      targetType: 'workflow',
+      targetId: instanceId
     };
     this.prependNotification(notification);
 
