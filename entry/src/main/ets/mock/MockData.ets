@@ -1,5 +1,7 @@
 import {
+  ApprovalRecord,
   AssistantReply,
+  AuditLog,
   KnowledgeArticle,
   KnowledgeCategory,
   NotificationItem,
@@ -44,10 +46,23 @@ const mockUsers: User[] = [
     department: '信息化管理部',
     role: 'systemAdmin',
     roleLabel: '系统管理员',
-    permissions: ['知识管理', '用户角色管理', '流程模板管理', '查看操作日志'],
+    permissions: ['知识管理', '用户角色管理', '流程模板管理', '查看操作日志', '安全确认'],
     favoriteKnowledgeIds: ['k3'],
     recentKnowledgeIds: ['k1', 'k5'],
     todoCount: 3
+  },
+  {
+    id: 'u4',
+    name: '林知夏',
+    account: 'knowledge01',
+    password: '123456',
+    department: '知识运营组',
+    role: 'knowledgeAdmin',
+    roleLabel: '知识管理员',
+    permissions: ['知识管理', '知识分类维护', '知识发布下架', '查看审计摘要'],
+    favoriteKnowledgeIds: ['k2', 'k5'],
+    recentKnowledgeIds: ['k5', 'k2'],
+    todoCount: 1
   }
 ];
 
@@ -141,23 +156,29 @@ const mockTemplates: WorkflowTemplate[] = [
     description: '填写请假类型、时间与原因，提交给部门负责人审批。',
     approverText: '部门负责人',
     relatedKnowledgeIds: ['k1'],
-    riskLevel: 'normal'
+    riskLevel: 'normal',
+    riskHint: '常规人员流程，无需额外安全确认。',
+    defaultApproverRoles: ['approver']
   },
   {
     id: 'wf2',
     name: '报销申请',
     description: '填写费用类型、金额、事由并上传材料，支持高金额安全确认。',
-    approverText: '部门负责人 / 财务',
+    approverText: '部门负责人 / 财务复核',
     relatedKnowledgeIds: ['k2'],
-    riskLevel: 'high'
+    riskLevel: 'high',
+    riskHint: '金额超过 5000 元会触发二次安全确认和审计留痕。',
+    defaultApproverRoles: ['approver', 'systemAdmin']
   },
   {
     id: 'wf3',
     name: '采购申请',
     description: '填写采购物品、预算、用途和期望到货时间。',
-    approverText: '部门负责人 / 采购负责人',
+    approverText: '部门负责人 / 采购复核',
     relatedKnowledgeIds: ['k3'],
-    riskLevel: 'high'
+    riskLevel: 'high',
+    riskHint: '高金额采购需进行风险检测并走二次确认。',
+    defaultApproverRoles: ['approver', 'systemAdmin']
   },
   {
     id: 'wf4',
@@ -165,7 +186,9 @@ const mockTemplates: WorkflowTemplate[] = [
     description: '申请业务系统账号或访问权限，可预填申请说明。',
     approverText: '部门负责人 / 系统管理员',
     relatedKnowledgeIds: ['k4'],
-    riskLevel: 'normal'
+    riskLevel: 'normal',
+    riskHint: '敏感系统账号会由系统管理员完成最终开通确认。',
+    defaultApproverRoles: ['approver', 'systemAdmin']
   }
 ];
 
@@ -181,7 +204,25 @@ const mockInstances: WorkflowInstance[] = [
     currentApproverRole: 'approver',
     createTime: '2026-07-12 09:20',
     latestComment: '已提交，等待审批。',
-    relatedKnowledgeIds: ['k2']
+    relatedKnowledgeIds: ['k2'],
+    amount: 3680,
+    formSummary: '打车与住宿报销，需补充电子发票和行程截图。',
+    formDetail: ['费用类型：差旅', '报销金额：3680 元', '事由：华南客户拜访', '附件：发票+行程截图'],
+    approvalRecords: [
+      {
+        id: 'ar1',
+        nodeName: '提交流程',
+        operatorRole: 'employee',
+        operatorName: '张晓宁',
+        decision: 'submitted',
+        comment: '已提交差旅报销材料。',
+        time: '2026-07-12 09:20'
+      }
+    ],
+    riskLevel: 'normal',
+    riskReason: '',
+    requiresSecurityConfirm: false,
+    securityConfirmed: false
   },
   {
     id: 'i2',
@@ -194,20 +235,74 @@ const mockInstances: WorkflowInstance[] = [
     currentApproverRole: 'systemAdmin',
     createTime: '2026-07-11 15:30',
     latestComment: '部门负责人已通过，待系统管理员开通。',
-    relatedKnowledgeIds: ['k4']
+    relatedKnowledgeIds: ['k4'],
+    amount: 0,
+    formSummary: '申请项目看板访问权限，用于跟进版本发布。',
+    formDetail: ['系统名称：项目看板', '使用期限：2026-07 至 2026-12', '业务场景：版本发布跟踪', '附件：权限矩阵截图'],
+    approvalRecords: [
+      {
+        id: 'ar2',
+        nodeName: '提交流程',
+        operatorRole: 'employee',
+        operatorName: '张晓宁',
+        decision: 'submitted',
+        comment: '申请项目看板访问权限。',
+        time: '2026-07-11 15:30'
+      },
+      {
+        id: 'ar3',
+        nodeName: '部门负责人审批',
+        operatorRole: 'approver',
+        operatorName: '李清越',
+        decision: 'approved',
+        comment: '业务场景明确，同意流转至系统管理员。',
+        time: '2026-07-11 16:20'
+      }
+    ],
+    riskLevel: 'normal',
+    riskReason: '',
+    requiresSecurityConfirm: false,
+    securityConfirmed: false
   },
   {
     id: 'i3',
-    templateId: 'wf1',
-    title: '请假申请 - 7 月 15 日',
+    templateId: 'wf3',
+    title: '采购申请 - 新会议平板',
     applicantId: 'u2',
     applicantName: '李清越',
-    status: '已通过',
-    currentNode: '流程结束',
-    currentApproverRole: 'approver',
+    status: '待二次确认',
+    currentNode: '等待数字盾二次确认',
+    currentApproverRole: 'systemAdmin',
     createTime: '2026-07-10 10:10',
-    latestComment: '审批已完成。',
-    relatedKnowledgeIds: ['k1']
+    latestComment: '金额较高，已触发采购风险确认。',
+    relatedKnowledgeIds: ['k3'],
+    amount: 12800,
+    formSummary: '采购会议平板 2 台，用于客户演示室升级。',
+    formDetail: ['采购物品：会议平板', '预算金额：12800 元', '用途：客户演示室升级', '期望到货：2026-07-20'],
+    approvalRecords: [
+      {
+        id: 'ar4',
+        nodeName: '提交流程',
+        operatorRole: 'approver',
+        operatorName: '李清越',
+        decision: 'submitted',
+        comment: '采购演示设备。',
+        time: '2026-07-10 10:10'
+      },
+      {
+        id: 'ar5',
+        nodeName: '部门负责人审批',
+        operatorRole: 'approver',
+        operatorName: '李清越',
+        decision: 'approved',
+        comment: '预算合理，进入安全确认。',
+        time: '2026-07-10 11:00'
+      }
+    ],
+    riskLevel: 'high',
+    riskReason: '采购金额超过 10000 元，需进行二次确认。',
+    requiresSecurityConfirm: true,
+    securityConfirmed: false
   }
 ];
 
@@ -238,19 +333,50 @@ const mockNotifications: NotificationItem[] = [
     content: '《系统权限申请规范》已发布新版本 v1.1。',
     time: '今天',
     read: false,
-    targetRoles: ['employee', 'approver', 'systemAdmin'],
-    targetType: 'knowledge',
-    targetId: 'k4'
+ main
   },
   {
     id: 'n4',
-    title: '管理台待完善',
-    content: '请补充用户、角色与流程模板配置数据。',
+    title: '高风险采购待二次确认',
+    content: '“采购申请 - 新会议平板”已触发安全确认，请系统管理员处理。',
     time: '今天',
     read: true,
     targetRoles: ['systemAdmin'],
     targetType: 'none',
     targetId: ''
+  }
+];
+
+const mockAuditLogs: AuditLog[] = [
+  {
+    id: 'log1',
+    module: '流程审批',
+    action: '提交报销申请',
+    operatorName: '张晓宁',
+    operatorRole: 'employee',
+    riskLevel: 'normal',
+    detail: '提交了“差旅报销 - 华南客户拜访”，材料待部门负责人审核。',
+    time: '2026-07-12 09:20'
+  },
+  {
+    id: 'log2',
+    module: '安全治理',
+    action: '触发采购风险检测',
+    operatorName: '李清越',
+    operatorRole: 'approver',
+    riskLevel: 'high',
+    detail: '采购金额 12800 元，系统要求进入二次安全确认流程。',
+    time: '2026-07-10 11:00'
+  },
+  {
+    id: 'log3',
+    module: '系统管理',
+    action: '查看权限申请',
+    operatorName: '周承安',
+    operatorRole: 'systemAdmin',
+    riskLevel: 'normal',
+    detail: '查看“权限申请 - 项目看板访问”的开通材料。',
+    time: '2026-07-11 16:35'
   }
 ];
 
@@ -270,8 +396,28 @@ function copyUserRoleArray(source: UserRole[]): UserRole[] {
   return target;
 }
 
+function cloneApprovalRecord(item: ApprovalRecord): ApprovalRecord {
+  return {
+    id: item.id,
+    nodeName: item.nodeName,
+    operatorRole: item.operatorRole,
+    operatorName: item.operatorName,
+    decision: item.decision,
+    comment: item.comment,
+    time: item.time
+  };
+}
+
+function copyApprovalRecords(source: ApprovalRecord[]): ApprovalRecord[] {
+  const target: ApprovalRecord[] = [];
+  source.forEach((item: ApprovalRecord) => {
+    target.push(cloneApprovalRecord(item));
+  });
+  return target;
+}
+
 function cloneUser(item: User): User {
-  const user: User = {
+  return {
     id: item.id,
     name: item.name,
     account: item.account,
@@ -284,20 +430,18 @@ function cloneUser(item: User): User {
     recentKnowledgeIds: copyStringArray(item.recentKnowledgeIds),
     todoCount: item.todoCount
   };
-  return user;
 }
 
 function cloneCategory(item: KnowledgeCategory): KnowledgeCategory {
-  const category: KnowledgeCategory = {
+  return {
     id: item.id,
     name: item.name,
     description: item.description
   };
-  return category;
 }
 
 function cloneArticle(item: KnowledgeArticle): KnowledgeArticle {
-  const article: KnowledgeArticle = {
+  return {
     id: item.id,
     title: item.title,
     summary: item.summary,
@@ -311,23 +455,23 @@ function cloneArticle(item: KnowledgeArticle): KnowledgeArticle {
     attachments: copyStringArray(item.attachments),
     relatedWorkflowIds: copyStringArray(item.relatedWorkflowIds)
   };
-  return article;
 }
 
 function cloneTemplate(item: WorkflowTemplate): WorkflowTemplate {
-  const template: WorkflowTemplate = {
+  return {
     id: item.id,
     name: item.name,
     description: item.description,
     approverText: item.approverText,
     relatedKnowledgeIds: copyStringArray(item.relatedKnowledgeIds),
-    riskLevel: item.riskLevel
+    riskLevel: item.riskLevel,
+    riskHint: item.riskHint,
+    defaultApproverRoles: copyUserRoleArray(item.defaultApproverRoles)
   };
-  return template;
 }
 
 function cloneInstance(item: WorkflowInstance): WorkflowInstance {
-  const instance: WorkflowInstance = {
+  return {
     id: item.id,
     templateId: item.templateId,
     title: item.title,
@@ -338,13 +482,20 @@ function cloneInstance(item: WorkflowInstance): WorkflowInstance {
     currentApproverRole: item.currentApproverRole,
     createTime: item.createTime,
     latestComment: item.latestComment,
-    relatedKnowledgeIds: copyStringArray(item.relatedKnowledgeIds)
+    relatedKnowledgeIds: copyStringArray(item.relatedKnowledgeIds),
+    amount: item.amount,
+    formSummary: item.formSummary,
+    formDetail: copyStringArray(item.formDetail),
+    approvalRecords: copyApprovalRecords(item.approvalRecords),
+    riskLevel: item.riskLevel,
+    riskReason: item.riskReason,
+    requiresSecurityConfirm: item.requiresSecurityConfirm,
+    securityConfirmed: item.securityConfirmed
   };
-  return instance;
 }
 
 function cloneNotification(item: NotificationItem): NotificationItem {
-  const notification: NotificationItem = {
+  return {
     id: item.id,
     title: item.title,
     content: item.content,
@@ -354,7 +505,19 @@ function cloneNotification(item: NotificationItem): NotificationItem {
     targetType: item.targetType,
     targetId: item.targetId
   };
-  return notification;
+}
+
+function cloneAuditLog(item: AuditLog): AuditLog {
+  return {
+    id: item.id,
+    module: item.module,
+    action: item.action,
+    operatorName: item.operatorName,
+    operatorRole: item.operatorRole,
+    riskLevel: item.riskLevel,
+    detail: item.detail,
+    time: item.time
+  };
 }
 
 export function getMockUsers(): User[] {
@@ -405,6 +568,14 @@ export function getMockNotifications(): NotificationItem[] {
   return list;
 }
 
+export function getMockAuditLogs(): AuditLog[] {
+  const list: AuditLog[] = [];
+  mockAuditLogs.forEach((item: AuditLog) => {
+    list.push(cloneAuditLog(item));
+  });
+  return list;
+}
+
 export function authenticateUser(account: string, password: string): User | null {
   const currentUser: User | undefined = mockUsers.find((item: User) => item.account === account && item.password === password);
   if (currentUser === undefined) {
@@ -414,22 +585,48 @@ export function authenticateUser(account: string, password: string): User | null
   return cloneUser(currentUser);
 }
 
-export function buildWorkflowInstance(template: WorkflowTemplate, user: User): WorkflowInstance {
+export function buildWorkflowInstance(
+  template: WorkflowTemplate,
+  user: User,
+  titleSuffix: string,
+  formSummary: string,
+  formDetail: string[],
+  amount: number,
+  riskReason: string,
+  requiresSecurityConfirm: boolean
+): WorkflowInstance {
   const timestamp: number = Date.now();
-  const instance: WorkflowInstance = {
+  return {
     id: `i${timestamp}`,
     templateId: template.id,
-    title: `${template.name} - ${user.name}`,
+    title: `${template.name} - ${titleSuffix}`,
     applicantId: user.id,
     applicantName: user.name,
     status: '待审批',
-    currentNode: '等待审批人处理',
-    currentApproverRole: template.id === 'wf4' ? 'systemAdmin' : 'approver',
+    currentNode: `等待${template.approverText}处理`,
+    currentApproverRole: template.defaultApproverRoles[0],
     createTime: '刚刚',
     latestComment: '已从移动端发起流程。',
-    relatedKnowledgeIds: copyStringArray(template.relatedKnowledgeIds)
+    relatedKnowledgeIds: copyStringArray(template.relatedKnowledgeIds),
+    amount: amount,
+    formSummary: formSummary,
+    formDetail: copyStringArray(formDetail),
+    approvalRecords: [
+      {
+        id: `ar${timestamp}`,
+        nodeName: '提交流程',
+        operatorRole: user.role,
+        operatorName: user.name,
+        decision: 'submitted',
+        comment: '提交了新的流程申请。',
+        time: '刚刚'
+      }
+    ],
+    riskLevel: requiresSecurityConfirm ? 'high' : 'normal',
+    riskReason: riskReason,
+    requiresSecurityConfirm: requiresSecurityConfirm,
+    securityConfirmed: false
   };
-  return instance;
 }
 
 export function askAssistant(question: string): AssistantReply {

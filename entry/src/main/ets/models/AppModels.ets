@@ -1,7 +1,5 @@
 export type UserRole = 'employee' | 'approver' | 'knowledgeAdmin' | 'systemAdmin';
-export type AppSubPage = 'none' | 'knowledgeDetail' | 'assistant' | 'messages';
-export type ReadingFontScale = 'small' | 'standard' | 'large';
-export type NotificationTargetType = 'knowledge' | 'workflow' | 'none';
+ main
 
 export interface User {
   id: string;
@@ -45,6 +43,18 @@ export interface WorkflowTemplate {
   approverText: string;
   relatedKnowledgeIds: string[];
   riskLevel: 'normal' | 'high';
+  riskHint: string;
+  defaultApproverRoles: UserRole[];
+}
+
+export interface ApprovalRecord {
+  id: string;
+  nodeName: string;
+  operatorRole: UserRole;
+  operatorName: string;
+  decision: ApprovalDecision;
+  comment: string;
+  time: string;
 }
 
 export interface WorkflowInstance {
@@ -53,12 +63,20 @@ export interface WorkflowInstance {
   title: string;
   applicantId: string;
   applicantName: string;
-  status: '草稿' | '待审批' | '审批中' | '已驳回' | '已通过' | '已归档';
+  status: WorkflowStatus;
   currentNode: string;
   currentApproverRole: UserRole;
   createTime: string;
   latestComment: string;
   relatedKnowledgeIds: string[];
+  amount: number;
+  formSummary: string;
+  formDetail: string[];
+  approvalRecords: ApprovalRecord[];
+  riskLevel: 'normal' | 'high';
+  riskReason: string;
+  requiresSecurityConfirm: boolean;
+  securityConfirmed: boolean;
 }
 
 export interface NotificationItem {
@@ -90,5 +108,16 @@ export interface AssistantHistory {
   id: string;
   question: string;
   answer: string;
+  time: string;
+}
+
+export interface AuditLog {
+  id: string;
+  module: string;
+  action: string;
+  operatorName: string;
+  operatorRole: UserRole;
+  riskLevel: 'normal' | 'high';
+  detail: string;
   time: string;
 }
