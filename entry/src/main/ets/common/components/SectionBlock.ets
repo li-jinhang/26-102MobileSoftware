@@ -32,6 +32,5 @@ export struct SectionBlock {
     .width('100%')
     .padding(16)
     .backgroundColor('#FFFFFF')
-    .borderRadius(8)
   }
 }
