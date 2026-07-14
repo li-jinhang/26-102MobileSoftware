@@ -15,6 +15,16 @@ export interface AuthLoginResult {
   user: User;
 }
 
+export interface WorkflowCreatePayload {
+  templateId: string;
+  title: string;
+  extraInput: string;
+  dateInput: string;
+  amountInput: number;
+  reasonInput: string;
+  attachmentInput: string;
+}
+
 export interface AuthRepository {
   login(account: string, password: string): Promise<AuthLoginResult>;
   logout(): Promise<void>;
@@ -33,15 +43,7 @@ export interface WorkflowRepository {
   getMyInstances(): Promise<WorkflowInstance[]>;
   getTodoInstances(): Promise<WorkflowInstance[]>;
   getInstance(instanceId: string): Promise<WorkflowInstance>;
-  createInstance(input: {
-    templateId: string;
-    title: string;
-    extraInput: string;
-    dateInput: string;
-    amountInput: number;
-    reasonInput: string;
-    attachmentInput: string;
-  }): Promise<WorkflowInstance>;
+  createInstance(input: WorkflowCreatePayload): Promise<WorkflowInstance>;
   approveInstance(instanceId: string, comment: string): Promise<WorkflowInstance>;
   rejectInstance(instanceId: string, comment: string): Promise<WorkflowInstance>;
   securityConfirmInstance(instanceId: string, comment: string): Promise<WorkflowInstance>;

@@ -27,6 +27,7 @@ import {
   AuthRepository,
   KnowledgeRepository,
   NotificationRepository,
+  WorkflowCreatePayload,
   WorkflowRepository
 } from '../../domain/contracts/AppRepositories';
 
@@ -95,15 +96,7 @@ class MockWorkflowRepository implements WorkflowRepository {
     return item;
   }
 
-  async createInstance(input: {
-    templateId: string;
-    title: string;
-    extraInput: string;
-    dateInput: string;
-    amountInput: number;
-    reasonInput: string;
-    attachmentInput: string;
-  }): Promise<WorkflowInstance> {
+  async createInstance(input: WorkflowCreatePayload): Promise<WorkflowInstance> {
     const template: WorkflowTemplate | undefined = getMockTemplates().find((item: WorkflowTemplate) => item.id === input.templateId);
     const user: User | null = authenticateUser('employee01', '123456');
     if (template === undefined || user === null) {

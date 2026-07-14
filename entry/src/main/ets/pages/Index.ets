@@ -46,6 +46,7 @@ import {
   buildStartWorkflowStateUseCase,
   WorkflowFormState
 } from '../app/usecases/WorkflowFormStateUseCases';
+import { EmptyState } from '../common/components/EmptyState';
 import { SectionBlock } from '../common/components/SectionBlock';
 import { AssistantPage } from '../features/assistant/AssistantPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
@@ -95,6 +96,9 @@ struct Index {
   @State assistantQuestion: string = '';
   @State assistantReply: AssistantReply | null = null;
   @State readingFontScale: ReadingFontScale = 'standard';
+  @State activeWorkflowModule: 'overview' | 'apply' | 'mine' = 'overview';
+  @State workflowPanelVisible: boolean = false;
+  @State workflowComposerVisible: boolean = false;
   @State selectedTemplateId: string = 'wf1';
   @State workflowTitleInput: string = '';
   @State workflowExtraInput: string = '年假';
@@ -234,145 +238,158 @@ struct Index {
 
   @Builder
   private AppShell() {
-    Column() {
-      if (this.activeSubPage === 'knowledgeDetail') {
-        KnowledgeDetailPage({
-          article: this.getSelectedArticleRequired(),
-          favorite: this.isFavorite(this.selectedArticleId),
-          useful: this.usefulKnowledgeIds.includes(this.selectedArticleId),
-          fontScale: this.readingFontScale,
-          workflowNames: this.getSelectedArticleWorkflowNames(),
-          onBack: () => {
-            this.activeSubPage = this.detailReturnSubPage;
-            this.detailReturnSubPage = 'none';
-          },
-          onToggleFavorite: (articleId: string) => {
-            void this.toggleFavorite(articleId);
-          },
-          onMarkUseful: (articleId: string) => {
-            this.markKnowledgeUseful(articleId);
-          },
-          onSubmitCorrection: async (articleId: string, content: string): Promise<boolean> => {
-            return this.submitCorrection(articleId, content);
-          },
-          onFontScaleChange: (scale: ReadingFontScale) => {
-            this.readingFontScale = scale;
-          },
-          onStartWorkflow: (templateId: string) => {
-            this.startWorkflow(templateId);
-          }
-        })
-      } else if (this.activeSubPage === 'assistant') {
-        AssistantPage({
-          articles: this.getPublishedArticles(),
-          templates: this.templates,
-          history: $assistantHistory,
-          question: $assistantQuestion,
-          reply: $assistantReply,
-          onBack: () => {
-            this.activeSubPage = 'none';
-          },
-          onOpenArticle: (articleId: string) => {
-            this.openArticle(articleId);
-          },
-          onStartWorkflow: (templateId: string) => {
-            this.startWorkflow(templateId);
-          },
-          onAsk: () => {
-            void this.handleAssistantAsk();
-          }
-        })
-      } else if (this.activeSubPage === 'messages') {
-        MessagesPage({
-          notifications: this.getVisibleMessages(),
-          onBack: () => {
-            this.activeSubPage = 'none';
-          },
-          onMarkRead: (notificationId: string) => {
-            void this.handleMarkNotificationRead(notificationId);
-          },
-          onOpenKnowledge: (articleId: string) => {
-            this.openArticle(articleId);
-          },
-          onOpenWorkflow: (instanceId: string) => {
-            this.openWorkflowFromMessage(instanceId);
-          }
-        })
-      } else {
-        this.PageHeader();
-
-        Scroll() {
-          Column({ space: 14 }) {
-            if (this.activeTab === 0) {
-              DashboardPage({
-                user: this.getCurrentUser(),
-                articles: this.getPublishedArticles(),
-                recentArticles: this.getRecentArticles(),
-                favoriteArticles: this.getFavoriteArticles(),
-                favoriteKnowledgeIds: this.favoriteKnowledgeIds,
-                notifications: this.getVisibleMessages(),
-                templates: this.templates,
-                todoCount: this.getDashboardTodoCount(),
-                onOpenArticle: (articleId: string) => {
-                  this.openArticle(articleId);
-                },
-                onOpenAssistant: () => {
-                  this.activeSubPage = 'assistant';
-                },
-                onOpenKnowledge: () => {
-                  this.activeSubPage = 'none';
-                  this.activeTab = 1;
-                },
-                onOpenMessages: () => {
-                  this.activeSubPage = 'messages';
-                },
-                onOpenTodo: () => {
-                  this.activeSubPage = 'none';
-                  this.activeTab = 2;
-                },
-                onStartWorkflow: (templateId: string) => {
-                  this.startWorkflow(templateId);
-                }
-              })
-            } else if (this.activeTab === 1) {
-              KnowledgePage({
-                categories: this.categories,
-                articles: this.articles,
-                favoriteKnowledgeIds: this.favoriteKnowledgeIds,
-                onOpenArticle: (articleId: string) => {
-                  this.openArticle(articleId);
-                }
-              })
-            } else if (this.activeTab === 2) {
-              this.WorkflowTab();
-            } else {
-              ProfilePage({
-                user: this.getCurrentUser(),
-                favoriteArticles: this.getFavoriteArticles(),
-                unreadCount: this.getUnreadMessageCount(),
-                fontScale: this.readingFontScale,
-                onOpenArticle: (articleId: string) => {
-                  this.openArticle(articleId);
-                },
-                onOpenMessages: () => {
-                  this.activeSubPage = 'messages';
-                },
-                onFontScaleChange: (scale: ReadingFontScale) => {
-                  this.readingFontScale = scale;
-                },
-                onLogout: () => {
-                  void this.logout();
-                }
-              })
+    Stack() {
+      Column() {
+        if (this.activeSubPage === 'knowledgeDetail') {
+          KnowledgeDetailPage({
+            article: this.getSelectedArticleRequired(),
+            favorite: this.isFavorite(this.selectedArticleId),
+            useful: this.usefulKnowledgeIds.includes(this.selectedArticleId),
+            fontScale: this.readingFontScale,
+            workflowNames: this.getSelectedArticleWorkflowNames(),
+            onBack: () => {
+              this.activeSubPage = this.detailReturnSubPage;
+              this.detailReturnSubPage = 'none';
+            },
+            onToggleFavorite: (articleId: string) => {
+              void this.toggleFavorite(articleId);
+            },
+            onMarkUseful: (articleId: string) => {
+              this.markKnowledgeUseful(articleId);
+            },
+            onSubmitCorrection: async (articleId: string, content: string): Promise<boolean> => {
+              return this.submitCorrection(articleId, content);
+            },
+            onFontScaleChange: (scale: ReadingFontScale) => {
+              this.readingFontScale = scale;
+            },
+            onStartWorkflow: (templateId: string) => {
+              this.startWorkflow(templateId);
             }
-          }
-          .width('100%')
-          .padding({ left: 16, right: 16, top: 14, bottom: 20 })
-        }
-        .scrollBar(BarState.Off)
-        .layoutWeight(1)
+          })
+        } else if (this.activeSubPage === 'assistant') {
+          AssistantPage({
+            articles: this.getPublishedArticles(),
+            templates: this.templates,
+            history: $assistantHistory,
+            question: $assistantQuestion,
+            reply: $assistantReply,
+            onBack: () => {
+              this.activeSubPage = 'none';
+            },
+            onOpenArticle: (articleId: string) => {
+              this.openArticle(articleId);
+            },
+            onStartWorkflow: (templateId: string) => {
+              this.startWorkflow(templateId);
+            },
+            onAsk: () => {
+              void this.handleAssistantAsk();
+            }
+          })
+        } else if (this.activeSubPage === 'messages') {
+          MessagesPage({
+            notifications: this.getVisibleMessages(),
+            onBack: () => {
+              this.activeSubPage = 'none';
+            },
+            onMarkRead: (notificationId: string) => {
+              void this.handleMarkNotificationRead(notificationId);
+            },
+            onOpenKnowledge: (articleId: string) => {
+              this.openArticle(articleId);
+            },
+            onOpenWorkflow: (instanceId: string) => {
+              this.openWorkflowFromMessage(instanceId);
+            }
+          })
+        } else {
+          this.PageHeader();
 
-        this.BottomNav();
+          Scroll() {
+            Column({ space: 14 }) {
+              if (this.activeTab === 0) {
+                DashboardPage({
+                  user: this.getCurrentUser(),
+                  articles: this.getPublishedArticles(),
+                  recentArticles: this.getRecentArticles(),
+                  favoriteArticles: this.getFavoriteArticles(),
+                  favoriteKnowledgeIds: this.favoriteKnowledgeIds,
+                  notifications: this.getVisibleMessages(),
+                  templates: this.templates,
+                  todoCount: this.getDashboardTodoCount(),
+                  onOpenArticle: (articleId: string) => {
+                    this.openArticle(articleId);
+                  },
+                  onOpenAssistant: () => {
+                    this.activeSubPage = 'assistant';
+                  },
+                  onOpenKnowledge: () => {
+                    this.activeSubPage = 'none';
+                    this.activeTab = 1;
+                  },
+                  onOpenMessages: () => {
+                    this.activeSubPage = 'messages';
+                  },
+                  onOpenTodo: () => {
+                    this.activeSubPage = 'none';
+                    this.activeTab = 2;
+                    this.openWorkflowModule('mine');
+                  },
+                  onStartWorkflow: (templateId: string) => {
+                    this.startWorkflow(templateId);
+                  }
+                })
+              } else if (this.activeTab === 1) {
+                KnowledgePage({
+                  categories: this.categories,
+                  articles: this.articles,
+                  favoriteKnowledgeIds: this.favoriteKnowledgeIds,
+                  onOpenArticle: (articleId: string) => {
+                    this.openArticle(articleId);
+                  }
+                })
+              } else if (this.activeTab === 2) {
+                this.WorkflowTab();
+              } else {
+                ProfilePage({
+                  user: this.getCurrentUser(),
+                  favoriteArticles: this.getFavoriteArticles(),
+                  unreadCount: this.getUnreadMessageCount(),
+                  fontScale: this.readingFontScale,
+                  onOpenArticle: (articleId: string) => {
+                    this.openArticle(articleId);
+                  },
+                  onOpenMessages: () => {
+                    this.activeSubPage = 'messages';
+                  },
+                  onFontScaleChange: (scale: ReadingFontScale) => {
+                    this.readingFontScale = scale;
+                  },
+                  onLogout: () => {
+                    void this.logout();
+                  }
+                })
+              }
+            }
+            .width('100%')
+            .padding({ left: 16, right: 16, top: 14, bottom: 20 })
+          }
+          .scrollBar(BarState.Off)
+          .layoutWeight(1)
+
+          this.BottomNav();
+        }
+      }
+      .width('100%')
+      .height('100%')
+
+      if (this.workflowPanelVisible) {
+        this.WorkflowModuleDialog();
+      }
+
+      if (this.workflowComposerVisible) {
+        this.WorkflowComposerDialog();
       }
     }
     .width('100%')
@@ -410,209 +427,193 @@ struct Index {
 
   @Builder
   private WorkflowTab() {
-    SectionBlock({ title: '流程模板', subtitle: '已预置请假、报销、采购、权限申请四类模板，并配置审批角色与安全规则。' }) {
-      Column({ space: 10 }) {
-        ForEach(this.templates, (item: WorkflowTemplate) => {
-          Column({ space: 8 }) {
-            Row() {
-              Text(item.name)
-                .fontSize(16)
-                .fontWeight(FontWeight.Medium)
-                .fontColor('#1F2A44')
-
-              Blank()
-
-              Text(item.approverText)
-                .fontSize(11)
-                .fontColor('#667085')
-            }
-
-            Text(item.description)
-              .fontSize(12)
-              .fontColor('#667085')
-              .lineHeight(18)
-              .width('100%')
-
-            Text(`关联制度：${this.getRelatedKnowledgeTitles(item.relatedKnowledgeIds)}`)
-              .fontSize(12)
-              .fontColor('#344054')
-
-            Text(item.riskHint)
-              .fontSize(11)
-              .fontColor(item.riskLevel === 'high' ? '#B54708' : '#246BFD')
-              .width('100%')
-
-            Button(this.selectedTemplateId === item.id ? '当前已选模板' : '选择并填写')
-              .width('100%')
-              .height(40)
-              .backgroundColor(this.selectedTemplateId === item.id ? '#DCE7FF' : '#246BFD')
-              .fontColor(this.selectedTemplateId === item.id ? '#175CD3' : '#FFFFFF')
-              .borderRadius(12)
-              .onClick(() => {
-                this.openWorkflowComposer(item.id);
-              })
-          }
-          .width('100%')
-          .padding(14)
-          .backgroundColor(this.selectedTemplateId === item.id ? '#EEF4FF' : '#F8FAFF')
-          .borderRadius(18)
-        }, (item: WorkflowTemplate) => item.id)
+    SectionBlock({ title: '流程中心', subtitle: '' }) {
+      Column({ space: 12 }) {
+        this.WorkflowModuleCard(
+          '申请流程',
+          '',
+          `共 ${this.templates.length} 个模板`,
+          'apply'
+        );
+        this.WorkflowModuleCard(
+          '我的流程',
+          this.getMyWorkflowModuleSubtitle(),
+          `共 ${this.getRoleWorkflowItems().length} 条流程`,
+          'mine'
+        );
       }
       .width('100%')
     }
+  }
 
-    SectionBlock({ title: '流程发起', subtitle: '补齐了表单填写、附件模拟、校验提交和高风险二次确认。' }) {
-      Column({ space: 12 }) {
-        Text(`当前模板：${this.getSelectedTemplate().name}`)
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#1F2A44')
-          .width('100%')
+  @Builder
+  private WorkflowModuleCard(title: string, description: string, statText: string, moduleKey: string) {
+    Column({ space: 10 }) {
+      Text(title)
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.isWorkflowModuleActive(moduleKey) ? '#175CD3' : '#1F2A44')
+        .width('100%')
 
-        Text(`审批链路：${this.getSelectedTemplate().approverText}`)
+      if (description.length > 0) {
+        Text(description)
           .fontSize(12)
           .fontColor('#667085')
+          .lineHeight(18)
           .width('100%')
+      }
 
-        TextInput({ placeholder: '流程标题，例如：华南差旅报销', text: this.workflowTitleInput })
-          .height(46)
-          .borderRadius(14)
-          .backgroundColor('#F8FAFC')
-          .padding({ left: 14, right: 14 })
-          .onChange((value: string) => {
-            this.workflowTitleInput = value;
-          })
+      Blank()
 
-        if (this.selectedTemplateId === 'wf1') {
-          TextInput({ placeholder: '请假类型，例如：年假 / 病假', text: this.workflowExtraInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowExtraInput = value;
-            })
+      Text(statText)
+        .fontSize(12)
+        .fontColor(this.isWorkflowModuleActive(moduleKey) ? '#175CD3' : '#344054')
+        .width('100%')
 
-          TextInput({ placeholder: '请假时间，例如：7 月 18 日 09:00-18:00', text: this.workflowDateInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowDateInput = value;
-            })
-        } else if (this.selectedTemplateId === 'wf2') {
-          TextInput({ placeholder: '费用类型，例如：差旅 / 招待 / 打车', text: this.workflowExtraInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowExtraInput = value;
-            })
+      Button(this.isWorkflowModuleActive(moduleKey) ? '当前模块' : '点击进入')
+        .width('100%')
+        .height(38)
+        .backgroundColor(this.isWorkflowModuleActive(moduleKey) ? '#DCE7FF' : '#246BFD')
+        .fontColor(this.isWorkflowModuleActive(moduleKey) ? '#175CD3' : '#FFFFFF')
+        .borderRadius(12)
+        .onClick(() => {
+          this.openWorkflowModule(moduleKey);
+        })
+    }
+    .width('100%')
+    .height(156)
+    .alignItems(HorizontalAlign.Start)
+    .padding(16)
+    .backgroundColor(this.isWorkflowModuleActive(moduleKey) ? '#EEF4FF' : '#F8FAFF')
+    .borderRadius(20)
+    .onClick(() => {
+      this.openWorkflowModule(moduleKey);
+    })
+  }
 
-          TextInput({ placeholder: '报销金额，例如：3680', text: this.workflowAmountInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowAmountInput = value;
-            })
-        } else if (this.selectedTemplateId === 'wf3') {
-          TextInput({ placeholder: '采购物品，例如：会议平板 2 台', text: this.workflowExtraInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowExtraInput = value;
-            })
+  @Builder
+  private WorkflowModuleDialog() {
+    Column() {
+      Column({ space: 14 }) {
+        Row() {
+          Column({ space: 4 }) {
+            Text(this.getWorkflowModuleDialogTitle())
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1F2A44')
+              .width('100%')
 
-          TextInput({ placeholder: '采购预算，例如：12800', text: this.workflowAmountInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowAmountInput = value;
-            })
+            Text(this.getWorkflowModuleDialogStat())
+              .fontSize(12)
+              .fontColor('#667085')
+              .width('100%')
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
 
-          TextInput({ placeholder: '期望到货时间，例如：2026-07-20', text: this.workflowDateInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowDateInput = value;
-            })
-        } else {
-          TextInput({ placeholder: '系统名称，例如：项目看板 / 财务系统', text: this.workflowExtraInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowExtraInput = value;
-            })
-
-          TextInput({ placeholder: '申请期限，例如：2026-07 至 2026-12', text: this.workflowDateInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowDateInput = value;
+          Button('关闭')
+            .height(34)
+            .fontSize(12)
+            .backgroundColor('#EEF2F6')
+            .fontColor('#344054')
+            .borderRadius(10)
+            .onClick(() => {
+              this.closeWorkflowModuleDialog();
             })
         }
 
-        TextInput({ placeholder: '申请事由 / 审批说明', text: this.workflowReasonInput })
-          .height(46)
-          .borderRadius(14)
-          .backgroundColor('#F8FAFC')
-          .padding({ left: 14, right: 14 })
-          .onChange((value: string) => {
-            this.workflowReasonInput = value;
-          })
-
-        TextInput({ placeholder: '附件模拟，例如：发票+截图 / 采购清单 / 权限矩阵表', text: this.workflowAttachmentInput })
-          .height(46)
-          .borderRadius(14)
-          .backgroundColor('#F8FAFC')
-          .padding({ left: 14, right: 14 })
-          .onChange((value: string) => {
-            this.workflowAttachmentInput = value;
-          })
-
-        Text(`关联制度：${this.getRelatedKnowledgeTitles(this.getSelectedTemplate().relatedKnowledgeIds)}`)
-          .fontSize(12)
-          .fontColor('#667085')
+        Scroll() {
+          Column({ space: 12 }) {
+            if (this.activeWorkflowModule === 'mine') {
+              this.WorkflowMinePanel();
+            } else {
+              this.WorkflowApplyPanel();
+            }
+          }
           .width('100%')
-
-        Button('提交流程')
-          .width('100%')
-          .height(44)
-          .backgroundColor('#246BFD')
-          .borderRadius(14)
-          .onClick(() => {
-            void this.handleCreateWorkflow();
-          })
+          .padding({ right: 2 })
+        }
+        .scrollBar(BarState.Off)
+        .layoutWeight(1)
       }
       .width('100%')
+      .height('82%')
+      .padding(18)
+      .backgroundColor('#FFFFFF')
+      .borderRadius(24)
     }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding(20)
+    .backgroundColor('#660B1220')
+  }
 
-    SectionBlock({ title: '我的流程', subtitle: '展示当前账号发起的流程、状态流转与风险标记。' }) {
-      Column({ space: 10 }) {
-        ForEach(this.getMyWorkflows(), (item: WorkflowInstance) => {
-          this.WorkflowCard(item, false);
-        }, (item: WorkflowInstance) => item.id)
-      }
-      .width('100%')
-    }
-
-    if (this.getTodoWorkflows().length > 0) {
-      SectionBlock({ title: '审批意见', subtitle: '审批人和管理员可以先填写意见，再对待办执行通过、驳回或安全确认。' }) {
+  @Builder
+  private WorkflowApplyPanel() {
+    Column({ space: 12 }) {
+      ForEach(this.templates, (item: WorkflowTemplate) => {
         Column({ space: 10 }) {
+          Row() {
+            Text(item.name)
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#1F2A44')
+
+            Blank()
+
+            Text(item.approverText)
+              .fontSize(11)
+              .fontColor('#667085')
+          }
+
+          Text(item.description)
+            .fontSize(12)
+            .fontColor('#667085')
+            .lineHeight(18)
+            .width('100%')
+
+          Text(`关联制度：${this.getRelatedKnowledgeTitles(item.relatedKnowledgeIds)}`)
+            .fontSize(12)
+            .fontColor('#344054')
+            .width('100%')
+
+          Text(item.riskHint)
+            .fontSize(11)
+            .fontColor(item.riskLevel === 'high' ? '#B54708' : '#246BFD')
+            .lineHeight(18)
+            .width('100%')
+
+          Button('填写申请')
+            .width('100%')
+            .height(40)
+            .backgroundColor('#246BFD')
+            .fontColor('#FFFFFF')
+            .borderRadius(12)
+            .onClick(() => {
+              this.openWorkflowComposer(item.id);
+            })
+        }
+        .width('100%')
+        .padding(14)
+        .backgroundColor('#F8FAFF')
+        .borderRadius(18)
+      }, (item: WorkflowTemplate) => item.id)
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private WorkflowMinePanel() {
+    Column({ space: 12 }) {
+      if (this.getTodoWorkflows().length > 0) {
+        Column({ space: 10 }) {
+          Text('审批意见')
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#1F2A44')
+            .width('100%')
+
           TextInput({ placeholder: '请输入审批意见', text: this.approvalComment })
             .height(46)
             .borderRadius(14)
@@ -623,18 +624,261 @@ struct Index {
             })
         }
         .width('100%')
+        .padding(14)
+        .backgroundColor('#F8FAFF')
+        .borderRadius(18)
       }
 
-      SectionBlock({ title: '审批待办', subtitle: '审批人能查看待办并通过或驳回，高风险流程会进入二次确认。' }) {
-        Column({ space: 10 }) {
-          ForEach(this.getTodoWorkflows(), (item: WorkflowInstance) => {
-            this.WorkflowCard(item, true);
-          }, (item: WorkflowInstance) => item.id)
-        }
-        .width('100%')
+      if (this.getRoleWorkflowItems().length === 0) {
+        EmptyState({
+          title: '当前没有流程记录',
+          description: '你可以先进入申请流程选择模板，提交后会在这里按状态展示。',
+          actionLabel: '去申请流程',
+          onAction: () => {
+            this.openWorkflowModule('apply');
+          }
+        })
+      } else {
+        ForEach(this.getWorkflowStatuses(), (status: string) => {
+          if (this.getRoleWorkflowItemsByStatus(status).length > 0) {
+            this.WorkflowStatusSection(status, this.getRoleWorkflowItemsByStatus(status));
+          }
+        }, (status: string) => status)
       }
     }
+    .width('100%')
+  }
 
+  @Builder
+  private WorkflowStatusSection(status: string, items: WorkflowInstance[]) {
+    Column({ space: 10 }) {
+      Row() {
+        Text(status)
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#1F2A44')
+
+        Blank()
+
+        Text(`${items.length} 条`)
+          .fontSize(11)
+          .fontColor('#667085')
+          .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+          .backgroundColor('#F2F4F7')
+          .borderRadius(12)
+      }
+
+      ForEach(items, (item: WorkflowInstance) => {
+        this.WorkflowCard(item, this.canHandleWorkflow(item));
+      }, (item: WorkflowInstance) => item.id)
+    }
+    .width('100%')
+    .padding(14)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(18)
+  }
+
+  @Builder
+  private WorkflowComposerDialog() {
+    Column() {
+      Column({ space: 14 }) {
+        Row() {
+          Column({ space: 4 }) {
+            Text(`编辑模板：${this.getSelectedTemplate().name}`)
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1F2A44')
+              .width('100%')
+
+            Text(`审批链路：${this.getSelectedTemplate().approverText}`)
+              .fontSize(12)
+              .fontColor('#667085')
+              .width('100%')
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+
+          Button('关闭')
+            .height(34)
+            .fontSize(12)
+            .backgroundColor('#EEF2F6')
+            .fontColor('#344054')
+            .borderRadius(10)
+            .onClick(() => {
+              this.workflowComposerVisible = false;
+            })
+        }
+
+        Scroll() {
+          Column({ space: 12 }) {
+            Text(this.getSelectedTemplate().riskHint)
+              .fontSize(12)
+              .fontColor(this.getSelectedTemplate().riskLevel === 'high' ? '#B54708' : '#246BFD')
+              .lineHeight(18)
+              .width('100%')
+
+            this.WorkflowComposerFormFields();
+          }
+          .width('100%')
+          .padding({ right: 2 })
+        }
+        .scrollBar(BarState.Off)
+        .layoutWeight(1)
+
+        Row({ space: 10 }) {
+          Button('取消')
+            .layoutWeight(1)
+            .height(42)
+            .backgroundColor('#EEF2F6')
+            .fontColor('#344054')
+            .borderRadius(12)
+            .onClick(() => {
+              this.workflowComposerVisible = false;
+            })
+
+          Button('提交流程')
+            .layoutWeight(1)
+            .height(42)
+            .backgroundColor('#246BFD')
+            .fontColor('#FFFFFF')
+            .borderRadius(12)
+            .onClick(() => {
+              void this.handleCreateWorkflow();
+            })
+        }
+      }
+      .width('100%')
+      .height('82%')
+      .padding(18)
+      .backgroundColor('#FFFFFF')
+      .borderRadius(24)
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding(20)
+    .backgroundColor('#660B1220')
+  }
+
+  @Builder
+  private WorkflowComposerFormFields() {
+    Column({ space: 12 }) {
+      TextInput({ placeholder: '流程标题，例如：华南差旅报销', text: this.workflowTitleInput })
+        .height(46)
+        .borderRadius(14)
+        .backgroundColor('#F8FAFC')
+        .padding({ left: 14, right: 14 })
+        .onChange((value: string) => {
+          this.workflowTitleInput = value;
+        })
+
+      if (this.selectedTemplateId === 'wf1') {
+        TextInput({ placeholder: '请假类型，例如：年假 / 病假', text: this.workflowExtraInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowExtraInput = value;
+          })
+
+        TextInput({ placeholder: '请假时间，例如：7 月 18 日 09:00-18:00', text: this.workflowDateInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowDateInput = value;
+          })
+      } else if (this.selectedTemplateId === 'wf2') {
+        TextInput({ placeholder: '费用类型，例如：差旅 / 招待 / 打车', text: this.workflowExtraInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowExtraInput = value;
+          })
+
+        TextInput({ placeholder: '报销金额，例如：3680', text: this.workflowAmountInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowAmountInput = value;
+          })
+      } else if (this.selectedTemplateId === 'wf3') {
+        TextInput({ placeholder: '采购物品，例如：会议平板 2 台', text: this.workflowExtraInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowExtraInput = value;
+          })
+
+        TextInput({ placeholder: '采购预算，例如：12800', text: this.workflowAmountInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowAmountInput = value;
+          })
+
+        TextInput({ placeholder: '期望到货时间，例如：2026-07-20', text: this.workflowDateInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowDateInput = value;
+          })
+      } else {
+        TextInput({ placeholder: '系统名称，例如：项目看板 / 财务系统', text: this.workflowExtraInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowExtraInput = value;
+          })
+
+        TextInput({ placeholder: '申请期限，例如：2026-07 至 2026-12', text: this.workflowDateInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowDateInput = value;
+          })
+      }
+
+      TextInput({ placeholder: '申请事由 / 审批说明', text: this.workflowReasonInput })
+        .height(46)
+        .borderRadius(14)
+        .backgroundColor('#F8FAFC')
+        .padding({ left: 14, right: 14 })
+        .onChange((value: string) => {
+          this.workflowReasonInput = value;
+        })
+
+      TextInput({ placeholder: '附件模拟，例如：发票+截图 / 采购清单 / 权限矩阵表', text: this.workflowAttachmentInput })
+        .height(46)
+        .borderRadius(14)
+        .backgroundColor('#F8FAFC')
+        .padding({ left: 14, right: 14 })
+        .onChange((value: string) => {
+          this.workflowAttachmentInput = value;
+        })
+
+      Text(`关联制度：${this.getRelatedKnowledgeTitles(this.getSelectedTemplate().relatedKnowledgeIds)}`)
+        .fontSize(12)
+        .fontColor('#667085')
+        .width('100%')
+    }
+    .width('100%')
   }
 
   @Builder
@@ -842,6 +1086,8 @@ struct Index {
     this.activeSubPage = result.activeSubPage;
     this.detailReturnSubPage = result.detailReturnSubPage;
     this.activeTab = result.activeTab;
+    this.openWorkflowModule('mine');
+    this.selectedWorkflowId = instanceId;
     this.showMessage(result.message);
   }
 
@@ -870,6 +1116,9 @@ struct Index {
     this.assistantQuestion = result.assistantQuestion;
     this.assistantReply = result.assistantReply;
     this.readingFontScale = result.readingFontScale;
+    this.activeWorkflowModule = 'overview';
+    this.workflowPanelVisible = false;
+    this.workflowComposerVisible = false;
   }
 
   private async handleLogin(): Promise<void> {
@@ -893,6 +1142,9 @@ struct Index {
       this.assistantHistory = result.assistantHistory;
       this.assistantQuestion = result.assistantQuestion;
       this.assistantReply = result.assistantReply;
+      this.activeWorkflowModule = 'overview';
+      this.workflowPanelVisible = false;
+      this.workflowComposerVisible = false;
       this.applyBootstrapData(bootstrapData);
       if (this.selectedArticleId.length === 0 && this.articles.length > 0) {
         this.selectedArticleId = this.articles[0].id;
@@ -921,10 +1173,14 @@ struct Index {
 
   private openWorkflowComposer(templateId: string): void {
     this.applyWorkflowFormState(buildOpenWorkflowComposerStateUseCase(templateId));
+    this.activeWorkflowModule = 'apply';
+    this.workflowComposerVisible = true;
   }
 
   private startWorkflow(templateId: string): void {
     this.applyWorkflowFormState(buildStartWorkflowStateUseCase(templateId));
+    this.activeWorkflowModule = 'apply';
+    this.workflowComposerVisible = true;
   }
 
   private async handleCreateWorkflow(): Promise<void> {
@@ -952,6 +1208,12 @@ struct Index {
 
       this.workflowInstances = result.workflowInstances;
       this.notifications = result.notifications;
+      this.activeWorkflowModule = 'mine';
+      this.workflowPanelVisible = true;
+      this.workflowComposerVisible = false;
+      if (result.instance !== null) {
+        this.selectedWorkflowId = result.instance.id;
+      }
       this.showMessage('提交流程成功。');
     } catch (error) {
       const message: string = error instanceof Error ? error.message : '提交流程失败。';
@@ -972,6 +1234,9 @@ struct Index {
       );
       this.workflowInstances = result.workflowInstances;
       this.notifications = result.notifications;
+      this.activeWorkflowModule = 'mine';
+      this.workflowPanelVisible = true;
+      this.selectedWorkflowId = instanceId;
       this.showMessage(result.message);
     } catch (error) {
       const message: string = error instanceof Error ? error.message : '流程处理失败。';
@@ -994,6 +1259,8 @@ struct Index {
       this.workflowInstances = result.workflowInstances;
       this.notifications = result.notifications;
       this.auditLogs = result.auditLogs;
+      this.activeWorkflowModule = 'mine';
+      this.workflowPanelVisible = true;
       if (result.selectedWorkflowId.length > 0) {
         this.selectedWorkflowId = result.selectedWorkflowId;
       }
@@ -1109,6 +1376,66 @@ struct Index {
 
   private getTodoWorkflows(): WorkflowInstance[] {
     return getTodoWorkflowsUseCase(this.currentUser, this.workflowInstances);
+  }
+
+  private getWorkflowStatuses(): string[] {
+    return ['待审批', '审批中', '待二次确认', '已通过', '已驳回'];
+  }
+
+  private getRoleWorkflowItems(): WorkflowInstance[] {
+    const map = new Map<string, WorkflowInstance>();
+    this.getMyWorkflows().forEach((item: WorkflowInstance) => {
+      map.set(item.id, item);
+    });
+    this.getTodoWorkflows().forEach((item: WorkflowInstance) => {
+      map.set(item.id, item);
+    });
+    return Array.from(map.values()).sort((left: WorkflowInstance, right: WorkflowInstance) => {
+      return right.createTime.localeCompare(left.createTime);
+    });
+  }
+
+  private getRoleWorkflowItemsByStatus(status: string): WorkflowInstance[] {
+    return this.getRoleWorkflowItems().filter((item: WorkflowInstance) => item.status === status);
+  }
+
+  private getMyWorkflowModuleSubtitle(): string {
+    return '';
+  }
+
+  private openWorkflowModule(moduleKey: string): void {
+    this.activeWorkflowModule = moduleKey === 'mine' ? 'mine' : 'apply';
+    this.workflowPanelVisible = true;
+  }
+
+  private closeWorkflowModuleDialog(): void {
+    this.workflowPanelVisible = false;
+    this.activeWorkflowModule = 'overview';
+  }
+
+  private getWorkflowModuleDialogTitle(): string {
+    return this.activeWorkflowModule === 'mine' ? '我的流程' : '申请流程';
+  }
+
+  private getWorkflowModuleDialogStat(): string {
+    if (this.activeWorkflowModule === 'mine') {
+      return `共 ${this.getRoleWorkflowItems().length} 条流程`;
+    }
+    return `共 ${this.templates.length} 个模板`;
+  }
+
+  private isWorkflowModuleActive(moduleKey: string): boolean {
+    return this.workflowPanelVisible && this.activeWorkflowModule === moduleKey;
+  }
+
+  private canHandleWorkflow(item: WorkflowInstance): boolean {
+    if (this.currentUser === null) {
+      return false;
+    }
+
+    const isInCharge: boolean = item.currentApproverRole === this.currentUser.role;
+    const isPending: boolean = item.status === '待审批' || item.status === '审批中' || item.status === '待二次确认';
+    return isInCharge && isPending;
   }
 
   private getSelectedWorkflow(): WorkflowInstance | null {

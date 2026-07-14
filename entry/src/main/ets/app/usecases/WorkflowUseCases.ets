@@ -1,4 +1,5 @@
 import { AuditLog, NotificationItem, User, WorkflowInstance, WorkflowTemplate } from '../../models/AppModels';
+import { WorkflowCreatePayload } from '../../domain/contracts/AppRepositories';
 import { repositories } from '../repositories/RepositoryProvider';
 
 export interface WorkflowCreateInput {
@@ -139,7 +140,7 @@ export async function createWorkflowUseCase(input: WorkflowCreateInput): Promise
     };
   }
 
-  const instance: WorkflowInstance = await repositories.workflowRepository.createInstance({
+  const payload: WorkflowCreatePayload = {
     templateId: input.template.id,
     title: buildWorkflowTitle(
       input.template.id,
@@ -153,7 +154,8 @@ export async function createWorkflowUseCase(input: WorkflowCreateInput): Promise
     amountInput: amount,
     reasonInput: input.reasonInput.trim(),
     attachmentInput: input.attachmentInput.trim()
-  });
+  };
+  const instance: WorkflowInstance = await repositories.workflowRepository.createInstance(payload);
 
   return {
     success: true,

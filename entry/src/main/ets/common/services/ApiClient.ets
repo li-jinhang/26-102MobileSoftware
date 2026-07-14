@@ -8,28 +8,47 @@ interface ApiEnvelope<T> {
   data: T;
 }
 
-function buildUrl(path: string, query?: Record<string, string | number | boolean | undefined>): string {
+export interface ApiQueryParam {
+  key: string;
+  value: string;
+}
+
+interface ApiHeaders {
+  'Content-Type': string;
+  Authorization?: string;
+}
+
+interface ApiRequestOptions {
+  body?: string;
+  queryParams?: ApiQueryParam[];
+  withAuth?: boolean;
+}
+
+interface ApiHttpRequestOptions {
+  method: http.RequestMethod;
+  header: ApiHeaders;
+  connectTimeout: number;
+  readTimeout: number;
+  expectDataType: http.HttpDataType;
+  extraData: string;
+}
+
+function buildUrl(path: string, queryParams?: ApiQueryParam[]): string {
   const normalizedPath: string = path.startsWith('/') ? path : `/${path}`;
   const baseUrl: string = `${MOBILE_SOFTWARE_BACKEND_BASE_URL}${normalizedPath}`;
-  if (query === undefined) {
+  if (queryParams === undefined || queryParams.length === 0) {
     return baseUrl;
   }
 
   const queryParts: string[] = [];
-  Object.keys(query).forEach((key: string) => {
-    const value: string | number | boolean | undefined = query[key];
-    if (value !== undefined) {
-      queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
-    }
+  queryParams.forEach((item: ApiQueryParam) => {
+    queryParts.push(`${encodeURIComponent(item.key)}=${encodeURIComponent(item.value)}`);
   });
-  if (queryParts.length === 0) {
-    return baseUrl;
-  }
   return `${baseUrl}?${queryParts.join('&')}`;
 }
 
-function buildHeaders(withAuth: boolean): Record<string, string> {
-  const headers: Record<string, string> = {
+function buildHeaders(withAuth: boolean): ApiHeaders {
+  const headers: ApiHeaders = {
     'Content-Type': 'application/json'
   };
   if (withAuth) {
@@ -44,26 +63,19 @@ function buildHeaders(withAuth: boolean): Record<string, string> {
 async function requestJson<T>(
   method: http.RequestMethod,
   path: string,
-  options?: {
-    body?: Record<string, Object | string | number | boolean | undefined> | string;
-    query?: Record<string, string | number | boolean | undefined>;
-    withAuth?: boolean;
-  }
+  options?: ApiRequestOptions
 ): Promise<T> {
   const client = http.createHttp();
   try {
-    const response = await client.request(buildUrl(path, options?.query), {
+    const requestOptions: ApiHttpRequestOptions = {
       method,
       header: buildHeaders(options?.withAuth !== false),
       connectTimeout: 15000,
       readTimeout: 15000,
       expectDataType: http.HttpDataType.STRING,
-      extraData: options?.body === undefined
-        ? ''
-        : typeof options.body === 'string'
-          ? options.body
-          : JSON.stringify(options.body)
-    });
+      extraData: options?.body === undefined ? '' : options.body
+    };
+    const response = await client.request(buildUrl(path, options?.queryParams), requestOptions);
 
     const payload: ApiEnvelope<T> = JSON.parse(String(response.result));
     if (response.responseCode < 200 || response.responseCode >= 300 || payload.code !== 0) {
@@ -77,28 +89,23 @@ async function requestJson<T>(
 
 export async function apiGet<T>(
   path: string,
-  query?: Record<string, string | number | boolean | undefined>,
+  queryParams?: ApiQueryParam[],
   withAuth: boolean = true
 ): Promise<T> {
-  return requestJson<T>(http.RequestMethod.GET, path, {
-    query,
-    withAuth
-  });
+  const options: ApiRequestOptions = { queryParams, withAuth };
+  return requestJson<T>(http.RequestMethod.GET, path, options);
 }
 
 export async function apiPost<T>(
   path: string,
-  body?: Record<string, Object | string | number | boolean | undefined>,
+  body?: string,
   withAuth: boolean = true
 ): Promise<T> {
-  return requestJson<T>(http.RequestMethod.POST, path, {
-    body,
-    withAuth
-  });
+  const options: ApiRequestOptions = { body, withAuth };
+  return requestJson<T>(http.RequestMethod.POST, path, options);
 }
 
 export async function apiDelete<T>(path: string, withAuth: boolean = true): Promise<T> {
-  return requestJson<T>(http.RequestMethod.DELETE, path, {
-    withAuth
-  });
+  const options: ApiRequestOptions = { withAuth };
+  return requestJson<T>(http.RequestMethod.DELETE, path, options);
 }
