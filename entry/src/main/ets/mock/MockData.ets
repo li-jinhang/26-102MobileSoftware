@@ -333,7 +333,9 @@ const mockNotifications: NotificationItem[] = [
     content: '《系统权限申请规范》已发布新版本 v1.1。',
     time: '今天',
     read: false,
- main
+    targetRoles: ['knowledgeAdmin', 'systemAdmin'],
+    targetType: 'knowledge',
+    targetId: 'k4'
   },
   {
     id: 'n4',

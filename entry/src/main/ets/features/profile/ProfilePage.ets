@@ -62,7 +62,7 @@ export struct ProfilePage {
       .width('100%')
       .padding({ top: 20, bottom: 12 })
 
-      SectionBlock({ title: '角色权限', subtitle: '当前账号可使用的主要能力。' }) {
+      SectionBlock({ title: '角色权限' }) {
         Flex({ wrap: FlexWrap.Wrap }) {
           ForEach(this.user.permissions, (permission: string) => {
             Text(permission)

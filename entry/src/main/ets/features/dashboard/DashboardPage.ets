@@ -38,6 +38,10 @@ export struct DashboardPage {
   };
   onOpenMessages: () => void = () => {
   };
+  onOpenKnowledge: () => void = () => {
+  };
+  onOpenTodo: () => void = () => {
+  };
   onStartWorkflow: (templateId: string) => void = () => {
   };
 
@@ -46,7 +50,7 @@ export struct DashboardPage {
   }
 
   @Builder
-  private StatItem(label: string, value: string, color: string) {
+  private StatItem(label: string, value: string, color: string, onClick: () => void) {
     Column({ space: 5 }) {
       Text(value)
         .fontSize(23)
@@ -61,15 +65,24 @@ export struct DashboardPage {
     .justifyContent(FlexAlign.Center)
     .backgroundColor('#F8FAFC')
     .borderRadius(8)
+    .onClick(() => {
+      onClick();
+    })
   }
 
   build() {
     Column({ space: 14 }) {
       SectionBlock({ title: `你好，${this.user.name}`, subtitle: `${this.user.department} · ${this.user.roleLabel}` }) {
         Row({ space: 8 }) {
-          this.StatItem('待处理', `${this.todoCount}`, '#246BFD')
-          this.StatItem('知识', `${this.articles.length}`, '#027A48')
-          this.StatItem('未读消息', `${this.getUnreadCount()}`, '#B54708')
+          this.StatItem('待处理', `${this.todoCount}`, '#246BFD', () => {
+            this.onOpenTodo();
+          })
+          this.StatItem('知识', `${this.articles.length}`, '#027A48', () => {
+            this.onOpenKnowledge();
+          })
+          this.StatItem('未读消息', `${this.getUnreadCount()}`, '#B54708', () => {
+            this.onOpenMessages();
+          })
         }
         .width('100%')
       }

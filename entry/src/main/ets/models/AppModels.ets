@@ -1,5 +1,8 @@
 export type UserRole = 'employee' | 'approver' | 'knowledgeAdmin' | 'systemAdmin';
- main
+export type ApprovalDecision = 'submitted' | 'approved' | 'rejected' | 'securityConfirmed';
+export type WorkflowStatus = '待审批' | '审批中' | '待二次确认' | '已通过' | '已驳回';
+export type NotificationTargetType = 'workflow' | 'knowledge' | 'none';
+export type ReadingFontScale = 'small' | 'standard' | 'large';
 
 export interface User {
   id: string;

@@ -8,7 +8,10 @@ import { KnowledgePage } from '../features/knowledge/KnowledgePage';
 import { MessagesPage } from '../features/messages/MessagesPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 import {
- main
+  AssistantHistory,
+  AssistantReply,
+  ApprovalRecord,
+  AuditLog,
   KnowledgeArticle,
   KnowledgeCategory,
   KnowledgeCorrection,
@@ -47,9 +50,26 @@ struct Index {
   @State activeTab: number = 0;
   @State selectedArticleId: string = 'k2';
   @State favoriteKnowledgeIds: string[] = [];
+  @State usefulKnowledgeIds: string[] = [];
+  @State corrections: KnowledgeCorrection[] = [];
   @State workflowInstances: WorkflowInstance[] = getMockInstances();
   @State notifications: NotificationItem[] = getMockNotifications();
- main
+  @State auditLogs: AuditLog[] = getMockAuditLogs();
+  @State activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' = 'none';
+  @State detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' = 'none';
+  @State assistantHistory: AssistantHistory[] = [];
+  @State assistantQuestion: string = '';
+  @State assistantReply: AssistantReply | null = null;
+  @State readingFontScale: ReadingFontScale = 'standard';
+  @State selectedTemplateId: string = 'wf1';
+  @State workflowTitleInput: string = '';
+  @State workflowExtraInput: string = '年假';
+  @State workflowDateInput: string = '2026-07-18 09:00-18:00';
+  @State workflowAmountInput: string = '';
+  @State workflowReasonInput: string = '';
+  @State workflowAttachmentInput: string = '';
+  @State approvalComment: string = '材料齐全，建议通过。';
+  @State selectedWorkflowId: string = '';
 
   private copyStringArray(source: string[]): string[] {
     const target: string[] = [];
@@ -146,7 +166,15 @@ struct Index {
     this.notifications = list;
   }
 
- main
+  private prependAuditLog(log: AuditLog): void {
+    const list: AuditLog[] = [];
+    list.push(log);
+    this.auditLogs.forEach((item: AuditLog) => {
+      list.push(item);
+    });
+    this.auditLogs = list;
+  }
+
   build() {
     Column() {
       if (this.currentUser === null) {
@@ -357,8 +385,16 @@ struct Index {
                 onOpenAssistant: () => {
                   this.activeSubPage = 'assistant';
                 },
+                onOpenKnowledge: () => {
+                  this.activeSubPage = 'none';
+                  this.activeTab = 1;
+                },
                 onOpenMessages: () => {
                   this.activeSubPage = 'messages';
+                },
+                onOpenTodo: () => {
+                  this.activeSubPage = 'none';
+                  this.activeTab = 2;
                 },
                 onStartWorkflow: (templateId: string) => {
                   this.startWorkflow(templateId);
@@ -439,7 +475,6 @@ struct Index {
   }
 
   @Builder
- main
   private WorkflowTab() {
     SectionBlock({ title: '流程模板', subtitle: '已预置请假、报销、采购、权限申请四类模板，并配置审批角色与安全规则。' }) {
       Column({ space: 10 }) {
@@ -666,7 +701,6 @@ struct Index {
       }
     }
 
- main
   }
 
   @Builder
@@ -912,13 +946,18 @@ struct Index {
     this.favoriteKnowledgeIds = this.copyStringArray(user.favoriteKnowledgeIds);
     this.selectedArticleId = user.recentKnowledgeIds.length > 0 ? user.recentKnowledgeIds[0] : 'k1';
     this.activeTab = 0;
- main
   }
 
   private openWorkflowComposer(templateId: string): void {
     this.selectedTemplateId = templateId;
     this.activeTab = 2;
     this.resetWorkflowForm();
+  }
+
+  private startWorkflow(templateId: string): void {
+    this.activeSubPage = 'none';
+    this.detailReturnSubPage = 'none';
+    this.openWorkflowComposer(templateId);
   }
 
   private resetWorkflowForm(): void {
@@ -974,7 +1013,6 @@ struct Index {
     );
 
     this.prependWorkflowInstance(instance);
- main
   }
 
   private handleWorkflowDecision(instanceId: string, isApproved: boolean): void {
@@ -1031,8 +1069,6 @@ struct Index {
       return updatedItem;
     });
 
- main
-
     this.showMessage(isApproved ? '已通过当前节点。' : '已驳回该流程。');
   }
 
@@ -1073,7 +1109,9 @@ struct Index {
         content: `${currentItem.title} 已完成二次安全确认并通过。`,
         time: '刚刚',
         read: false,
-        targetRoles: ['employee', 'approver', 'systemAdmin']
+        targetRoles: ['employee', 'approver', 'systemAdmin'],
+        targetType: 'workflow',
+        targetId: currentItem.id
       });
       this.writeAuditLog(
         '完成二次确认',
@@ -1083,7 +1121,7 @@ struct Index {
       );
     }
 
-    promptAction.showToast({ message: '已完成二次确认。' });
+    this.showMessage('已完成二次确认。');
   }
 
   private openArticle(articleId: string): void {
@@ -1134,7 +1172,9 @@ struct Index {
       content: `${this.getCurrentUser().name} 发起了“${instance.title}”，${requiresSecurityConfirm ? '系统已标记为高风险流程。' : '等待下一审批节点处理。'}`,
       time: '刚刚',
       read: false,
-      targetRoles: targets
+      targetRoles: targets,
+      targetType: 'workflow',
+      targetId: instance.id
     });
   }
 
@@ -1157,32 +1197,32 @@ struct Index {
 
   private validateWorkflowForm(templateId: string, amount: number): boolean {
     if (this.workflowReasonInput.trim().length === 0) {
-      promptAction.showToast({ message: '请填写申请事由。' });
+      this.showMessage('请填写申请事由。');
       return false;
     }
 
     if (this.workflowAttachmentInput.trim().length === 0) {
-      promptAction.showToast({ message: '请补充附件模拟内容。' });
+      this.showMessage('请补充附件模拟内容。');
       return false;
     }
 
     if (templateId === 'wf1' && (this.workflowExtraInput.trim().length === 0 || this.workflowDateInput.trim().length === 0)) {
-      promptAction.showToast({ message: '请完整填写请假类型和时间。' });
+      this.showMessage('请完整填写请假类型和时间。');
       return false;
     }
 
     if ((templateId === 'wf2' || templateId === 'wf3') && (amount <= 0 || this.workflowExtraInput.trim().length === 0)) {
-      promptAction.showToast({ message: '请填写金额和业务类型。' });
+      this.showMessage('请填写金额和业务类型。');
       return false;
     }
 
     if (templateId === 'wf3' && this.workflowDateInput.trim().length === 0) {
-      promptAction.showToast({ message: '请填写期望到货时间。' });
+      this.showMessage('请填写期望到货时间。');
       return false;
     }
 
     if (templateId === 'wf4' && (this.workflowExtraInput.trim().length === 0 || this.workflowDateInput.trim().length === 0)) {
-      promptAction.showToast({ message: '请填写系统名称和申请期限。' });
+      this.showMessage('请填写系统名称和申请期限。');
       return false;
     }
 
