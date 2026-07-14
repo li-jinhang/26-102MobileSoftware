@@ -17,6 +17,10 @@ export struct KnowledgePage {
   favoriteKnowledgeIds: string[];
   onOpenArticle: (articleId: string) => void = () => {
   };
+  onSelectOcrImage: () => void = () => {
+  };
+  onUseOcrDemo: () => void = () => {
+  };
   @State selectedCategoryId: string = 'all';
   @State searchKeyword: string = '';
 
@@ -41,6 +45,30 @@ export struct KnowledgePage {
             .onChange((value: string) => {
               this.searchKeyword = value;
             })
+
+          Row({ space: 10 }) {
+            Button('从相册选择')
+              .layoutWeight(1)
+              .height(42)
+              .fontColor('#FFFFFF')
+              .backgroundColor('#246BFD')
+              .borderRadius(8)
+              .onClick(() => {
+                this.onSelectOcrImage();
+              })
+
+            Button('使用内置演示图片')
+              .layoutWeight(1)
+              .height(42)
+              .fontSize(13)
+              .fontColor('#175CD3')
+              .backgroundColor('#EAF1FF')
+              .borderRadius(8)
+              .onClick(() => {
+                this.onUseOcrDemo();
+              })
+          }
+          .width('100%')
 
           Scroll() {
             Row({ space: 8 }) {

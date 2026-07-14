@@ -1,5 +1,12 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
+import {
+  createOcrFallback,
+  extractOcrKeywords,
+  matchOcrArticles,
+  OCR_DEMO_TEXT
+} from '../../../main/ets/common/services/OcrService';
+import { getMockArticles } from '../../../main/ets/mock/MockData';
 
 export default function abilityTest() {
   describe('ActsAbilityTest', () => {
@@ -30,6 +37,32 @@ export default function abilityTest() {
       // Defines a variety of assertion methods, which are used to declare expected boolean conditions.
       expect(a).assertContain(b);
       expect(a).assertEqual(a);
+    })
+
+    it('extractOcrKeywords', 0, () => {
+      const keywords: string[] = extractOcrKeywords('差旅报销需要发票和行程截图');
+      expect(keywords.includes('报销')).assertTrue();
+      expect(keywords.includes('发票')).assertTrue();
+    })
+
+    it('matchOcrArticles', 0, () => {
+      const articleIds: string[] = matchOcrArticles('差旅报销需要发票', getMockArticles());
+      expect(articleIds.includes('k2')).assertTrue();
+    })
+
+    it('createOcrFallback', 0, () => {
+      const fallback = createOcrFallback(getMockArticles(), 'unsupported');
+      expect(fallback.success).assertFalse();
+      expect(fallback.text.length > 0).assertTrue();
+      expect(fallback.fallbackReason).assertEqual('unsupported');
+    })
+
+    it('matchBundledOcrDemo', 0, () => {
+      const keywords: string[] = extractOcrKeywords(OCR_DEMO_TEXT);
+      const articleIds: string[] = matchOcrArticles(OCR_DEMO_TEXT, getMockArticles());
+      expect(keywords.includes('报销')).assertTrue();
+      expect(keywords.includes('发票')).assertTrue();
+      expect(articleIds.includes('k2')).assertTrue();
     })
   })
 }

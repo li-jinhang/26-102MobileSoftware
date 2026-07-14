@@ -1,3 +1,4 @@
+import { common } from '@kit.AbilityKit';
 import { askAssistantUseCase } from '../app/usecases/AssistantUseCases';
 import { loadAppBootstrapData, AppBootstrapData } from '../app/usecases/AppBootstrapUseCases';
 import { loginWithAccount, logoutCurrentAccount } from '../app/usecases/AuthUseCases';
@@ -47,11 +48,23 @@ import {
   WorkflowFormState
 } from '../app/usecases/WorkflowFormStateUseCases';
 import { EmptyState } from '../common/components/EmptyState';
+import {
+  DashboardSummary,
+  loadReadingSettings,
+  saveDashboardSummary,
+  saveReadingSettings
+} from '../common/services/ExperienceStateService';
 import { SectionBlock } from '../common/components/SectionBlock';
 import { AssistantPage } from '../features/assistant/AssistantPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { KnowledgeDetailPage } from '../features/knowledge/KnowledgeDetailPage';
 import { KnowledgePage } from '../features/knowledge/KnowledgePage';
+import { OcrResultPage } from '../features/knowledge/OcrResultPage';
+import {
+  OcrResult,
+  recognizeBundledDemoImage,
+  selectAndRecognizeImage
+} from '../common/services/OcrService';
 import { MessagesPage } from '../features/messages/MessagesPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 import {
@@ -64,6 +77,7 @@ import {
   KnowledgeCorrection,
   NotificationItem,
   ReadingFontScale,
+  ReadingFontWeight,
   User,
   WorkflowInstance,
   WorkflowTemplate
@@ -72,6 +86,7 @@ import {
 @Entry
 @Component
 struct Index {
+  @StorageLink('launchPage') launchPage: string = '';
   private readonly tabLabels: string[] = ['工作台', '知识库', '流程', '我的'];
   private readonly tabMarks: string[] = ['工', '知', '流', '我'];
 
@@ -90,15 +105,67 @@ struct Index {
   @State workflowInstances: WorkflowInstance[] = [];
   @State notifications: NotificationItem[] = [];
   @State auditLogs: AuditLog[] = [];
-  @State activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' = 'none';
-  @State detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' = 'none';
+  @State activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' = 'none';
+  @State detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' = 'none';
+  @State ocrResult: OcrResult | null = null;
   @State assistantHistory: AssistantHistory[] = [];
   @State assistantQuestion: string = '';
   @State assistantReply: AssistantReply | null = null;
   @State readingFontScale: ReadingFontScale = 'standard';
+  @State readingFontWeight: ReadingFontWeight = 'standard';
   @State activeWorkflowModule: 'overview' | 'apply' | 'mine' = 'overview';
   @State workflowPanelVisible: boolean = false;
   @State workflowComposerVisible: boolean = false;
+  private hostContext: common.UIAbilityContext | null = null;
+
+  aboutToAppear(): void {
+    try {
+      this.hostContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      loadReadingSettings(this.hostContext).then((settings) => {
+        this.readingFontScale = settings.scale;
+        this.readingFontWeight = settings.weight;
+      });
+      this.applyLaunchTarget();
+    } catch (error) {
+      console.error(`Index state initialization failed: ${error}`);
+    }
+  }
+
+  onPageShow(): void {
+    this.applyLaunchTarget();
+    this.persistDashboardSummary();
+  }
+
+  private applyLaunchTarget(): void {
+    if (this.launchPage !== 'knowledge' || this.currentUser === null) {
+      return;
+    }
+    this.activeSubPage = 'none';
+    this.activeTab = 1;
+    this.launchPage = '';
+  }
+
+  private persistReadingSettings(): void {
+    if (this.hostContext !== null) {
+      saveReadingSettings(this.hostContext, {
+        scale: this.readingFontScale,
+        weight: this.readingFontWeight
+      });
+    }
+  }
+
+  private persistDashboardSummary(): void {
+    if (this.hostContext === null || this.currentUser === null) {
+      return;
+    }
+    const recent: KnowledgeArticle[] = this.getRecentArticles();
+    const summary: DashboardSummary = {
+      todoCount: this.getDashboardTodoCount(),
+      unreadCount: this.getUnreadMessageCount(),
+      recentTitle: recent.length > 0 ? recent[0].title : '打开知识库'
+    };
+    saveDashboardSummary(this.hostContext, summary);
+  }
   @State selectedTemplateId: string = 'wf1';
   @State workflowTitleInput: string = '';
   @State workflowExtraInput: string = '年假';
@@ -246,6 +313,7 @@ struct Index {
             favorite: this.isFavorite(this.selectedArticleId),
             useful: this.usefulKnowledgeIds.includes(this.selectedArticleId),
             fontScale: this.readingFontScale,
+            fontWeight: this.readingFontWeight,
             workflowNames: this.getSelectedArticleWorkflowNames(),
             onBack: () => {
               this.activeSubPage = this.detailReturnSubPage;
@@ -262,9 +330,26 @@ struct Index {
             },
             onFontScaleChange: (scale: ReadingFontScale) => {
               this.readingFontScale = scale;
+              this.persistReadingSettings();
+            },
+            onFontWeightChange: (weight: ReadingFontWeight) => {
+              this.readingFontWeight = weight;
+              this.persistReadingSettings();
             },
             onStartWorkflow: (templateId: string) => {
               this.startWorkflow(templateId);
+            }
+          })
+        } else if (this.activeSubPage === 'ocrResult' && this.ocrResult !== null) {
+          OcrResultPage({
+            result: this.ocrResult,
+            articles: this.getPublishedArticles(),
+            onBack: () => {
+              this.activeSubPage = 'none';
+              this.activeTab = 1;
+            },
+            onOpenArticle: (articleId: string) => {
+              this.openArticle(articleId);
             }
           })
         } else if (this.activeSubPage === 'assistant') {
@@ -347,6 +432,12 @@ struct Index {
                   favoriteKnowledgeIds: this.favoriteKnowledgeIds,
                   onOpenArticle: (articleId: string) => {
                     this.openArticle(articleId);
+                  },
+                  onSelectOcrImage: () => {
+                    void this.startAlbumOcr();
+                  },
+                  onUseOcrDemo: () => {
+                    void this.startDemoOcr();
                   }
                 })
               } else if (this.activeTab === 2) {
@@ -365,6 +456,7 @@ struct Index {
                   },
                   onFontScaleChange: (scale: ReadingFontScale) => {
                     this.readingFontScale = scale;
+                    this.persistReadingSettings();
                   },
                   onLogout: () => {
                     void this.logout();
@@ -1091,6 +1183,34 @@ struct Index {
     this.showMessage(result.message);
   }
 
+  private openOcrResult(result: OcrResult): void {
+    this.ocrResult = result;
+    this.activeSubPage = 'ocrResult';
+  }
+
+  private async startAlbumOcr(): Promise<void> {
+    this.showMessage('请选择一张包含文字的图片。');
+    const result: OcrResult | null = await selectAndRecognizeImage(this.getPublishedArticles());
+    if (result === null) {
+      return;
+    }
+    this.openOcrResult(result);
+  }
+
+  private async startDemoOcr(): Promise<void> {
+    if (this.hostContext === null) {
+      this.showMessage('应用资源尚未准备完成，请稍后重试。');
+      return;
+    }
+    this.showMessage('正在识别内置报销凭证...');
+    const result: OcrResult = await recognizeBundledDemoImage(
+      this.hostContext,
+      $r('app.media.ocr_demo_receipt').id,
+      this.getPublishedArticles()
+    );
+    this.openOcrResult(result);
+  }
+
   private async logout(): Promise<void> {
     try {
       await logoutCurrentAccount();
@@ -1105,6 +1225,7 @@ struct Index {
     this.templates = [];
     this.activeTab = result.activeTab;
     this.activeSubPage = result.activeSubPage;
+    this.detailReturnSubPage = 'none';
     this.selectedArticleId = result.selectedArticleId;
     this.favoriteKnowledgeIds = result.favoriteKnowledgeIds;
     this.usefulKnowledgeIds = result.usefulKnowledgeIds;
@@ -1116,6 +1237,8 @@ struct Index {
     this.assistantQuestion = result.assistantQuestion;
     this.assistantReply = result.assistantReply;
     this.readingFontScale = result.readingFontScale;
+    this.readingFontWeight = 'standard';
+    this.ocrResult = null;
     this.activeWorkflowModule = 'overview';
     this.workflowPanelVisible = false;
     this.workflowComposerVisible = false;
@@ -1142,6 +1265,7 @@ struct Index {
       this.assistantHistory = result.assistantHistory;
       this.assistantQuestion = result.assistantQuestion;
       this.assistantReply = result.assistantReply;
+      this.ocrResult = null;
       this.activeWorkflowModule = 'overview';
       this.workflowPanelVisible = false;
       this.workflowComposerVisible = false;
@@ -1149,6 +1273,8 @@ struct Index {
       if (this.selectedArticleId.length === 0 && this.articles.length > 0) {
         this.selectedArticleId = this.articles[0].id;
       }
+      this.applyLaunchTarget();
+      this.persistDashboardSummary();
     } catch (error) {
       const message: string = error instanceof Error ? error.message : '连接后端失败，请检查服务是否已启动。';
       this.showMessage(message);
@@ -1215,6 +1341,7 @@ struct Index {
         this.selectedWorkflowId = result.instance.id;
       }
       this.showMessage('提交流程成功。');
+      this.persistDashboardSummary();
     } catch (error) {
       const message: string = error instanceof Error ? error.message : '提交流程失败。';
       this.showMessage(message);
@@ -1238,6 +1365,7 @@ struct Index {
       this.workflowPanelVisible = true;
       this.selectedWorkflowId = instanceId;
       this.showMessage(result.message);
+      this.persistDashboardSummary();
     } catch (error) {
       const message: string = error instanceof Error ? error.message : '流程处理失败。';
       this.showMessage(message);
@@ -1265,6 +1393,7 @@ struct Index {
         this.selectedWorkflowId = result.selectedWorkflowId;
       }
       this.showMessage(result.message);
+      this.persistDashboardSummary();
     } catch (error) {
       const message: string = error instanceof Error ? error.message : '二次确认失败。';
       this.showMessage(message);
@@ -1281,6 +1410,7 @@ struct Index {
     this.selectedArticleId = result.selectedArticleId;
     this.detailReturnSubPage = result.detailReturnSubPage;
     this.activeSubPage = result.activeSubPage;
+    this.persistDashboardSummary();
   }
 
   private async toggleFavorite(articleId: string): Promise<void> {
@@ -1288,6 +1418,7 @@ struct Index {
       const result = await toggleFavoriteKnowledgeUseCase(this.favoriteKnowledgeIds, articleId);
       this.favoriteKnowledgeIds = result.favoriteKnowledgeIds;
       this.showMessage(result.message);
+      this.persistDashboardSummary();
     } catch (error) {
       const message: string = error instanceof Error ? error.message : '收藏操作失败。';
       this.showMessage(message);
@@ -1297,6 +1428,7 @@ struct Index {
   private async handleMarkNotificationRead(notificationId: string): Promise<void> {
     try {
       this.notifications = await markNotificationReadStateUseCase(this.notifications, notificationId);
+      this.persistDashboardSummary();
     } catch (error) {
       const message: string = error instanceof Error ? error.message : '消息标记失败。';
       this.showMessage(message);

@@ -50,6 +50,19 @@
           }
         ],
       }
+      ,{
+        "name": "KnowledgeDashboardForm",
+        "srcEntry": "./ets/knowledgedashboardform/KnowledgeDashboardForm.ets",
+        "label": "$string:module_desc",
+        "description": "$string:module_desc",
+        "type": "form",
+        "metadata": [
+          {
+            "name": "ohos.extension.form",
+            "resource": "$profile:form_config"
+          }
+        ]
+      }
     ]
   }
 }

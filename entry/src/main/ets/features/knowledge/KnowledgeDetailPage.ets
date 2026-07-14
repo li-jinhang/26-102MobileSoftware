@@ -1,4 +1,5 @@
-import { KnowledgeArticle, ReadingFontScale } from '../../models/AppModels';
+import { KnowledgeArticle, ReadingFontScale, ReadingFontWeight } from '../../models/AppModels';
+import { EdgeLightPanel } from '../../common/components/EdgeLightPanel';
 
 @Component
 export struct KnowledgeDetailPage {
@@ -12,6 +13,8 @@ export struct KnowledgeDetailPage {
   @Prop
   fontScale: ReadingFontScale = 'standard';
   @Prop
+  fontWeight: ReadingFontWeight = 'standard';
+  @Prop
   workflowNames: string = '';
   onBack: () => void = () => {
   };
@@ -21,6 +24,8 @@ export struct KnowledgeDetailPage {
   };
   onSubmitCorrection: (articleId: string, content: string) => Promise<boolean> = async () => false;
   onFontScaleChange: (scale: ReadingFontScale) => void = () => {
+  };
+  onFontWeightChange: (weight: ReadingFontWeight) => void = () => {
   };
   onStartWorkflow: (templateId: string) => void = () => {
   };
@@ -34,6 +39,10 @@ export struct KnowledgeDetailPage {
       return 19;
     }
     return 16;
+  }
+
+  private getBodyFontWeight(): FontWeight {
+    return this.fontWeight === 'semiBold' ? FontWeight.Medium : FontWeight.Regular;
   }
 
   private showMessage(message: string): void {
@@ -98,23 +107,25 @@ export struct KnowledgeDetailPage {
 
       Scroll() {
         Column({ space: 14 }) {
-          Column({ space: 10 }) {
-            Text(this.article.title)
-              .fontSize(26)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#172B4D')
-              .lineHeight(34)
-              .width('100%')
+          EdgeLightPanel({ radiusValue: 8 }) {
+            Column({ space: 10 }) {
+              Text(this.article.title)
+                .fontSize(26)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#172B4D')
+                .lineHeight(34)
+                .width('100%')
 
-            Text(`${this.article.updateTime} 更新 · ${this.article.tags.join(' / ')}`)
-              .fontSize(12)
-              .fontColor('#667085')
-              .width('100%')
+              Text(`${this.article.updateTime} 更新 · ${this.article.tags.join(' / ')}`)
+                .fontSize(12)
+                .fontColor('#667085')
+                .width('100%')
+            }
+            .width('100%')
+            .padding(18)
+            .backgroundColor('#EAF1FF')
+            .borderRadius(8)
           }
-          .width('100%')
-          .padding(18)
-          .backgroundColor('#EAF1FF')
-          .borderRadius(8)
 
           Column({ space: 12 }) {
             Row() {
@@ -135,6 +146,25 @@ export struct KnowledgeDetailPage {
               this.FontScaleOption('large', '大')
             }
             .width('100%')
+
+            Row({ space: 6 }) {
+              Text('字重')
+                .fontSize(12)
+                .fontColor('#667085')
+                .layoutWeight(1)
+              Text(this.fontWeight === 'semiBold' ? '半粗' : '标准')
+                .fontSize(12)
+                .fontColor('#175CD3')
+                .textAlign(TextAlign.Center)
+                .width(64)
+                .padding({ top: 7, bottom: 7 })
+                .backgroundColor('#F2F4F7')
+                .borderRadius(6)
+                .onClick(() => {
+                  this.onFontWeightChange(this.fontWeight === 'semiBold' ? 'standard' : 'semiBold');
+                })
+            }
+            .width('100%')
           }
           .width('100%')
           .padding(16)
@@ -144,6 +174,7 @@ export struct KnowledgeDetailPage {
           Column({ space: 14 }) {
             Text(this.article.content)
               .fontSize(this.getBodyFontSize())
+              .fontWeight(this.getBodyFontWeight())
               .fontColor('#344054')
               .lineHeight(this.getBodyFontSize() + 10)
               .width('100%')

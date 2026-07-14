@@ -5,13 +5,23 @@ import { window } from '@kit.ArkUI';
 const DOMAIN = 0x0000;
 
 export default class EntryAbility extends UIAbility {
+  private applyLaunchWant(want: Want): void {
+    const page: string = `${want.parameters?.['page'] ?? ''}`;
+    AppStorage.setOrCreate('launchPage', page);
+  }
+
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    this.applyLaunchWant(want);
     try {
       this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     } catch (err) {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
+  }
+
+  onNewWant(want: Want, _launchParam: AbilityConstant.LaunchParam): void {
+    this.applyLaunchWant(want);
   }
 
   onDestroy(): void {

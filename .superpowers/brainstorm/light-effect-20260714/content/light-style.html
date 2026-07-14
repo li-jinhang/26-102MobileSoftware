@@ -1,0 +1,52 @@
+<style>
+  .phone-preview { background:#f3f6fb; border:1px solid #d7dfec; border-radius:22px; padding:16px; min-height:330px; overflow:hidden; }
+  .phone-head { display:flex; justify-content:space-between; align-items:start; margin-bottom:16px; color:#172b4d; }
+  .phone-head h4 { margin:0; font-size:22px; }
+  .dept { background:#fff; color:#039855; padding:7px 12px; border-radius:18px; font-size:12px; }
+  .summary { position:relative; background:#fff; border-radius:10px; padding:18px; color:#172b4d; overflow:hidden; }
+  .summary h4 { margin:0 0 4px; font-size:18px; }
+  .stats { display:flex; gap:8px; margin-top:16px; }
+  .stat { flex:1; background:#f8fafc; border-radius:8px; padding:13px 6px; text-align:center; }
+  .stat b { display:block; font-size:21px; color:#246bfd; }
+  .edge-panel::before,.edge-panel::after { content:""; position:absolute; height:3px; width:40%; top:0; border-radius:4px; animation:sweep 2.2s ease-in-out infinite alternate; }
+  .edge-panel::before { left:-15%; background:#246bfd; box-shadow:0 0 14px #246bfd; }
+  .edge-panel::after { right:-15%; background:#12b76a; box-shadow:0 0 14px #12b76a; animation-direction:alternate-reverse; }
+  .edge-panel { border:1px solid #b2ccff; box-shadow:0 8px 24px rgba(36,107,253,.12); }
+  .header-light { height:84px; border-radius:10px; margin-bottom:14px; background:#eaf1ff; border:1px solid #b2ccff; position:relative; overflow:hidden; }
+  .header-light::before { content:""; position:absolute; width:42%; height:100%; left:-20%; background:rgba(36,107,253,.28); animation:sweep 2.2s ease-in-out infinite alternate; }
+  .header-light::after { content:""; position:absolute; width:34%; height:100%; right:-18%; background:rgba(18,183,106,.22); animation:sweep 2.2s ease-in-out infinite alternate-reverse; }
+  .ambient { background:#eef4ff; border:1px solid #84adff; box-shadow:inset 0 0 24px rgba(36,107,253,.18),0 8px 24px rgba(18,183,106,.12); }
+  .ambient::after { content:""; position:absolute; inset:8px; border:2px solid rgba(18,183,106,.32); border-radius:8px; animation:pulse 1.8s ease-in-out infinite alternate; }
+  @keyframes sweep { from { transform:translateX(0); } to { transform:translateX(210%); } }
+  @keyframes pulse { from { opacity:.25; } to { opacity:.9; } }
+</style>
+
+<h2>工作台光感效果选择</h2>
+<p class="subtitle">三种方案都能在当前模拟器运行，不依赖真实 HDS 渲染。点击卡片选择。</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image phone-preview">
+      <div class="phone-head"><div><h4>工作台</h4><small>张晓宁 · 普通员工</small></div><span class="dept">产品研发部</span></div>
+      <div class="summary edge-panel"><h4>你好，张晓宁</h4><small>产品研发部 · 普通员工</small><div class="stats"><div class="stat"><b>2</b>待处理</div><div class="stat"><b>5</b>知识</div><div class="stat"><b>1</b>未读</div></div></div>
+    </div>
+    <div class="card-body"><h3>A. 卡片边缘流光（推荐）</h3><p>光带沿统计卡片顶部和边缘移动，和内容融为一体，没有额外空白区域。</p></div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image phone-preview">
+      <div class="phone-head"><div><h4>工作台</h4><small>张晓宁 · 普通员工</small></div><span class="dept">产品研发部</span></div>
+      <div class="header-light"></div>
+      <div class="summary"><h4>你好，张晓宁</h4><small>产品研发部 · 普通员工</small><div class="stats"><div class="stat"><b>2</b>待处理</div><div class="stat"><b>5</b>知识</div><div class="stat"><b>1</b>未读</div></div></div>
+    </div>
+    <div class="card-body"><h3>B. 独立沉浸光带</h3><p>保留单独的大面积光感区域，效果明显，但会占用工作台纵向空间。</p></div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image phone-preview">
+      <div class="phone-head"><div><h4>工作台</h4><small>张晓宁 · 普通员工</small></div><span class="dept">产品研发部</span></div>
+      <div class="summary ambient"><h4>你好，张晓宁</h4><small>产品研发部 · 普通员工</small><div class="stats"><div class="stat"><b>2</b>待处理</div><div class="stat"><b>5</b>知识</div><div class="stat"><b>1</b>未读</div></div></div>
+    </div>
+    <div class="card-body"><h3>C. 呼吸光晕面板</h3><p>整块卡片周期性呼吸，最稳定但移动感较弱，更像状态强调而不是流光。</p></div>
+  </div>
+</div>
