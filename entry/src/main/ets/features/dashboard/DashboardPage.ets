@@ -1,4 +1,5 @@
 import { KnowledgeCard } from '../../common/components/KnowledgeCard';
+import { EdgeLightPanel } from '../../common/components/EdgeLightPanel';
 import { SectionBlock } from '../../common/components/SectionBlock';
 import {
   KnowledgeArticle,
@@ -72,19 +73,21 @@ export struct DashboardPage {
 
   build() {
     Column({ space: 14 }) {
-      SectionBlock({ title: `你好，${this.user.name}`, subtitle: `${this.user.department} · ${this.user.roleLabel}` }) {
-        Row({ space: 8 }) {
-          this.StatItem('待处理', `${this.todoCount}`, '#246BFD', () => {
-            this.onOpenTodo();
-          })
-          this.StatItem('知识', `${this.articles.length}`, '#027A48', () => {
-            this.onOpenKnowledge();
-          })
-          this.StatItem('未读消息', `${this.getUnreadCount()}`, '#B54708', () => {
-            this.onOpenMessages();
-          })
+      EdgeLightPanel({ radiusValue: 8 }) {
+        SectionBlock({ title: `你好，${this.user.name}`, subtitle: `${this.user.department} · ${this.user.roleLabel}` }) {
+          Row({ space: 8 }) {
+            this.StatItem('待处理', `${this.todoCount}`, '#246BFD', () => {
+              this.onOpenTodo();
+            })
+            this.StatItem('知识', `${this.articles.length}`, '#027A48', () => {
+              this.onOpenKnowledge();
+            })
+            this.StatItem('未读消息', `${this.getUnreadCount()}`, '#B54708', () => {
+              this.onOpenMessages();
+            })
+          }
+          .width('100%')
         }
-        .width('100%')
       }
 
       SectionBlock({ title: '快捷流程', subtitle: '常用申请可在两步内进入填写。' }) {

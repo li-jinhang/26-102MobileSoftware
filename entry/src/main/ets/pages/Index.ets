@@ -1,10 +1,23 @@
+import { common } from '@kit.AbilityKit';
 import { markNotificationRead } from '../common/services/MessageService';
+import {
+  DashboardSummary,
+  loadReadingSettings,
+  saveDashboardSummary,
+  saveReadingSettings
+} from '../common/services/ExperienceStateService';
 import { validateCorrection } from '../common/services/KnowledgeService';
 import { SectionBlock } from '../common/components/SectionBlock';
 import { AssistantPage } from '../features/assistant/AssistantPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { KnowledgeDetailPage } from '../features/knowledge/KnowledgeDetailPage';
 import { KnowledgePage } from '../features/knowledge/KnowledgePage';
+import { OcrResultPage } from '../features/knowledge/OcrResultPage';
+import {
+  OcrResult,
+  recognizeBundledDemoImage,
+  selectAndRecognizeImage
+} from '../common/services/OcrService';
 import { MessagesPage } from '../features/messages/MessagesPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 import {
@@ -17,6 +30,7 @@ import {
   KnowledgeCorrection,
   NotificationItem,
   ReadingFontScale,
+  ReadingFontWeight,
   User,
   UserRole,
   WorkflowInstance,
@@ -37,6 +51,7 @@ import {
 @Entry
 @Component
 struct Index {
+  @StorageLink('launchPage') launchPage: string = '';
   private readonly users: User[] = getMockUsers();
   private readonly categories: KnowledgeCategory[] = getMockCategories();
   private readonly articles: KnowledgeArticle[] = getMockArticles();
@@ -55,12 +70,64 @@ struct Index {
   @State workflowInstances: WorkflowInstance[] = getMockInstances();
   @State notifications: NotificationItem[] = getMockNotifications();
   @State auditLogs: AuditLog[] = getMockAuditLogs();
-  @State activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' = 'none';
-  @State detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' = 'none';
+  @State activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' = 'none';
+  @State detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' = 'none';
+  @State ocrResult: OcrResult | null = null;
   @State assistantHistory: AssistantHistory[] = [];
   @State assistantQuestion: string = '';
   @State assistantReply: AssistantReply | null = null;
   @State readingFontScale: ReadingFontScale = 'standard';
+  @State readingFontWeight: ReadingFontWeight = 'standard';
+  private hostContext: common.UIAbilityContext | null = null;
+
+  aboutToAppear(): void {
+    try {
+      this.hostContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      loadReadingSettings(this.hostContext).then((settings) => {
+        this.readingFontScale = settings.scale;
+        this.readingFontWeight = settings.weight;
+      });
+      this.applyLaunchTarget();
+    } catch (error) {
+      console.error(`Index state initialization failed: ${error}`);
+    }
+  }
+
+  onPageShow(): void {
+    this.applyLaunchTarget();
+    this.persistDashboardSummary();
+  }
+
+  private applyLaunchTarget(): void {
+    if (this.launchPage !== 'knowledge' || this.currentUser === null) {
+      return;
+    }
+    this.activeSubPage = 'none';
+    this.activeTab = 1;
+    this.launchPage = '';
+  }
+
+  private persistReadingSettings(): void {
+    if (this.hostContext !== null) {
+      saveReadingSettings(this.hostContext, {
+        scale: this.readingFontScale,
+        weight: this.readingFontWeight
+      });
+    }
+  }
+
+  private persistDashboardSummary(): void {
+    if (this.hostContext === null || this.currentUser === null) {
+      return;
+    }
+    const recent: KnowledgeArticle[] = this.getRecentArticles();
+    const summary: DashboardSummary = {
+      todoCount: this.getDashboardTodoCount(),
+      unreadCount: this.getUnreadMessageCount(),
+      recentTitle: recent.length > 0 ? recent[0].title : '打开知识库'
+    };
+    saveDashboardSummary(this.hostContext, summary);
+  }
   @State selectedTemplateId: string = 'wf1';
   @State workflowTitleInput: string = '';
   @State workflowExtraInput: string = '年假';
@@ -310,6 +377,7 @@ struct Index {
           favorite: this.isFavorite(this.selectedArticleId),
           useful: this.usefulKnowledgeIds.includes(this.selectedArticleId),
           fontScale: this.readingFontScale,
+          fontWeight: this.readingFontWeight,
           workflowNames: this.getSelectedArticleWorkflowNames(),
           onBack: () => {
             this.activeSubPage = this.detailReturnSubPage;
@@ -326,9 +394,26 @@ struct Index {
           },
           onFontScaleChange: (scale: ReadingFontScale) => {
             this.readingFontScale = scale;
+            this.persistReadingSettings();
+          },
+          onFontWeightChange: (weight: ReadingFontWeight) => {
+            this.readingFontWeight = weight;
+            this.persistReadingSettings();
           },
           onStartWorkflow: (templateId: string) => {
             this.startWorkflow(templateId);
+          }
+        })
+      } else if (this.activeSubPage === 'ocrResult' && this.ocrResult !== null) {
+        OcrResultPage({
+          result: this.ocrResult,
+          articles: this.getPublishedArticles(),
+          onBack: () => {
+            this.activeSubPage = 'none';
+            this.activeTab = 1;
+          },
+          onOpenArticle: (articleId: string) => {
+            this.openArticle(articleId);
           }
         })
       } else if (this.activeSubPage === 'assistant') {
@@ -356,6 +441,7 @@ struct Index {
           },
           onMarkRead: (notificationId: string) => {
             this.notifications = markNotificationRead(this.notifications, notificationId);
+            this.persistDashboardSummary();
           },
           onOpenKnowledge: (articleId: string) => {
             this.openArticle(articleId);
@@ -407,6 +493,12 @@ struct Index {
                 favoriteKnowledgeIds: this.favoriteKnowledgeIds,
                 onOpenArticle: (articleId: string) => {
                   this.openArticle(articleId);
+                },
+                onSelectOcrImage: () => {
+                  this.startAlbumOcr();
+                },
+                onUseOcrDemo: () => {
+                  this.startDemoOcr();
                 }
               })
             } else if (this.activeTab === 2) {
@@ -425,6 +517,7 @@ struct Index {
                 },
                 onFontScaleChange: (scale: ReadingFontScale) => {
                   this.readingFontScale = scale;
+                  this.persistReadingSettings();
                 },
                 onLogout: () => {
                   this.logout();
@@ -933,6 +1026,35 @@ struct Index {
     this.assistantQuestion = '';
     this.assistantReply = null;
     this.readingFontScale = 'standard';
+    this.readingFontWeight = 'standard';
+  }
+
+  private openOcrResult(result: OcrResult): void {
+    this.ocrResult = result;
+    this.activeSubPage = 'ocrResult';
+  }
+
+  private async startAlbumOcr(): Promise<void> {
+    this.showMessage('请选择一张包含文字的图片。');
+    const result: OcrResult | null = await selectAndRecognizeImage(this.getPublishedArticles());
+    if (result === null) {
+      return;
+    }
+    this.openOcrResult(result);
+  }
+
+  private async startDemoOcr(): Promise<void> {
+    if (this.hostContext === null) {
+      this.showMessage('应用资源尚未准备完成，请稍后重试。');
+      return;
+    }
+    this.showMessage('正在识别内置报销凭证...');
+    const result: OcrResult = await recognizeBundledDemoImage(
+      this.hostContext,
+      $r('app.media.ocr_demo_receipt').id,
+      this.getPublishedArticles()
+    );
+    this.openOcrResult(result);
   }
 
   private handleLogin(): void {
@@ -946,6 +1068,8 @@ struct Index {
     this.favoriteKnowledgeIds = this.copyStringArray(user.favoriteKnowledgeIds);
     this.selectedArticleId = user.recentKnowledgeIds.length > 0 ? user.recentKnowledgeIds[0] : 'k1';
     this.activeTab = 0;
+    this.applyLaunchTarget();
+    this.persistDashboardSummary();
   }
 
   private openWorkflowComposer(templateId: string): void {
@@ -1143,11 +1267,13 @@ struct Index {
     this.selectedArticleId = articleId;
     this.detailReturnSubPage = this.activeSubPage;
     this.activeSubPage = 'knowledgeDetail';
+    this.persistDashboardSummary();
   }
 
   private toggleFavorite(articleId: string): void {
     if (this.favoriteKnowledgeIds.includes(articleId)) {
       this.favoriteKnowledgeIds = this.favoriteKnowledgeIds.filter((item: string) => item !== articleId);
+      this.persistDashboardSummary();
       this.showMessage('已取消收藏。');
       return;
     }
@@ -1158,6 +1284,7 @@ struct Index {
       favorites.push(item);
     });
     this.favoriteKnowledgeIds = favorites;
+    this.persistDashboardSummary();
     this.showMessage('已加入收藏。');
   }
 
