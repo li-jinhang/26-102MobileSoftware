@@ -1,12 +1,59 @@
 import { common } from '@kit.AbilityKit';
-import { markNotificationRead } from '../common/services/MessageService';
+import { askAssistantUseCase } from '../app/usecases/AssistantUseCases';
+import { loadAppBootstrapData, AppBootstrapData } from '../app/usecases/AppBootstrapUseCases';
+import { loginWithAccount, logoutCurrentAccount } from '../app/usecases/AuthUseCases';
+import {
+  isFavoriteKnowledgeUseCase,
+  markKnowledgeUsefulStateUseCase,
+  submitCorrectionStateUseCase,
+  toggleFavoriteKnowledgeUseCase
+} from '../app/usecases/KnowledgeStateUseCases';
+import {
+  getActiveWorkflowCountUseCase,
+  getArticleByIdUseCase,
+  getDashboardTodoCountUseCase,
+  getFavoriteArticlesUseCase,
+  getHighRiskWorkflowCountUseCase,
+  getMyWorkflowsUseCase,
+  getPublishedArticlesUseCase,
+  getRecentArticlesUseCase,
+  getRelatedKnowledgeTitlesUseCase,
+  getSelectedArticleRequiredUseCase,
+  getSelectedArticleUseCase,
+  getSelectedArticleWorkflowNamesUseCase,
+  getSelectedTemplateUseCase,
+  getTemplateByIdUseCase,
+  getTemplateNameUseCase,
+  getTodoWorkflowsUseCase,
+  getUnreadMessageCountUseCase,
+  getVisibleAuditLogsUseCase,
+  getVisibleMessagesUseCase,
+  getWorkflowByIdUseCase
+} from '../app/usecases/AppQueryUseCases';
+import {
+  buildLoginStateUseCase,
+  buildLogoutStateUseCase,
+  buildOpenArticleStateUseCase,
+  buildWorkflowMessageNavigationStateUseCase,
+  markNotificationReadStateUseCase
+} from '../app/usecases/AppStateUseCases';
+import {
+  applyWorkflowDecisionUseCase,
+  applyWorkflowSecurityConfirmUseCase,
+  createWorkflowUseCase
+} from '../app/usecases/WorkflowUseCases';
+import {
+  buildOpenWorkflowComposerStateUseCase,
+  buildStartWorkflowStateUseCase,
+  WorkflowFormState
+} from '../app/usecases/WorkflowFormStateUseCases';
+import { EmptyState } from '../common/components/EmptyState';
 import {
   DashboardSummary,
   loadReadingSettings,
   saveDashboardSummary,
   saveReadingSettings
 } from '../common/services/ExperienceStateService';
-import { validateCorrection } from '../common/services/KnowledgeService';
 import { SectionBlock } from '../common/components/SectionBlock';
 import { AssistantPage } from '../features/assistant/AssistantPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
@@ -32,44 +79,32 @@ import {
   ReadingFontScale,
   ReadingFontWeight,
   User,
-  UserRole,
   WorkflowInstance,
   WorkflowTemplate
 } from '../models/AppModels';
-import {
-  authenticateUser,
-  buildWorkflowInstance,
-  getMockArticles,
-  getMockAuditLogs,
-  getMockCategories,
-  getMockInstances,
-  getMockNotifications,
-  getMockTemplates,
-  getMockUsers
-} from '../mock/MockData';
 
 @Entry
 @Component
 struct Index {
   @StorageLink('launchPage') launchPage: string = '';
-  private readonly users: User[] = getMockUsers();
-  private readonly categories: KnowledgeCategory[] = getMockCategories();
-  private readonly articles: KnowledgeArticle[] = getMockArticles();
-  private readonly templates: WorkflowTemplate[] = getMockTemplates();
   private readonly tabLabels: string[] = ['工作台', '知识库', '流程', '我的'];
   private readonly tabMarks: string[] = ['工', '知', '流', '我'];
 
   @State loginAccount: string = 'employee01';
   @State loginPassword: string = '123456';
+  @State isLoading: boolean = false;
   @State currentUser: User | null = null;
+  @State categories: KnowledgeCategory[] = [];
+  @State articles: KnowledgeArticle[] = [];
+  @State templates: WorkflowTemplate[] = [];
   @State activeTab: number = 0;
   @State selectedArticleId: string = 'k2';
   @State favoriteKnowledgeIds: string[] = [];
   @State usefulKnowledgeIds: string[] = [];
   @State corrections: KnowledgeCorrection[] = [];
-  @State workflowInstances: WorkflowInstance[] = getMockInstances();
-  @State notifications: NotificationItem[] = getMockNotifications();
-  @State auditLogs: AuditLog[] = getMockAuditLogs();
+  @State workflowInstances: WorkflowInstance[] = [];
+  @State notifications: NotificationItem[] = [];
+  @State auditLogs: AuditLog[] = [];
   @State activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' = 'none';
   @State detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' = 'none';
   @State ocrResult: OcrResult | null = null;
@@ -78,6 +113,9 @@ struct Index {
   @State assistantReply: AssistantReply | null = null;
   @State readingFontScale: ReadingFontScale = 'standard';
   @State readingFontWeight: ReadingFontWeight = 'standard';
+  @State activeWorkflowModule: 'overview' | 'apply' | 'mine' = 'overview';
+  @State workflowPanelVisible: boolean = false;
+  @State workflowComposerVisible: boolean = false;
   private hostContext: common.UIAbilityContext | null = null;
 
   aboutToAppear(): void {
@@ -138,110 +176,6 @@ struct Index {
   @State approvalComment: string = '材料齐全，建议通过。';
   @State selectedWorkflowId: string = '';
 
-  private copyStringArray(source: string[]): string[] {
-    const target: string[] = [];
-    source.forEach((item: string) => {
-      target.push(item);
-    });
-    return target;
-  }
-
-  private copyApprovalRecords(source: ApprovalRecord[]): ApprovalRecord[] {
-    const target: ApprovalRecord[] = [];
-    source.forEach((item: ApprovalRecord) => {
-      target.push({
-        id: item.id,
-        nodeName: item.nodeName,
-        operatorRole: item.operatorRole,
-        operatorName: item.operatorName,
-        decision: item.decision,
-        comment: item.comment,
-        time: item.time
-      });
-    });
-    return target;
-  }
-
-  private cloneUser(user: User): User {
-    return {
-      id: user.id,
-      name: user.name,
-      account: user.account,
-      password: user.password,
-      department: user.department,
-      role: user.role,
-      roleLabel: user.roleLabel,
-      permissions: this.copyStringArray(user.permissions),
-      favoriteKnowledgeIds: this.copyStringArray(user.favoriteKnowledgeIds),
-      recentKnowledgeIds: this.copyStringArray(user.recentKnowledgeIds),
-      todoCount: user.todoCount
-    };
-  }
-
-  private cloneWorkflowInstance(item: WorkflowInstance): WorkflowInstance {
-    return {
-      id: item.id,
-      templateId: item.templateId,
-      title: item.title,
-      applicantId: item.applicantId,
-      applicantName: item.applicantName,
-      status: item.status,
-      currentNode: item.currentNode,
-      currentApproverRole: item.currentApproverRole,
-      createTime: item.createTime,
-      latestComment: item.latestComment,
-      relatedKnowledgeIds: this.copyStringArray(item.relatedKnowledgeIds),
-      amount: item.amount,
-      formSummary: item.formSummary,
-      formDetail: this.copyStringArray(item.formDetail),
-      approvalRecords: this.copyApprovalRecords(item.approvalRecords),
-      riskLevel: item.riskLevel,
-      riskReason: item.riskReason,
-      requiresSecurityConfirm: item.requiresSecurityConfirm,
-      securityConfirmed: item.securityConfirmed
-    };
-  }
-
-  private cloneAuditLog(item: AuditLog): AuditLog {
-    return {
-      id: item.id,
-      module: item.module,
-      action: item.action,
-      operatorName: item.operatorName,
-      operatorRole: item.operatorRole,
-      riskLevel: item.riskLevel,
-      detail: item.detail,
-      time: item.time
-    };
-  }
-
-  private prependWorkflowInstance(instance: WorkflowInstance): void {
-    const list: WorkflowInstance[] = [];
-    list.push(instance);
-    this.workflowInstances.forEach((item: WorkflowInstance) => {
-      list.push(item);
-    });
-    this.workflowInstances = list;
-  }
-
-  private prependNotification(notification: NotificationItem): void {
-    const list: NotificationItem[] = [];
-    list.push(notification);
-    this.notifications.forEach((item: NotificationItem) => {
-      list.push(item);
-    });
-    this.notifications = list;
-  }
-
-  private prependAuditLog(log: AuditLog): void {
-    const list: AuditLog[] = [];
-    list.push(log);
-    this.auditLogs.forEach((item: AuditLog) => {
-      list.push(item);
-    });
-    this.auditLogs = list;
-  }
-
   build() {
     Column() {
       if (this.currentUser === null) {
@@ -291,15 +225,16 @@ struct Index {
             this.loginPassword = value;
           })
 
-        Button('登录并进入工作台')
+        Button(this.isLoading ? '正在连接后端...' : '登录并进入工作台')
           .width('100%')
           .height(50)
           .fontSize(16)
           .fontWeight(FontWeight.Medium)
           .backgroundColor('#246BFD')
           .borderRadius(16)
+          .enabled(!this.isLoading)
           .onClick(() => {
-            this.handleLogin();
+            void this.handleLogin();
           })
       }
       .width('100%')
@@ -370,168 +305,183 @@ struct Index {
 
   @Builder
   private AppShell() {
-    Column() {
-      if (this.activeSubPage === 'knowledgeDetail') {
-        KnowledgeDetailPage({
-          article: this.getSelectedArticleRequired(),
-          favorite: this.isFavorite(this.selectedArticleId),
-          useful: this.usefulKnowledgeIds.includes(this.selectedArticleId),
-          fontScale: this.readingFontScale,
-          fontWeight: this.readingFontWeight,
-          workflowNames: this.getSelectedArticleWorkflowNames(),
-          onBack: () => {
-            this.activeSubPage = this.detailReturnSubPage;
-            this.detailReturnSubPage = 'none';
-          },
-          onToggleFavorite: (articleId: string) => {
-            this.toggleFavorite(articleId);
-          },
-          onMarkUseful: (articleId: string) => {
-            this.markKnowledgeUseful(articleId);
-          },
-          onSubmitCorrection: (articleId: string, content: string): boolean => {
-            return this.submitCorrection(articleId, content);
-          },
-          onFontScaleChange: (scale: ReadingFontScale) => {
-            this.readingFontScale = scale;
-            this.persistReadingSettings();
-          },
-          onFontWeightChange: (weight: ReadingFontWeight) => {
-            this.readingFontWeight = weight;
-            this.persistReadingSettings();
-          },
-          onStartWorkflow: (templateId: string) => {
-            this.startWorkflow(templateId);
-          }
-        })
-      } else if (this.activeSubPage === 'ocrResult' && this.ocrResult !== null) {
-        OcrResultPage({
-          result: this.ocrResult,
-          articles: this.getPublishedArticles(),
-          onBack: () => {
-            this.activeSubPage = 'none';
-            this.activeTab = 1;
-          },
-          onOpenArticle: (articleId: string) => {
-            this.openArticle(articleId);
-          }
-        })
-      } else if (this.activeSubPage === 'assistant') {
-        AssistantPage({
-          articles: this.getPublishedArticles(),
-          templates: this.templates,
-          history: $assistantHistory,
-          question: $assistantQuestion,
-          reply: $assistantReply,
-          onBack: () => {
-            this.activeSubPage = 'none';
-          },
-          onOpenArticle: (articleId: string) => {
-            this.openArticle(articleId);
-          },
-          onStartWorkflow: (templateId: string) => {
-            this.startWorkflow(templateId);
-          }
-        })
-      } else if (this.activeSubPage === 'messages') {
-        MessagesPage({
-          notifications: this.getVisibleMessages(),
-          onBack: () => {
-            this.activeSubPage = 'none';
-          },
-          onMarkRead: (notificationId: string) => {
-            this.notifications = markNotificationRead(this.notifications, notificationId);
-            this.persistDashboardSummary();
-          },
-          onOpenKnowledge: (articleId: string) => {
-            this.openArticle(articleId);
-          },
-          onOpenWorkflow: (instanceId: string) => {
-            this.openWorkflowFromMessage(instanceId);
-          }
-        })
-      } else {
-        this.PageHeader();
-
-        Scroll() {
-          Column({ space: 14 }) {
-            if (this.activeTab === 0) {
-              DashboardPage({
-                user: this.getCurrentUser(),
-                articles: this.getPublishedArticles(),
-                recentArticles: this.getRecentArticles(),
-                favoriteArticles: this.getFavoriteArticles(),
-                favoriteKnowledgeIds: this.favoriteKnowledgeIds,
-                notifications: this.getVisibleMessages(),
-                templates: this.templates,
-                todoCount: this.getDashboardTodoCount(),
-                onOpenArticle: (articleId: string) => {
-                  this.openArticle(articleId);
-                },
-                onOpenAssistant: () => {
-                  this.activeSubPage = 'assistant';
-                },
-                onOpenKnowledge: () => {
-                  this.activeSubPage = 'none';
-                  this.activeTab = 1;
-                },
-                onOpenMessages: () => {
-                  this.activeSubPage = 'messages';
-                },
-                onOpenTodo: () => {
-                  this.activeSubPage = 'none';
-                  this.activeTab = 2;
-                },
-                onStartWorkflow: (templateId: string) => {
-                  this.startWorkflow(templateId);
-                }
-              })
-            } else if (this.activeTab === 1) {
-              KnowledgePage({
-                categories: this.categories,
-                articles: this.articles,
-                favoriteKnowledgeIds: this.favoriteKnowledgeIds,
-                onOpenArticle: (articleId: string) => {
-                  this.openArticle(articleId);
-                },
-                onSelectOcrImage: () => {
-                  this.startAlbumOcr();
-                },
-                onUseOcrDemo: () => {
-                  this.startDemoOcr();
-                }
-              })
-            } else if (this.activeTab === 2) {
-              this.WorkflowTab();
-            } else {
-              ProfilePage({
-                user: this.getCurrentUser(),
-                favoriteArticles: this.getFavoriteArticles(),
-                unreadCount: this.getUnreadMessageCount(),
-                fontScale: this.readingFontScale,
-                onOpenArticle: (articleId: string) => {
-                  this.openArticle(articleId);
-                },
-                onOpenMessages: () => {
-                  this.activeSubPage = 'messages';
-                },
-                onFontScaleChange: (scale: ReadingFontScale) => {
-                  this.readingFontScale = scale;
-                  this.persistReadingSettings();
-                },
-                onLogout: () => {
-                  this.logout();
-                }
-              })
+    Stack() {
+      Column() {
+        if (this.activeSubPage === 'knowledgeDetail') {
+          KnowledgeDetailPage({
+            article: this.getSelectedArticleRequired(),
+            favorite: this.isFavorite(this.selectedArticleId),
+            useful: this.usefulKnowledgeIds.includes(this.selectedArticleId),
+            fontScale: this.readingFontScale,
+            fontWeight: this.readingFontWeight,
+            workflowNames: this.getSelectedArticleWorkflowNames(),
+            onBack: () => {
+              this.activeSubPage = this.detailReturnSubPage;
+              this.detailReturnSubPage = 'none';
+            },
+            onToggleFavorite: (articleId: string) => {
+              void this.toggleFavorite(articleId);
+            },
+            onMarkUseful: (articleId: string) => {
+              this.markKnowledgeUseful(articleId);
+            },
+            onSubmitCorrection: async (articleId: string, content: string): Promise<boolean> => {
+              return this.submitCorrection(articleId, content);
+            },
+            onFontScaleChange: (scale: ReadingFontScale) => {
+              this.readingFontScale = scale;
+              this.persistReadingSettings();
+            },
+            onFontWeightChange: (weight: ReadingFontWeight) => {
+              this.readingFontWeight = weight;
+              this.persistReadingSettings();
+            },
+            onStartWorkflow: (templateId: string) => {
+              this.startWorkflow(templateId);
             }
-          }
-          .width('100%')
-          .padding({ left: 16, right: 16, top: 14, bottom: 20 })
-        }
-        .scrollBar(BarState.Off)
-        .layoutWeight(1)
+          })
+        } else if (this.activeSubPage === 'ocrResult' && this.ocrResult !== null) {
+          OcrResultPage({
+            result: this.ocrResult,
+            articles: this.getPublishedArticles(),
+            onBack: () => {
+              this.activeSubPage = 'none';
+              this.activeTab = 1;
+            },
+            onOpenArticle: (articleId: string) => {
+              this.openArticle(articleId);
+            }
+          })
+        } else if (this.activeSubPage === 'assistant') {
+          AssistantPage({
+            articles: this.getPublishedArticles(),
+            templates: this.templates,
+            history: $assistantHistory,
+            question: $assistantQuestion,
+            reply: $assistantReply,
+            onBack: () => {
+              this.activeSubPage = 'none';
+            },
+            onOpenArticle: (articleId: string) => {
+              this.openArticle(articleId);
+            },
+            onStartWorkflow: (templateId: string) => {
+              this.startWorkflow(templateId);
+            },
+            onAsk: () => {
+              void this.handleAssistantAsk();
+            }
+          })
+        } else if (this.activeSubPage === 'messages') {
+          MessagesPage({
+            notifications: this.getVisibleMessages(),
+            onBack: () => {
+              this.activeSubPage = 'none';
+            },
+            onMarkRead: (notificationId: string) => {
+              void this.handleMarkNotificationRead(notificationId);
+            },
+            onOpenKnowledge: (articleId: string) => {
+              this.openArticle(articleId);
+            },
+            onOpenWorkflow: (instanceId: string) => {
+              this.openWorkflowFromMessage(instanceId);
+            }
+          })
+        } else {
+          this.PageHeader();
 
-        this.BottomNav();
+          Scroll() {
+            Column({ space: 14 }) {
+              if (this.activeTab === 0) {
+                DashboardPage({
+                  user: this.getCurrentUser(),
+                  articles: this.getPublishedArticles(),
+                  recentArticles: this.getRecentArticles(),
+                  favoriteArticles: this.getFavoriteArticles(),
+                  favoriteKnowledgeIds: this.favoriteKnowledgeIds,
+                  notifications: this.getVisibleMessages(),
+                  templates: this.templates,
+                  todoCount: this.getDashboardTodoCount(),
+                  onOpenArticle: (articleId: string) => {
+                    this.openArticle(articleId);
+                  },
+                  onOpenAssistant: () => {
+                    this.activeSubPage = 'assistant';
+                  },
+                  onOpenKnowledge: () => {
+                    this.activeSubPage = 'none';
+                    this.activeTab = 1;
+                  },
+                  onOpenMessages: () => {
+                    this.activeSubPage = 'messages';
+                  },
+                  onOpenTodo: () => {
+                    this.activeSubPage = 'none';
+                    this.activeTab = 2;
+                    this.openWorkflowModule('mine');
+                  },
+                  onStartWorkflow: (templateId: string) => {
+                    this.startWorkflow(templateId);
+                  }
+                })
+              } else if (this.activeTab === 1) {
+                KnowledgePage({
+                  categories: this.categories,
+                  articles: this.articles,
+                  favoriteKnowledgeIds: this.favoriteKnowledgeIds,
+                  onOpenArticle: (articleId: string) => {
+                    this.openArticle(articleId);
+                  },
+                  onSelectOcrImage: () => {
+                    void this.startAlbumOcr();
+                  },
+                  onUseOcrDemo: () => {
+                    void this.startDemoOcr();
+                  }
+                })
+              } else if (this.activeTab === 2) {
+                this.WorkflowTab();
+              } else {
+                ProfilePage({
+                  user: this.getCurrentUser(),
+                  favoriteArticles: this.getFavoriteArticles(),
+                  unreadCount: this.getUnreadMessageCount(),
+                  fontScale: this.readingFontScale,
+                  onOpenArticle: (articleId: string) => {
+                    this.openArticle(articleId);
+                  },
+                  onOpenMessages: () => {
+                    this.activeSubPage = 'messages';
+                  },
+                  onFontScaleChange: (scale: ReadingFontScale) => {
+                    this.readingFontScale = scale;
+                    this.persistReadingSettings();
+                  },
+                  onLogout: () => {
+                    void this.logout();
+                  }
+                })
+              }
+            }
+            .width('100%')
+            .padding({ left: 16, right: 16, top: 14, bottom: 20 })
+          }
+          .scrollBar(BarState.Off)
+          .layoutWeight(1)
+
+          this.BottomNav();
+        }
+      }
+      .width('100%')
+      .height('100%')
+
+      if (this.workflowPanelVisible) {
+        this.WorkflowModuleDialog();
+      }
+
+      if (this.workflowComposerVisible) {
+        this.WorkflowComposerDialog();
       }
     }
     .width('100%')
@@ -569,209 +519,193 @@ struct Index {
 
   @Builder
   private WorkflowTab() {
-    SectionBlock({ title: '流程模板', subtitle: '已预置请假、报销、采购、权限申请四类模板，并配置审批角色与安全规则。' }) {
-      Column({ space: 10 }) {
-        ForEach(this.templates, (item: WorkflowTemplate) => {
-          Column({ space: 8 }) {
-            Row() {
-              Text(item.name)
-                .fontSize(16)
-                .fontWeight(FontWeight.Medium)
-                .fontColor('#1F2A44')
-
-              Blank()
-
-              Text(item.approverText)
-                .fontSize(11)
-                .fontColor('#667085')
-            }
-
-            Text(item.description)
-              .fontSize(12)
-              .fontColor('#667085')
-              .lineHeight(18)
-              .width('100%')
-
-            Text(`关联制度：${this.getRelatedKnowledgeTitles(item.relatedKnowledgeIds)}`)
-              .fontSize(12)
-              .fontColor('#344054')
-
-            Text(item.riskHint)
-              .fontSize(11)
-              .fontColor(item.riskLevel === 'high' ? '#B54708' : '#246BFD')
-              .width('100%')
-
-            Button(this.selectedTemplateId === item.id ? '当前已选模板' : '选择并填写')
-              .width('100%')
-              .height(40)
-              .backgroundColor(this.selectedTemplateId === item.id ? '#DCE7FF' : '#246BFD')
-              .fontColor(this.selectedTemplateId === item.id ? '#175CD3' : '#FFFFFF')
-              .borderRadius(12)
-              .onClick(() => {
-                this.openWorkflowComposer(item.id);
-              })
-          }
-          .width('100%')
-          .padding(14)
-          .backgroundColor(this.selectedTemplateId === item.id ? '#EEF4FF' : '#F8FAFF')
-          .borderRadius(18)
-        }, (item: WorkflowTemplate) => item.id)
+    SectionBlock({ title: '流程中心', subtitle: '' }) {
+      Column({ space: 12 }) {
+        this.WorkflowModuleCard(
+          '申请流程',
+          '',
+          `共 ${this.templates.length} 个模板`,
+          'apply'
+        );
+        this.WorkflowModuleCard(
+          '我的流程',
+          this.getMyWorkflowModuleSubtitle(),
+          `共 ${this.getRoleWorkflowItems().length} 条流程`,
+          'mine'
+        );
       }
       .width('100%')
     }
+  }
 
-    SectionBlock({ title: '流程发起', subtitle: '补齐了表单填写、附件模拟、校验提交和高风险二次确认。' }) {
-      Column({ space: 12 }) {
-        Text(`当前模板：${this.getSelectedTemplate().name}`)
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#1F2A44')
-          .width('100%')
+  @Builder
+  private WorkflowModuleCard(title: string, description: string, statText: string, moduleKey: string) {
+    Column({ space: 10 }) {
+      Text(title)
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.isWorkflowModuleActive(moduleKey) ? '#175CD3' : '#1F2A44')
+        .width('100%')
 
-        Text(`审批链路：${this.getSelectedTemplate().approverText}`)
+      if (description.length > 0) {
+        Text(description)
           .fontSize(12)
           .fontColor('#667085')
+          .lineHeight(18)
           .width('100%')
+      }
 
-        TextInput({ placeholder: '流程标题，例如：华南差旅报销', text: this.workflowTitleInput })
-          .height(46)
-          .borderRadius(14)
-          .backgroundColor('#F8FAFC')
-          .padding({ left: 14, right: 14 })
-          .onChange((value: string) => {
-            this.workflowTitleInput = value;
-          })
+      Blank()
 
-        if (this.selectedTemplateId === 'wf1') {
-          TextInput({ placeholder: '请假类型，例如：年假 / 病假', text: this.workflowExtraInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowExtraInput = value;
-            })
+      Text(statText)
+        .fontSize(12)
+        .fontColor(this.isWorkflowModuleActive(moduleKey) ? '#175CD3' : '#344054')
+        .width('100%')
 
-          TextInput({ placeholder: '请假时间，例如：7 月 18 日 09:00-18:00', text: this.workflowDateInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowDateInput = value;
-            })
-        } else if (this.selectedTemplateId === 'wf2') {
-          TextInput({ placeholder: '费用类型，例如：差旅 / 招待 / 打车', text: this.workflowExtraInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowExtraInput = value;
-            })
+      Button(this.isWorkflowModuleActive(moduleKey) ? '当前模块' : '点击进入')
+        .width('100%')
+        .height(38)
+        .backgroundColor(this.isWorkflowModuleActive(moduleKey) ? '#DCE7FF' : '#246BFD')
+        .fontColor(this.isWorkflowModuleActive(moduleKey) ? '#175CD3' : '#FFFFFF')
+        .borderRadius(12)
+        .onClick(() => {
+          this.openWorkflowModule(moduleKey);
+        })
+    }
+    .width('100%')
+    .height(156)
+    .alignItems(HorizontalAlign.Start)
+    .padding(16)
+    .backgroundColor(this.isWorkflowModuleActive(moduleKey) ? '#EEF4FF' : '#F8FAFF')
+    .borderRadius(20)
+    .onClick(() => {
+      this.openWorkflowModule(moduleKey);
+    })
+  }
 
-          TextInput({ placeholder: '报销金额，例如：3680', text: this.workflowAmountInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowAmountInput = value;
-            })
-        } else if (this.selectedTemplateId === 'wf3') {
-          TextInput({ placeholder: '采购物品，例如：会议平板 2 台', text: this.workflowExtraInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowExtraInput = value;
-            })
+  @Builder
+  private WorkflowModuleDialog() {
+    Column() {
+      Column({ space: 14 }) {
+        Row() {
+          Column({ space: 4 }) {
+            Text(this.getWorkflowModuleDialogTitle())
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1F2A44')
+              .width('100%')
 
-          TextInput({ placeholder: '采购预算，例如：12800', text: this.workflowAmountInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowAmountInput = value;
-            })
+            Text(this.getWorkflowModuleDialogStat())
+              .fontSize(12)
+              .fontColor('#667085')
+              .width('100%')
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
 
-          TextInput({ placeholder: '期望到货时间，例如：2026-07-20', text: this.workflowDateInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowDateInput = value;
-            })
-        } else {
-          TextInput({ placeholder: '系统名称，例如：项目看板 / 财务系统', text: this.workflowExtraInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowExtraInput = value;
-            })
-
-          TextInput({ placeholder: '申请期限，例如：2026-07 至 2026-12', text: this.workflowDateInput })
-            .height(46)
-            .borderRadius(14)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.workflowDateInput = value;
+          Button('关闭')
+            .height(34)
+            .fontSize(12)
+            .backgroundColor('#EEF2F6')
+            .fontColor('#344054')
+            .borderRadius(10)
+            .onClick(() => {
+              this.closeWorkflowModuleDialog();
             })
         }
 
-        TextInput({ placeholder: '申请事由 / 审批说明', text: this.workflowReasonInput })
-          .height(46)
-          .borderRadius(14)
-          .backgroundColor('#F8FAFC')
-          .padding({ left: 14, right: 14 })
-          .onChange((value: string) => {
-            this.workflowReasonInput = value;
-          })
-
-        TextInput({ placeholder: '附件模拟，例如：发票+截图 / 采购清单 / 权限矩阵表', text: this.workflowAttachmentInput })
-          .height(46)
-          .borderRadius(14)
-          .backgroundColor('#F8FAFC')
-          .padding({ left: 14, right: 14 })
-          .onChange((value: string) => {
-            this.workflowAttachmentInput = value;
-          })
-
-        Text(`关联制度：${this.getRelatedKnowledgeTitles(this.getSelectedTemplate().relatedKnowledgeIds)}`)
-          .fontSize(12)
-          .fontColor('#667085')
+        Scroll() {
+          Column({ space: 12 }) {
+            if (this.activeWorkflowModule === 'mine') {
+              this.WorkflowMinePanel();
+            } else {
+              this.WorkflowApplyPanel();
+            }
+          }
           .width('100%')
-
-        Button('提交流程')
-          .width('100%')
-          .height(44)
-          .backgroundColor('#246BFD')
-          .borderRadius(14)
-          .onClick(() => {
-            this.handleCreateWorkflow();
-          })
+          .padding({ right: 2 })
+        }
+        .scrollBar(BarState.Off)
+        .layoutWeight(1)
       }
       .width('100%')
+      .height('82%')
+      .padding(18)
+      .backgroundColor('#FFFFFF')
+      .borderRadius(24)
     }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding(20)
+    .backgroundColor('#660B1220')
+  }
 
-    SectionBlock({ title: '我的流程', subtitle: '展示当前账号发起的流程、状态流转与风险标记。' }) {
-      Column({ space: 10 }) {
-        ForEach(this.getMyWorkflows(), (item: WorkflowInstance) => {
-          this.WorkflowCard(item, false);
-        }, (item: WorkflowInstance) => item.id)
-      }
-      .width('100%')
-    }
-
-    if (this.getTodoWorkflows().length > 0) {
-      SectionBlock({ title: '审批意见', subtitle: '审批人和管理员可以先填写意见，再对待办执行通过、驳回或安全确认。' }) {
+  @Builder
+  private WorkflowApplyPanel() {
+    Column({ space: 12 }) {
+      ForEach(this.templates, (item: WorkflowTemplate) => {
         Column({ space: 10 }) {
+          Row() {
+            Text(item.name)
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#1F2A44')
+
+            Blank()
+
+            Text(item.approverText)
+              .fontSize(11)
+              .fontColor('#667085')
+          }
+
+          Text(item.description)
+            .fontSize(12)
+            .fontColor('#667085')
+            .lineHeight(18)
+            .width('100%')
+
+          Text(`关联制度：${this.getRelatedKnowledgeTitles(item.relatedKnowledgeIds)}`)
+            .fontSize(12)
+            .fontColor('#344054')
+            .width('100%')
+
+          Text(item.riskHint)
+            .fontSize(11)
+            .fontColor(item.riskLevel === 'high' ? '#B54708' : '#246BFD')
+            .lineHeight(18)
+            .width('100%')
+
+          Button('填写申请')
+            .width('100%')
+            .height(40)
+            .backgroundColor('#246BFD')
+            .fontColor('#FFFFFF')
+            .borderRadius(12)
+            .onClick(() => {
+              this.openWorkflowComposer(item.id);
+            })
+        }
+        .width('100%')
+        .padding(14)
+        .backgroundColor('#F8FAFF')
+        .borderRadius(18)
+      }, (item: WorkflowTemplate) => item.id)
+    }
+    .width('100%')
+  }
+
+  @Builder
+  private WorkflowMinePanel() {
+    Column({ space: 12 }) {
+      if (this.getTodoWorkflows().length > 0) {
+        Column({ space: 10 }) {
+          Text('审批意见')
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#1F2A44')
+            .width('100%')
+
           TextInput({ placeholder: '请输入审批意见', text: this.approvalComment })
             .height(46)
             .borderRadius(14)
@@ -782,18 +716,261 @@ struct Index {
             })
         }
         .width('100%')
+        .padding(14)
+        .backgroundColor('#F8FAFF')
+        .borderRadius(18)
       }
 
-      SectionBlock({ title: '审批待办', subtitle: '审批人能查看待办并通过或驳回，高风险流程会进入二次确认。' }) {
-        Column({ space: 10 }) {
-          ForEach(this.getTodoWorkflows(), (item: WorkflowInstance) => {
-            this.WorkflowCard(item, true);
-          }, (item: WorkflowInstance) => item.id)
-        }
-        .width('100%')
+      if (this.getRoleWorkflowItems().length === 0) {
+        EmptyState({
+          title: '当前没有流程记录',
+          description: '你可以先进入申请流程选择模板，提交后会在这里按状态展示。',
+          actionLabel: '去申请流程',
+          onAction: () => {
+            this.openWorkflowModule('apply');
+          }
+        })
+      } else {
+        ForEach(this.getWorkflowStatuses(), (status: string) => {
+          if (this.getRoleWorkflowItemsByStatus(status).length > 0) {
+            this.WorkflowStatusSection(status, this.getRoleWorkflowItemsByStatus(status));
+          }
+        }, (status: string) => status)
       }
     }
+    .width('100%')
+  }
 
+  @Builder
+  private WorkflowStatusSection(status: string, items: WorkflowInstance[]) {
+    Column({ space: 10 }) {
+      Row() {
+        Text(status)
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#1F2A44')
+
+        Blank()
+
+        Text(`${items.length} 条`)
+          .fontSize(11)
+          .fontColor('#667085')
+          .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+          .backgroundColor('#F2F4F7')
+          .borderRadius(12)
+      }
+
+      ForEach(items, (item: WorkflowInstance) => {
+        this.WorkflowCard(item, this.canHandleWorkflow(item));
+      }, (item: WorkflowInstance) => item.id)
+    }
+    .width('100%')
+    .padding(14)
+    .backgroundColor('#FFFFFF')
+    .borderRadius(18)
+  }
+
+  @Builder
+  private WorkflowComposerDialog() {
+    Column() {
+      Column({ space: 14 }) {
+        Row() {
+          Column({ space: 4 }) {
+            Text(`编辑模板：${this.getSelectedTemplate().name}`)
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1F2A44')
+              .width('100%')
+
+            Text(`审批链路：${this.getSelectedTemplate().approverText}`)
+              .fontSize(12)
+              .fontColor('#667085')
+              .width('100%')
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+
+          Button('关闭')
+            .height(34)
+            .fontSize(12)
+            .backgroundColor('#EEF2F6')
+            .fontColor('#344054')
+            .borderRadius(10)
+            .onClick(() => {
+              this.workflowComposerVisible = false;
+            })
+        }
+
+        Scroll() {
+          Column({ space: 12 }) {
+            Text(this.getSelectedTemplate().riskHint)
+              .fontSize(12)
+              .fontColor(this.getSelectedTemplate().riskLevel === 'high' ? '#B54708' : '#246BFD')
+              .lineHeight(18)
+              .width('100%')
+
+            this.WorkflowComposerFormFields();
+          }
+          .width('100%')
+          .padding({ right: 2 })
+        }
+        .scrollBar(BarState.Off)
+        .layoutWeight(1)
+
+        Row({ space: 10 }) {
+          Button('取消')
+            .layoutWeight(1)
+            .height(42)
+            .backgroundColor('#EEF2F6')
+            .fontColor('#344054')
+            .borderRadius(12)
+            .onClick(() => {
+              this.workflowComposerVisible = false;
+            })
+
+          Button('提交流程')
+            .layoutWeight(1)
+            .height(42)
+            .backgroundColor('#246BFD')
+            .fontColor('#FFFFFF')
+            .borderRadius(12)
+            .onClick(() => {
+              void this.handleCreateWorkflow();
+            })
+        }
+      }
+      .width('100%')
+      .height('82%')
+      .padding(18)
+      .backgroundColor('#FFFFFF')
+      .borderRadius(24)
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding(20)
+    .backgroundColor('#660B1220')
+  }
+
+  @Builder
+  private WorkflowComposerFormFields() {
+    Column({ space: 12 }) {
+      TextInput({ placeholder: '流程标题，例如：华南差旅报销', text: this.workflowTitleInput })
+        .height(46)
+        .borderRadius(14)
+        .backgroundColor('#F8FAFC')
+        .padding({ left: 14, right: 14 })
+        .onChange((value: string) => {
+          this.workflowTitleInput = value;
+        })
+
+      if (this.selectedTemplateId === 'wf1') {
+        TextInput({ placeholder: '请假类型，例如：年假 / 病假', text: this.workflowExtraInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowExtraInput = value;
+          })
+
+        TextInput({ placeholder: '请假时间，例如：7 月 18 日 09:00-18:00', text: this.workflowDateInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowDateInput = value;
+          })
+      } else if (this.selectedTemplateId === 'wf2') {
+        TextInput({ placeholder: '费用类型，例如：差旅 / 招待 / 打车', text: this.workflowExtraInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowExtraInput = value;
+          })
+
+        TextInput({ placeholder: '报销金额，例如：3680', text: this.workflowAmountInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowAmountInput = value;
+          })
+      } else if (this.selectedTemplateId === 'wf3') {
+        TextInput({ placeholder: '采购物品，例如：会议平板 2 台', text: this.workflowExtraInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowExtraInput = value;
+          })
+
+        TextInput({ placeholder: '采购预算，例如：12800', text: this.workflowAmountInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowAmountInput = value;
+          })
+
+        TextInput({ placeholder: '期望到货时间，例如：2026-07-20', text: this.workflowDateInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowDateInput = value;
+          })
+      } else {
+        TextInput({ placeholder: '系统名称，例如：项目看板 / 财务系统', text: this.workflowExtraInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowExtraInput = value;
+          })
+
+        TextInput({ placeholder: '申请期限，例如：2026-07 至 2026-12', text: this.workflowDateInput })
+          .height(46)
+          .borderRadius(14)
+          .backgroundColor('#F8FAFC')
+          .padding({ left: 14, right: 14 })
+          .onChange((value: string) => {
+            this.workflowDateInput = value;
+          })
+      }
+
+      TextInput({ placeholder: '申请事由 / 审批说明', text: this.workflowReasonInput })
+        .height(46)
+        .borderRadius(14)
+        .backgroundColor('#F8FAFC')
+        .padding({ left: 14, right: 14 })
+        .onChange((value: string) => {
+          this.workflowReasonInput = value;
+        })
+
+      TextInput({ placeholder: '附件模拟，例如：发票+截图 / 采购清单 / 权限矩阵表', text: this.workflowAttachmentInput })
+        .height(46)
+        .borderRadius(14)
+        .backgroundColor('#F8FAFC')
+        .padding({ left: 14, right: 14 })
+        .onChange((value: string) => {
+          this.workflowAttachmentInput = value;
+        })
+
+      Text(`关联制度：${this.getRelatedKnowledgeTitles(this.getSelectedTemplate().relatedKnowledgeIds)}`)
+        .fontSize(12)
+        .fontColor('#667085')
+        .width('100%')
+    }
+    .width('100%')
   }
 
   @Builder
@@ -887,9 +1064,9 @@ struct Index {
             .borderRadius(12)
             .onClick(() => {
               if (item.status === '待二次确认') {
-                this.handleSecurityConfirm(item.id);
+                void this.handleSecurityConfirm(item.id);
               } else {
-                this.handleWorkflowDecision(item.id, true);
+                void this.handleWorkflowDecision(item.id, true);
               }
             })
 
@@ -900,7 +1077,7 @@ struct Index {
             .fontColor('#B42318')
             .borderRadius(12)
             .onClick(() => {
-              this.handleWorkflowDecision(item.id, false);
+              void this.handleWorkflowDecision(item.id, false);
             })
         }
       }
@@ -967,66 +1144,43 @@ struct Index {
     }
   }
 
-  private markKnowledgeUseful(articleId: string): void {
-    if (this.usefulKnowledgeIds.includes(articleId)) {
-      return;
+  private applyBootstrapData(data: AppBootstrapData): void {
+    this.categories = data.categories;
+    this.articles = data.articles;
+    this.templates = data.templates;
+    this.workflowInstances = data.workflowInstances;
+    this.notifications = data.notifications;
+    this.auditLogs = data.auditLogs;
+    if (this.selectedArticleId.length === 0 && data.articles.length > 0) {
+      this.selectedArticleId = data.articles[0].id;
     }
-    const ids: string[] = [articleId];
-    this.usefulKnowledgeIds.forEach((item: string) => {
-      ids.push(item);
-    });
-    this.usefulKnowledgeIds = ids;
+    if (this.selectedTemplateId.length === 0 && data.templates.length > 0) {
+      this.selectedTemplateId = data.templates[0].id;
+    }
   }
 
-  private submitCorrection(articleId: string, content: string): boolean {
-    const normalized: string = validateCorrection(content);
-    if (normalized.length === 0 || this.currentUser === null) {
-      return false;
-    }
-    const correction: KnowledgeCorrection = {
-      id: `correction-${Date.now()}`,
-      articleId: articleId,
-      userId: this.currentUser.id,
-      content: normalized,
-      createTime: '刚刚'
-    };
-    const list: KnowledgeCorrection[] = [correction];
-    this.corrections.forEach((item: KnowledgeCorrection) => {
-      list.push(item);
-    });
-    this.corrections = list;
-    return true;
+  private markKnowledgeUseful(articleId: string): void {
+    this.usefulKnowledgeIds = markKnowledgeUsefulStateUseCase(this.usefulKnowledgeIds, articleId);
+  }
+
+  private async submitCorrection(articleId: string, content: string): Promise<boolean> {
+    const result = await submitCorrectionStateUseCase(this.corrections, articleId, content);
+    this.corrections = result.corrections;
+    return result.success;
   }
 
   private getUnreadMessageCount(): number {
-    return this.getVisibleMessages().filter((item: NotificationItem) => !item.read).length;
+    return getUnreadMessageCountUseCase(this.currentUser, this.notifications);
   }
 
   private openWorkflowFromMessage(instanceId: string): void {
-    const exists: boolean = this.workflowInstances.some((item: WorkflowInstance) => item.id === instanceId);
-    if (!exists) {
-      this.showMessage('关联流程暂不可用。');
-      return;
-    }
-    this.activeSubPage = 'none';
-    this.detailReturnSubPage = 'none';
-    this.activeTab = 2;
-    this.showMessage('已进入流程页面。');
-  }
-
-  private logout(): void {
-    this.currentUser = null;
-    this.activeTab = 0;
-    this.activeSubPage = 'none';
-    this.selectedArticleId = 'k2';
-    this.favoriteKnowledgeIds = [];
-    this.usefulKnowledgeIds = [];
-    this.corrections = [];
-    this.assistantHistory = [];
-    this.assistantQuestion = '';
-    this.assistantReply = null;
-    this.readingFontScale = 'standard';
-    this.readingFontWeight = 'standard';
+    const result = buildWorkflowMessageNavigationStateUseCase(this.workflowInstances, instanceId);
+    this.activeSubPage = result.activeSubPage;
+    this.detailReturnSubPage = result.detailReturnSubPage;
+    this.activeTab = result.activeTab;
+    this.openWorkflowModule('mine');
+    this.selectedWorkflowId = instanceId;
+    this.showMessage(result.message);
   }
 
   private openOcrResult(result: OcrResult): void {
@@ -1057,395 +1211,243 @@ struct Index {
     this.openOcrResult(result);
   }
 
-  private handleLogin(): void {
-    const user: User | null = authenticateUser(this.loginAccount.trim(), this.loginPassword.trim());
-    if (user === null) {
-      this.showMessage('账号或密码错误，请重试。');
+  private async logout(): Promise<void> {
+    try {
+      await logoutCurrentAccount();
+    } catch (error) {
+      console.error(`logout failed: ${error}`);
+    }
+
+    const result = buildLogoutStateUseCase();
+    this.currentUser = result.currentUser;
+    this.categories = [];
+    this.articles = [];
+    this.templates = [];
+    this.activeTab = result.activeTab;
+    this.activeSubPage = result.activeSubPage;
+    this.detailReturnSubPage = 'none';
+    this.selectedArticleId = result.selectedArticleId;
+    this.favoriteKnowledgeIds = result.favoriteKnowledgeIds;
+    this.usefulKnowledgeIds = result.usefulKnowledgeIds;
+    this.corrections = [];
+    this.workflowInstances = [];
+    this.notifications = [];
+    this.auditLogs = [];
+    this.assistantHistory = result.assistantHistory;
+    this.assistantQuestion = result.assistantQuestion;
+    this.assistantReply = result.assistantReply;
+    this.readingFontScale = result.readingFontScale;
+    this.readingFontWeight = 'standard';
+    this.ocrResult = null;
+    this.activeWorkflowModule = 'overview';
+    this.workflowPanelVisible = false;
+    this.workflowComposerVisible = false;
+  }
+
+  private async handleLogin(): Promise<void> {
+    if (this.isLoading) {
       return;
     }
 
-    this.currentUser = user;
-    this.favoriteKnowledgeIds = this.copyStringArray(user.favoriteKnowledgeIds);
-    this.selectedArticleId = user.recentKnowledgeIds.length > 0 ? user.recentKnowledgeIds[0] : 'k1';
-    this.activeTab = 0;
-    this.applyLaunchTarget();
-    this.persistDashboardSummary();
+    this.isLoading = true;
+    try {
+      const user: User = await loginWithAccount(this.loginAccount.trim(), this.loginPassword.trim());
+      const bootstrapData: AppBootstrapData = await loadAppBootstrapData();
+      const result = buildLoginStateUseCase(user);
+      this.currentUser = result.currentUser;
+      this.favoriteKnowledgeIds = result.favoriteKnowledgeIds;
+      this.selectedArticleId = result.selectedArticleId;
+      this.activeTab = result.activeTab;
+      this.activeSubPage = result.activeSubPage;
+      this.detailReturnSubPage = result.detailReturnSubPage;
+      this.usefulKnowledgeIds = result.usefulKnowledgeIds;
+      this.corrections = [];
+      this.assistantHistory = result.assistantHistory;
+      this.assistantQuestion = result.assistantQuestion;
+      this.assistantReply = result.assistantReply;
+      this.ocrResult = null;
+      this.activeWorkflowModule = 'overview';
+      this.workflowPanelVisible = false;
+      this.workflowComposerVisible = false;
+      this.applyBootstrapData(bootstrapData);
+      if (this.selectedArticleId.length === 0 && this.articles.length > 0) {
+        this.selectedArticleId = this.articles[0].id;
+      }
+      this.applyLaunchTarget();
+      this.persistDashboardSummary();
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '连接后端失败，请检查服务是否已启动。';
+      this.showMessage(message);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  private applyWorkflowFormState(state: WorkflowFormState): void {
+    this.selectedTemplateId = state.selectedTemplateId;
+    this.activeTab = state.activeTab;
+    this.activeSubPage = state.activeSubPage;
+    this.detailReturnSubPage = state.detailReturnSubPage;
+    this.workflowTitleInput = state.workflowTitleInput;
+    this.workflowExtraInput = state.workflowExtraInput;
+    this.workflowDateInput = state.workflowDateInput;
+    this.workflowAmountInput = state.workflowAmountInput;
+    this.workflowReasonInput = state.workflowReasonInput;
+    this.workflowAttachmentInput = state.workflowAttachmentInput;
+    this.approvalComment = state.approvalComment;
   }
 
   private openWorkflowComposer(templateId: string): void {
-    this.selectedTemplateId = templateId;
-    this.activeTab = 2;
-    this.resetWorkflowForm();
+    this.applyWorkflowFormState(buildOpenWorkflowComposerStateUseCase(templateId));
+    this.activeWorkflowModule = 'apply';
+    this.workflowComposerVisible = true;
   }
 
   private startWorkflow(templateId: string): void {
-    this.activeSubPage = 'none';
-    this.detailReturnSubPage = 'none';
-    this.openWorkflowComposer(templateId);
+    this.applyWorkflowFormState(buildStartWorkflowStateUseCase(templateId));
+    this.activeWorkflowModule = 'apply';
+    this.workflowComposerVisible = true;
   }
 
-  private resetWorkflowForm(): void {
-    const template: WorkflowTemplate = this.getSelectedTemplate();
-    this.workflowTitleInput = '';
-    this.workflowAmountInput = '';
-    this.workflowReasonInput = '';
-    this.workflowAttachmentInput = '';
-    this.approvalComment = '材料齐全，建议通过。';
-
-    if (template.id === 'wf1') {
-      this.workflowExtraInput = '年假';
-      this.workflowDateInput = '2026-07-18 09:00-18:00';
-    } else if (template.id === 'wf2') {
-      this.workflowExtraInput = '差旅';
-      this.workflowAmountInput = '3680';
-      this.workflowDateInput = '';
-    } else if (template.id === 'wf3') {
-      this.workflowExtraInput = '会议平板 2 台';
-      this.workflowAmountInput = '12800';
-      this.workflowDateInput = '2026-07-20';
-    } else {
-      this.workflowExtraInput = '项目看板';
-      this.workflowDateInput = '2026-07 至 2026-12';
-    }
-  }
-
-  private handleCreateWorkflow(): void {
+  private async handleCreateWorkflow(): Promise<void> {
     if (this.currentUser === null) {
       return;
     }
 
-    const template: WorkflowTemplate = this.getSelectedTemplate();
-    const amount: number = this.parseAmount(this.workflowAmountInput);
-    if (!this.validateWorkflowForm(template.id, amount)) {
-      return;
-    }
-
-    const titleSuffix: string = this.buildWorkflowTitleSuffix(template.id);
-    const formSummary: string = this.buildWorkflowSummary(template.id, amount);
-    const formDetail: string[] = this.buildWorkflowDetail(template.id, amount);
-    const requiresSecurityConfirm: boolean = this.shouldRequireSecurityConfirm(template.id, amount);
-    const riskReason: string = this.buildRiskReason(template.id, amount, requiresSecurityConfirm);
-    const instance: WorkflowInstance = buildWorkflowInstance(
-      template,
-      this.getCurrentUser(),
-      titleSuffix,
-      formSummary,
-      formDetail,
-      amount,
-      riskReason,
-      requiresSecurityConfirm
-    );
-
-    this.prependWorkflowInstance(instance);
-  }
-
-  private handleWorkflowDecision(instanceId: string, isApproved: boolean): void {
-    if (this.currentUser === null) {
-      return;
-    }
-
-    const opinion: string = this.approvalComment.trim().length > 0 ? this.approvalComment.trim() : '已处理当前节点。';
-    this.workflowInstances = this.workflowInstances.map((item: WorkflowInstance) => {
-      if (item.id !== instanceId) {
-        return item;
-      }
-
-      const updatedItem: WorkflowInstance = this.cloneWorkflowInstance(item);
-      const record: ApprovalRecord = {
-        id: `ar${Date.now()}`,
-        nodeName: updatedItem.currentNode,
-        operatorRole: this.getCurrentUser().role,
-        operatorName: this.getCurrentUser().name,
-        decision: isApproved ? 'approved' : 'rejected',
-        comment: opinion,
-        time: '刚刚'
-      };
-      updatedItem.approvalRecords.push(record);
-
-      if (!isApproved) {
-        updatedItem.status = '已驳回';
-        updatedItem.currentNode = '流程已驳回';
-        updatedItem.latestComment = `${this.getCurrentUser().name}：${opinion}`;
-        return updatedItem;
-      }
-
-      if (updatedItem.currentApproverRole === 'approver') {
-        if (updatedItem.requiresSecurityConfirm && !updatedItem.securityConfirmed) {
-          updatedItem.status = '待二次确认';
-          updatedItem.currentNode = '等待数字盾二次确认';
-          updatedItem.currentApproverRole = 'systemAdmin';
-          updatedItem.latestComment = `${this.getCurrentUser().name} 已通过，进入二次安全确认。`;
-          return updatedItem;
-        }
-
-        if (updatedItem.templateId === 'wf2' || updatedItem.templateId === 'wf3' || updatedItem.templateId === 'wf4') {
-          updatedItem.status = '审批中';
-          updatedItem.currentNode = '等待系统管理员复核';
-          updatedItem.currentApproverRole = 'systemAdmin';
-          updatedItem.latestComment = `${this.getCurrentUser().name} 已通过，流转至系统管理员。`;
-          return updatedItem;
-        }
-      }
-
-      updatedItem.status = '已通过';
-      updatedItem.currentNode = '流程结束';
-      updatedItem.latestComment = `${this.getCurrentUser().name} 已完成审批。`;
-      return updatedItem;
-    });
-
-    this.showMessage(isApproved ? '已通过当前节点。' : '已驳回该流程。');
-  }
-
-  private handleSecurityConfirm(instanceId: string): void {
-    if (this.currentUser === null) {
-      return;
-    }
-
-    const opinion: string = this.approvalComment.trim().length > 0 ? this.approvalComment.trim() : '已完成二次确认。';
-    this.workflowInstances = this.workflowInstances.map((item: WorkflowInstance) => {
-      if (item.id !== instanceId) {
-        return item;
-      }
-
-      const updatedItem: WorkflowInstance = this.cloneWorkflowInstance(item);
-      updatedItem.securityConfirmed = true;
-      updatedItem.status = '已通过';
-      updatedItem.currentNode = '流程结束';
-      updatedItem.latestComment = `${this.getCurrentUser().name} 已完成二次确认。`;
-      updatedItem.approvalRecords.push({
-        id: `ar${Date.now()}`,
-        nodeName: '数字盾二次确认',
-        operatorRole: this.getCurrentUser().role,
-        operatorName: this.getCurrentUser().name,
-        decision: 'securityConfirmed',
-        comment: opinion,
-        time: '刚刚'
+    try {
+      const result = await createWorkflowUseCase({
+        template: this.getSelectedTemplate(),
+        user: this.getCurrentUser(),
+        workflowInstances: this.workflowInstances,
+        notifications: this.notifications,
+        titleInput: this.workflowTitleInput,
+        extraInput: this.workflowExtraInput,
+        dateInput: this.workflowDateInput,
+        amountInput: this.workflowAmountInput,
+        reasonInput: this.workflowReasonInput,
+        attachmentInput: this.workflowAttachmentInput
       });
-      return updatedItem;
-    });
+      if (!result.success) {
+        this.showMessage(result.errorMessage);
+        return;
+      }
 
-    const currentItem: WorkflowInstance | null = this.getWorkflowById(instanceId);
-    if (currentItem !== null) {
-      this.selectedWorkflowId = currentItem.id;
-      this.prependNotification({
-        id: `n${Date.now()}`,
-        title: '高风险流程已完成确认',
-        content: `${currentItem.title} 已完成二次安全确认并通过。`,
-        time: '刚刚',
-        read: false,
-        targetRoles: ['employee', 'approver', 'systemAdmin'],
-        targetType: 'workflow',
-        targetId: currentItem.id
-      });
-      this.writeAuditLog(
-        '完成二次确认',
-        '安全治理',
-        'high',
-        `${this.getCurrentUser().name} 对“${currentItem.title}”执行了二次安全确认。`
+      this.workflowInstances = result.workflowInstances;
+      this.notifications = result.notifications;
+      this.activeWorkflowModule = 'mine';
+      this.workflowPanelVisible = true;
+      this.workflowComposerVisible = false;
+      if (result.instance !== null) {
+        this.selectedWorkflowId = result.instance.id;
+      }
+      this.showMessage('提交流程成功。');
+      this.persistDashboardSummary();
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '提交流程失败。';
+      this.showMessage(message);
+    }
+  }
+
+  private async handleWorkflowDecision(instanceId: string, isApproved: boolean): Promise<void> {
+    if (this.currentUser === null) {
+      return;
+    }
+
+    try {
+      const result = await applyWorkflowDecisionUseCase(
+        instanceId,
+        this.approvalComment,
+        isApproved
       );
+      this.workflowInstances = result.workflowInstances;
+      this.notifications = result.notifications;
+      this.activeWorkflowModule = 'mine';
+      this.workflowPanelVisible = true;
+      this.selectedWorkflowId = instanceId;
+      this.showMessage(result.message);
+      this.persistDashboardSummary();
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '流程处理失败。';
+      this.showMessage(message);
+    }
+  }
+
+  private async handleSecurityConfirm(instanceId: string): Promise<void> {
+    if (this.currentUser === null) {
+      return;
     }
 
-    this.showMessage('已完成二次确认。');
+    try {
+      const result = await applyWorkflowSecurityConfirmUseCase(
+        this.auditLogs,
+        instanceId,
+        this.getCurrentUser(),
+        this.approvalComment
+      );
+      this.workflowInstances = result.workflowInstances;
+      this.notifications = result.notifications;
+      this.auditLogs = result.auditLogs;
+      this.activeWorkflowModule = 'mine';
+      this.workflowPanelVisible = true;
+      if (result.selectedWorkflowId.length > 0) {
+        this.selectedWorkflowId = result.selectedWorkflowId;
+      }
+      this.showMessage(result.message);
+      this.persistDashboardSummary();
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '二次确认失败。';
+      this.showMessage(message);
+    }
   }
 
   private openArticle(articleId: string): void {
     const article: KnowledgeArticle | null = this.getArticleById(articleId);
-    if (article === null || this.currentUser === null) {
+    const result = buildOpenArticleStateUseCase(this.currentUser, article, articleId, this.activeSubPage);
+    if (!result.success) {
       return;
     }
-
-    const recentIds: string[] = [];
-    recentIds.push(articleId);
-    this.getCurrentUser().recentKnowledgeIds.forEach((id: string) => {
-      if (id !== articleId && recentIds.length < 3) {
-        recentIds.push(id);
-      }
-    });
-    const updatedUser: User = this.cloneUser(this.getCurrentUser());
-    updatedUser.recentKnowledgeIds = recentIds;
-    this.currentUser = updatedUser;
-    this.selectedArticleId = articleId;
-    this.detailReturnSubPage = this.activeSubPage;
-    this.activeSubPage = 'knowledgeDetail';
+    this.currentUser = result.currentUser;
+    this.selectedArticleId = result.selectedArticleId;
+    this.detailReturnSubPage = result.detailReturnSubPage;
+    this.activeSubPage = result.activeSubPage;
     this.persistDashboardSummary();
   }
 
-  private toggleFavorite(articleId: string): void {
-    if (this.favoriteKnowledgeIds.includes(articleId)) {
-      this.favoriteKnowledgeIds = this.favoriteKnowledgeIds.filter((item: string) => item !== articleId);
+  private async toggleFavorite(articleId: string): Promise<void> {
+    try {
+      const result = await toggleFavoriteKnowledgeUseCase(this.favoriteKnowledgeIds, articleId);
+      this.favoriteKnowledgeIds = result.favoriteKnowledgeIds;
+      this.showMessage(result.message);
       this.persistDashboardSummary();
-      this.showMessage('已取消收藏。');
-      return;
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '收藏操作失败。';
+      this.showMessage(message);
     }
-
-    const favorites: string[] = [];
-    favorites.push(articleId);
-    this.favoriteKnowledgeIds.forEach((item: string) => {
-      favorites.push(item);
-    });
-    this.favoriteKnowledgeIds = favorites;
-    this.persistDashboardSummary();
-    this.showMessage('已加入收藏。');
   }
 
-  private createWorkflowNotification(template: WorkflowTemplate, instance: WorkflowInstance, requiresSecurityConfirm: boolean): void {
-    const targets: UserRole[] = template.id === 'wf4' || requiresSecurityConfirm
-      ? ['approver', 'systemAdmin', 'employee']
-      : ['approver', 'employee'];
-
-    this.prependNotification({
-      id: `n${Date.now()}`,
-      title: `${template.name}已提交`,
-      content: `${this.getCurrentUser().name} 发起了“${instance.title}”，${requiresSecurityConfirm ? '系统已标记为高风险流程。' : '等待下一审批节点处理。'}`,
-      time: '刚刚',
-      read: false,
-      targetRoles: targets,
-      targetType: 'workflow',
-      targetId: instance.id
-    });
+  private async handleMarkNotificationRead(notificationId: string): Promise<void> {
+    try {
+      this.notifications = await markNotificationReadStateUseCase(this.notifications, notificationId);
+      this.persistDashboardSummary();
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '消息标记失败。';
+      this.showMessage(message);
+    }
   }
 
-  private writeAuditLog(action: string, module: string, riskLevel: 'normal' | 'high', detail: string): void {
-    if (this.currentUser === null) {
-      return;
+  private async handleAssistantAsk(): Promise<void> {
+    try {
+      const result = await askAssistantUseCase(this.assistantQuestion, this.assistantHistory);
+      if (!result.success) {
+        this.showMessage(result.message);
+        return;
+      }
+      this.assistantReply = result.reply;
+      this.assistantHistory = result.history;
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '助手暂时不可用。';
+      this.showMessage(message);
     }
-
-    this.prependAuditLog({
-      id: `log${Date.now()}`,
-      module: module,
-      action: action,
-      operatorName: this.getCurrentUser().name,
-      operatorRole: this.getCurrentUser().role,
-      riskLevel: riskLevel,
-      detail: detail,
-      time: '刚刚'
-    });
-  }
-
-  private validateWorkflowForm(templateId: string, amount: number): boolean {
-    if (this.workflowReasonInput.trim().length === 0) {
-      this.showMessage('请填写申请事由。');
-      return false;
-    }
-
-    if (this.workflowAttachmentInput.trim().length === 0) {
-      this.showMessage('请补充附件模拟内容。');
-      return false;
-    }
-
-    if (templateId === 'wf1' && (this.workflowExtraInput.trim().length === 0 || this.workflowDateInput.trim().length === 0)) {
-      this.showMessage('请完整填写请假类型和时间。');
-      return false;
-    }
-
-    if ((templateId === 'wf2' || templateId === 'wf3') && (amount <= 0 || this.workflowExtraInput.trim().length === 0)) {
-      this.showMessage('请填写金额和业务类型。');
-      return false;
-    }
-
-    if (templateId === 'wf3' && this.workflowDateInput.trim().length === 0) {
-      this.showMessage('请填写期望到货时间。');
-      return false;
-    }
-
-    if (templateId === 'wf4' && (this.workflowExtraInput.trim().length === 0 || this.workflowDateInput.trim().length === 0)) {
-      this.showMessage('请填写系统名称和申请期限。');
-      return false;
-    }
-
-    return true;
-  }
-
-  private parseAmount(value: string): number {
-    const amount: number = Number(value.trim());
-    return isNaN(amount) ? 0 : amount;
-  }
-
-  private shouldRequireSecurityConfirm(templateId: string, amount: number): boolean {
-    if (templateId === 'wf2' && amount >= 5000) {
-      return true;
-    }
-    if (templateId === 'wf3' && amount >= 10000) {
-      return true;
-    }
-    return false;
-  }
-
-  private buildRiskReason(templateId: string, amount: number, enabled: boolean): string {
-    if (!enabled) {
-      return '';
-    }
-    if (templateId === 'wf2') {
-      return `报销金额 ${amount} 元超过 5000 元阈值，需进行二次安全确认。`;
-    }
-    if (templateId === 'wf3') {
-      return `采购金额 ${amount} 元超过 10000 元阈值，需进行二次安全确认。`;
-    }
-    return '系统检测到高风险操作，需进行额外确认。';
-  }
-
-  private buildWorkflowTitleSuffix(templateId: string): string {
-    if (this.workflowTitleInput.trim().length > 0) {
-      return this.workflowTitleInput.trim();
-    }
-
-    if (templateId === 'wf1') {
-      return this.workflowDateInput.trim();
-    }
-    if (templateId === 'wf2' || templateId === 'wf3' || templateId === 'wf4') {
-      return this.workflowExtraInput.trim();
-    }
-    return this.getCurrentUser().name;
-  }
-
-  private buildWorkflowSummary(templateId: string, amount: number): string {
-    if (templateId === 'wf1') {
-      return `${this.workflowExtraInput.trim()}，时间为 ${this.workflowDateInput.trim()}，原因：${this.workflowReasonInput.trim()}`;
-    }
-    if (templateId === 'wf2') {
-      return `${this.workflowExtraInput.trim()}报销 ${amount} 元，原因：${this.workflowReasonInput.trim()}`;
-    }
-    if (templateId === 'wf3') {
-      return `${this.workflowExtraInput.trim()}采购预算 ${amount} 元，用途：${this.workflowReasonInput.trim()}`;
-    }
-    return `申请 ${this.workflowExtraInput.trim()} 权限，期限 ${this.workflowDateInput.trim()}，场景：${this.workflowReasonInput.trim()}`;
-  }
-
-  private buildWorkflowDetail(templateId: string, amount: number): string[] {
-    if (templateId === 'wf1') {
-      return [
-        `请假类型：${this.workflowExtraInput.trim()}`,
-        `请假时间：${this.workflowDateInput.trim()}`,
-        `请假原因：${this.workflowReasonInput.trim()}`,
-        `附件：${this.workflowAttachmentInput.trim()}`
-      ];
-    }
-
-    if (templateId === 'wf2') {
-      return [
-        `费用类型：${this.workflowExtraInput.trim()}`,
-        `报销金额：${amount} 元`,
-        `报销事由：${this.workflowReasonInput.trim()}`,
-        `附件：${this.workflowAttachmentInput.trim()}`
-      ];
-    }
-
-    if (templateId === 'wf3') {
-      return [
-        `采购物品：${this.workflowExtraInput.trim()}`,
-        `采购预算：${amount} 元`,
-        `采购用途：${this.workflowReasonInput.trim()}`,
-        `期望到货：${this.workflowDateInput.trim()}`,
-        `附件：${this.workflowAttachmentInput.trim()}`
-      ];
-    }
-
-    return [
-      `系统名称：${this.workflowExtraInput.trim()}`,
-      `申请期限：${this.workflowDateInput.trim()}`,
-      `业务场景：${this.workflowReasonInput.trim()}`,
-      `附件：${this.workflowAttachmentInput.trim()}`
-    ];
   }
 
   private getCurrentUser(): User {
@@ -1469,90 +1471,103 @@ struct Index {
   }
 
   private getSelectedTemplate(): WorkflowTemplate {
-    const item: WorkflowTemplate | null = this.getTemplateById(this.selectedTemplateId);
-    return item === null ? this.templates[0] : item;
+    return getSelectedTemplateUseCase(this.templates, this.selectedTemplateId);
   }
 
   private getDashboardTodoCount(): number {
-    if (this.currentUser === null) {
-      return 0;
-    }
-
-    if (this.getCurrentUser().role === 'employee') {
-      return this.getMyWorkflows().filter((item: WorkflowInstance) =>
-        item.status === '待审批' || item.status === '审批中' || item.status === '待二次确认'
-      ).length;
-    }
-
-    return this.getTodoWorkflows().length;
+    return getDashboardTodoCountUseCase(this.currentUser, this.workflowInstances);
   }
 
   private getActiveWorkflowCount(): number {
-    return this.workflowInstances.filter((item: WorkflowInstance) =>
-      item.status === '待审批' || item.status === '审批中' || item.status === '待二次确认'
-    ).length;
+    return getActiveWorkflowCountUseCase(this.workflowInstances);
   }
 
   private getHighRiskWorkflowCount(): number {
-    return this.workflowInstances.filter((item: WorkflowInstance) => item.riskLevel === 'high').length;
+    return getHighRiskWorkflowCountUseCase(this.workflowInstances);
   }
 
   private getPublishedArticles(): KnowledgeArticle[] {
-    return this.articles.filter((item: KnowledgeArticle) => item.status === 'published');
+    return getPublishedArticlesUseCase(this.articles);
   }
 
   private getRecentArticles(): KnowledgeArticle[] {
-    if (this.currentUser === null) {
-      return [];
-    }
-
-    const list: KnowledgeArticle[] = [];
-    this.getCurrentUser().recentKnowledgeIds.forEach((id: string) => {
-      const item: KnowledgeArticle | null = this.getArticleById(id);
-      if (item !== null) {
-        list.push(item);
-      }
-    });
-    return list;
+    return getRecentArticlesUseCase(this.currentUser, this.articles);
   }
 
   private getFavoriteArticles(): KnowledgeArticle[] {
-    const list: KnowledgeArticle[] = [];
-    this.favoriteKnowledgeIds.forEach((id: string) => {
-      const item: KnowledgeArticle | null = this.getArticleById(id);
-      if (item !== null) {
-        list.push(item);
-      }
-    });
-    return list;
+    return getFavoriteArticlesUseCase(this.favoriteKnowledgeIds, this.articles);
   }
 
   private getVisibleMessages(): NotificationItem[] {
-    if (this.currentUser === null) {
-      return [];
-    }
-
-    return this.notifications.filter((item: NotificationItem) => item.targetRoles.includes(this.getCurrentUser().role));
+    return getVisibleMessagesUseCase(this.currentUser, this.notifications);
   }
 
   private getMyWorkflows(): WorkflowInstance[] {
-    if (this.currentUser === null) {
-      return [];
-    }
-
-    return this.workflowInstances.filter((item: WorkflowInstance) => item.applicantId === this.getCurrentUser().id);
+    return getMyWorkflowsUseCase(this.currentUser, this.workflowInstances);
   }
 
   private getTodoWorkflows(): WorkflowInstance[] {
+    return getTodoWorkflowsUseCase(this.currentUser, this.workflowInstances);
+  }
+
+  private getWorkflowStatuses(): string[] {
+    return ['待审批', '审批中', '待二次确认', '已通过', '已驳回'];
+  }
+
+  private getRoleWorkflowItems(): WorkflowInstance[] {
+    const map = new Map<string, WorkflowInstance>();
+    this.getMyWorkflows().forEach((item: WorkflowInstance) => {
+      map.set(item.id, item);
+    });
+    this.getTodoWorkflows().forEach((item: WorkflowInstance) => {
+      map.set(item.id, item);
+    });
+    return Array.from(map.values()).sort((left: WorkflowInstance, right: WorkflowInstance) => {
+      return right.createTime.localeCompare(left.createTime);
+    });
+  }
+
+  private getRoleWorkflowItemsByStatus(status: string): WorkflowInstance[] {
+    return this.getRoleWorkflowItems().filter((item: WorkflowInstance) => item.status === status);
+  }
+
+  private getMyWorkflowModuleSubtitle(): string {
+    return '';
+  }
+
+  private openWorkflowModule(moduleKey: string): void {
+    this.activeWorkflowModule = moduleKey === 'mine' ? 'mine' : 'apply';
+    this.workflowPanelVisible = true;
+  }
+
+  private closeWorkflowModuleDialog(): void {
+    this.workflowPanelVisible = false;
+    this.activeWorkflowModule = 'overview';
+  }
+
+  private getWorkflowModuleDialogTitle(): string {
+    return this.activeWorkflowModule === 'mine' ? '我的流程' : '申请流程';
+  }
+
+  private getWorkflowModuleDialogStat(): string {
+    if (this.activeWorkflowModule === 'mine') {
+      return `共 ${this.getRoleWorkflowItems().length} 条流程`;
+    }
+    return `共 ${this.templates.length} 个模板`;
+  }
+
+  private isWorkflowModuleActive(moduleKey: string): boolean {
+    return this.workflowPanelVisible && this.activeWorkflowModule === moduleKey;
+  }
+
+  private canHandleWorkflow(item: WorkflowInstance): boolean {
     if (this.currentUser === null) {
-      return [];
+      return false;
     }
 
-    return this.workflowInstances.filter((item: WorkflowInstance) => {
-      const isInCharge: boolean = item.currentApproverRole === this.getCurrentUser().role;
-      const isPending: boolean = item.status === '待审批' || item.status === '审批中' || item.status === '待二次确认';
-      return isInCharge && isPending;
-    });
+    const isInCharge: boolean = item.currentApproverRole === this.currentUser.role;
+    const isPending: boolean = item.status === '待审批' || item.status === '审批中' || item.status === '待二次确认';
+    return isInCharge && isPending;
   }
 
   private getSelectedWorkflow(): WorkflowInstance | null {
@@ -1610,47 +1625,35 @@ struct Index {
   }
 
   private getWorkflowById(workflowId: string): WorkflowInstance | null {
-    const item: WorkflowInstance | undefined = this.workflowInstances.find((workflow: WorkflowInstance) => workflow.id === workflowId);
-    return item ? item : null;
+    return getWorkflowByIdUseCase(this.workflowInstances, workflowId);
   }
 
   private getArticleById(articleId: string): KnowledgeArticle | null {
-    const item: KnowledgeArticle | undefined = this.articles.find((article: KnowledgeArticle) => article.id === articleId);
-    return item ? item : null;
+    return getArticleByIdUseCase(this.articles, articleId);
   }
 
   private getTemplateById(templateId: string): WorkflowTemplate | null {
-    const item: WorkflowTemplate | undefined = this.templates.find((template: WorkflowTemplate) => template.id === templateId);
-    return item ? item : null;
+    return getTemplateByIdUseCase(this.templates, templateId);
   }
 
   private getSelectedArticle(): KnowledgeArticle | null {
-    return this.getArticleById(this.selectedArticleId);
+    return getSelectedArticleUseCase(this.articles, this.selectedArticleId);
   }
 
   private getSelectedArticleRequired(): KnowledgeArticle {
-    const item: KnowledgeArticle | null = this.getSelectedArticle();
-    if (item !== null) {
-      return item;
-    }
-    return this.articles[0];
+    return getSelectedArticleRequiredUseCase(this.articles, this.selectedArticleId);
   }
 
   private getSelectedArticleWorkflowNames(): string {
-    const item: KnowledgeArticle | null = this.getSelectedArticle();
-    return item === null ? '' : item.relatedWorkflowIds.map((workflowId: string) => this.getTemplateName(workflowId)).join('、');
+    return getSelectedArticleWorkflowNamesUseCase(this.articles, this.selectedArticleId, this.templates);
   }
 
   private getTemplateName(templateId: string): string {
-    const item: WorkflowTemplate | null = this.getTemplateById(templateId);
-    return item === null ? '流程' : item.name;
+    return getTemplateNameUseCase(this.templates, templateId);
   }
 
   private getRelatedKnowledgeTitles(knowledgeIds: string[]): string {
-    return knowledgeIds.map((item: string) => {
-      const article: KnowledgeArticle | null = this.getArticleById(item);
-      return article === null ? '未命名知识' : article.title;
-    }).join('、');
+    return getRelatedKnowledgeTitlesUseCase(knowledgeIds, this.articles);
   }
 
   private getArticleWorkflowCount(article: KnowledgeArticle): number {
@@ -1658,7 +1661,7 @@ struct Index {
   }
 
   private isFavorite(articleId: string): boolean {
-    return this.favoriteKnowledgeIds.includes(articleId);
+    return isFavoriteKnowledgeUseCase(this.favoriteKnowledgeIds, articleId);
   }
 
   private canManageKnowledge(): boolean {
@@ -1666,15 +1669,7 @@ struct Index {
   }
 
   private getVisibleAuditLogs(): AuditLog[] {
-    if (this.getCurrentUser().role === 'systemAdmin') {
-      return this.auditLogs.slice(0, 6);
-    }
-
-    if (this.getCurrentUser().role === 'knowledgeAdmin') {
-      return this.auditLogs.filter((item: AuditLog) => item.module !== '身份认证').slice(0, 4);
-    }
-
-    return this.auditLogs.filter((item: AuditLog) => item.module === '流程审批' || item.module === '安全治理').slice(0, 4);
+    return getVisibleAuditLogsUseCase(this.currentUser, this.auditLogs);
   }
 
   private getRoleLabel(role: string): string {

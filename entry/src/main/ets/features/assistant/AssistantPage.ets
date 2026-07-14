@@ -1,6 +1,5 @@
 import { EmptyState } from '../../common/components/EmptyState';
 import { KnowledgeCard } from '../../common/components/KnowledgeCard';
-import { buildAssistantReply } from '../../common/services/AssistantService';
 import {
   AssistantHistory,
   AssistantReply,
@@ -24,6 +23,8 @@ export struct AssistantPage {
   onOpenArticle: (articleId: string) => void = () => {
   };
   onStartWorkflow: (templateId: string) => void = () => {
+  };
+  onAsk: () => void = () => {
   };
   private showMessage(message: string): void {
     try {
@@ -59,27 +60,8 @@ export struct AssistantPage {
     return template === undefined ? '' : template.name;
   }
 
-  private prependHistory(history: AssistantHistory): void {
-    const list: AssistantHistory[] = [history];
-    this.history.forEach((item: AssistantHistory) => {
-      list.push(item);
-    });
-    this.history = list;
-  }
-
   private ask(): void {
-    const result: AssistantReply | null = buildAssistantReply(this.question);
-    if (result === null) {
-      this.showMessage('请输入问题后再提问。');
-      return;
-    }
-    this.reply = result;
-    this.prependHistory({
-      id: `${Date.now()}`,
-      question: this.question.trim(),
-      answer: result.answer,
-      time: '刚刚'
-    });
+    this.onAsk();
   }
 
   build() {
