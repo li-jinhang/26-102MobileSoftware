@@ -19,7 +19,7 @@ export struct KnowledgeDetailPage {
   };
   onMarkUseful: (articleId: string) => void = () => {
   };
-  onSubmitCorrection: (articleId: string, content: string) => boolean = () => false;
+  onSubmitCorrection: (articleId: string, content: string) => Promise<boolean> = async () => false;
   onFontScaleChange: (scale: ReadingFontScale) => void = () => {
   };
   onStartWorkflow: (templateId: string) => void = () => {
@@ -44,8 +44,8 @@ export struct KnowledgeDetailPage {
     }
   }
 
-  private submitCorrection(): void {
-    if (!this.onSubmitCorrection(this.article.id, this.correctionText)) {
+  private async submitCorrection(): Promise<void> {
+    if (!await this.onSubmitCorrection(this.article.id, this.correctionText)) {
       this.showMessage('请填写具体的纠错内容。');
       return;
     }
@@ -223,7 +223,7 @@ export struct KnowledgeDetailPage {
               .backgroundColor('#344054')
               .borderRadius(8)
               .onClick(() => {
-                this.submitCorrection();
+                void this.submitCorrection();
               })
           }
           .width('100%')
