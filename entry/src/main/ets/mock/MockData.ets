@@ -1,9 +1,13 @@
 import {
+  AttendanceRecord,
+  AttendanceTodaySummary,
   ApprovalRecord,
   AssistantReply,
   AuditLog,
   KnowledgeArticle,
   KnowledgeCategory,
+  MailMessage,
+  MailRecipient,
   NotificationItem,
   User,
   UserRole,
@@ -346,6 +350,142 @@ const mockNotifications: NotificationItem[] = [
     targetRoles: ['systemAdmin'],
     targetType: 'none',
     targetId: ''
+  },
+  {
+    id: 'n5',
+    title: '今日考勤提醒',
+    content: '你今天已签到，离下班还有一段时间，记得在离岗前完成签退。',
+    time: '刚刚',
+    read: false,
+    targetRoles: ['employee'],
+    targetType: 'attendance',
+    targetId: 'today'
+  },
+  {
+    id: 'n6',
+    title: '收到一封内部邮件',
+    content: '李清越发来“报销材料已补充，请查收”，可直接进入邮件查看详情。',
+    time: '5 分钟前',
+    read: false,
+    targetRoles: ['employee'],
+    targetType: 'mail',
+    targetId: 'mail2'
+  }
+];
+
+const mockAttendanceRecords: AttendanceRecord[] = [
+  {
+    id: 'at1',
+    userId: 'u1',
+    userName: '张晓宁',
+    type: 'checkIn',
+    time: '2026-07-15 08:56',
+    location: '深圳南山办公区',
+    note: '正常到岗',
+    status: 'normal'
+  },
+  {
+    id: 'at2',
+    userId: 'u1',
+    userName: '张晓宁',
+    type: 'checkOut',
+    time: '2026-07-14 18:21',
+    location: '深圳南山办公区',
+    note: '完成日报后签退',
+    status: 'normal'
+  },
+  {
+    id: 'at3',
+    userId: 'u1',
+    userName: '张晓宁',
+    type: 'checkIn',
+    time: '2026-07-14 09:18',
+    location: '深圳南山办公区',
+    note: '早会后签到',
+    status: 'late'
+  }
+];
+
+const mockAttendanceTodaySummary: AttendanceTodaySummary = {
+  date: '2026-07-15',
+  checkedIn: true,
+  checkedOut: false,
+  checkInTime: '08:56',
+  checkOutTime: '',
+  workDurationText: '已工作 3 小时 24 分',
+  statusText: '今日正常出勤',
+  location: '深圳南山办公区',
+  recentRecords: mockAttendanceRecords
+};
+
+const mockMailRecipients: MailRecipient[] = [
+  {
+    userId: 'u2',
+    userName: '李清越',
+    read: false,
+    readTime: ''
+  }
+];
+
+const mockMails: MailMessage[] = [
+  {
+    id: 'mail1',
+    subject: '请确认下周客户拜访排期',
+    summary: '需要负责人确认出差安排，并同步给行政同事预订酒店。',
+    content: '李经理你好，我计划下周二到周三前往广州拜访客户，烦请帮忙确认排期是否可行。确认后我会同步行政同事预订酒店，并补充差旅申请材料。',
+    senderId: 'u1',
+    senderName: '张晓宁',
+    recipients: mockMailRecipients,
+    folder: 'sent',
+    importance: 'important',
+    createTime: '2026-07-15 09:30',
+    read: true,
+    relatedWorkflowId: 'i1',
+    relatedKnowledgeId: 'k2'
+  },
+  {
+    id: 'mail2',
+    subject: '报销材料已补充，请查收',
+    summary: '已补齐发票和行程截图，可直接进入审批。',
+    content: '你的差旅报销材料已补充完整，包括电子发票、行程截图和事由说明。请在流程页查看最新附件，如无问题可直接审批。',
+    senderId: 'u2',
+    senderName: '李清越',
+    recipients: [
+      {
+        userId: 'u1',
+        userName: '张晓宁',
+        read: false,
+        readTime: ''
+      }
+    ],
+    folder: 'inbox',
+    importance: 'normal',
+    createTime: '2026-07-15 10:12',
+    read: false,
+    relatedWorkflowId: 'i1',
+    relatedKnowledgeId: 'k2'
+  },
+  {
+    id: 'mail3',
+    subject: '权限规范已更新',
+    summary: '系统权限申请规范已更新到 v1.1，请研发同学查看。',
+    content: '知识运营已更新《系统权限申请规范》到 v1.1，新增了敏感系统申请的说明，请相关同学在提交流程前先阅读最新版本。',
+    senderId: 'u4',
+    senderName: '林知夏',
+    recipients: [
+      {
+        userId: 'u1',
+        userName: '张晓宁',
+        read: true,
+        readTime: '2026-07-15 10:20'
+      }
+    ],
+    folder: 'inbox',
+    importance: 'important',
+    createTime: '2026-07-15 09:55',
+    read: true,
+    relatedWorkflowId: '',
+    relatedKnowledgeId: 'k4'
   }
 ];
 
@@ -509,6 +649,76 @@ function cloneNotification(item: NotificationItem): NotificationItem {
   };
 }
 
+function cloneAttendanceRecord(item: AttendanceRecord): AttendanceRecord {
+  return {
+    id: item.id,
+    userId: item.userId,
+    userName: item.userName,
+    type: item.type,
+    time: item.time,
+    location: item.location,
+    note: item.note,
+    status: item.status
+  };
+}
+
+function copyAttendanceRecords(source: AttendanceRecord[]): AttendanceRecord[] {
+  const target: AttendanceRecord[] = [];
+  source.forEach((item: AttendanceRecord) => {
+    target.push(cloneAttendanceRecord(item));
+  });
+  return target;
+}
+
+function cloneAttendanceTodaySummary(item: AttendanceTodaySummary): AttendanceTodaySummary {
+  return {
+    date: item.date,
+    checkedIn: item.checkedIn,
+    checkedOut: item.checkedOut,
+    checkInTime: item.checkInTime,
+    checkOutTime: item.checkOutTime,
+    workDurationText: item.workDurationText,
+    statusText: item.statusText,
+    location: item.location,
+    recentRecords: copyAttendanceRecords(item.recentRecords)
+  };
+}
+
+function cloneMailRecipient(item: MailRecipient): MailRecipient {
+  return {
+    userId: item.userId,
+    userName: item.userName,
+    read: item.read,
+    readTime: item.readTime
+  };
+}
+
+function copyMailRecipients(source: MailRecipient[]): MailRecipient[] {
+  const target: MailRecipient[] = [];
+  source.forEach((item: MailRecipient) => {
+    target.push(cloneMailRecipient(item));
+  });
+  return target;
+}
+
+function cloneMail(item: MailMessage): MailMessage {
+  return {
+    id: item.id,
+    subject: item.subject,
+    summary: item.summary,
+    content: item.content,
+    senderId: item.senderId,
+    senderName: item.senderName,
+    recipients: copyMailRecipients(item.recipients),
+    folder: item.folder,
+    importance: item.importance,
+    createTime: item.createTime,
+    read: item.read,
+    relatedWorkflowId: item.relatedWorkflowId,
+    relatedKnowledgeId: item.relatedKnowledgeId
+  };
+}
+
 function cloneAuditLog(item: AuditLog): AuditLog {
   return {
     id: item.id,
@@ -566,6 +776,22 @@ export function getMockNotifications(): NotificationItem[] {
   const list: NotificationItem[] = [];
   mockNotifications.forEach((item: NotificationItem) => {
     list.push(cloneNotification(item));
+  });
+  return list;
+}
+
+export function getMockAttendanceRecords(): AttendanceRecord[] {
+  return copyAttendanceRecords(mockAttendanceRecords);
+}
+
+export function getMockAttendanceTodaySummary(): AttendanceTodaySummary {
+  return cloneAttendanceTodaySummary(mockAttendanceTodaySummary);
+}
+
+export function getMockMails(): MailMessage[] {
+  const list: MailMessage[] = [];
+  mockMails.forEach((item: MailMessage) => {
+    list.push(cloneMail(item));
   });
   return list;
 }

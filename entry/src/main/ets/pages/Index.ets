@@ -1,7 +1,17 @@
 import { common } from '@kit.AbilityKit';
+import {
+  loadAttendanceOverviewUseCase,
+  submitAttendanceCheckInUseCase,
+  submitAttendanceCheckOutUseCase
+} from '../app/usecases/AttendanceUseCases';
 import { askAssistantUseCase } from '../app/usecases/AssistantUseCases';
 import { loadAppBootstrapData, AppBootstrapData } from '../app/usecases/AppBootstrapUseCases';
 import { loginWithAccount, logoutCurrentAccount } from '../app/usecases/AuthUseCases';
+import {
+  loadMailBoxUseCase,
+  markMailReadUseCase,
+  sendInternalMailUseCase
+} from '../app/usecases/MailUseCases';
 import {
   isFavoriteKnowledgeUseCase,
   markKnowledgeUsefulStateUseCase,
@@ -55,11 +65,15 @@ import {
   saveReadingSettings
 } from '../common/services/ExperienceStateService';
 import { SectionBlock } from '../common/components/SectionBlock';
+import { AttendancePage } from '../features/attendance/AttendancePage';
 import { AssistantPage } from '../features/assistant/AssistantPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { KnowledgeDetailPage } from '../features/knowledge/KnowledgeDetailPage';
 import { KnowledgePage } from '../features/knowledge/KnowledgePage';
 import { OcrResultPage } from '../features/knowledge/OcrResultPage';
+import { MailComposerPage } from '../features/mail/MailComposerPage';
+import { MailDetailPage } from '../features/mail/MailDetailPage';
+import { MailPage } from '../features/mail/MailPage';
 import {
   OcrResult,
   recognizeBundledDemoImage,
@@ -72,9 +86,12 @@ import {
   AssistantReply,
   ApprovalRecord,
   AuditLog,
+  AttendanceRecord,
+  AttendanceTodaySummary,
   KnowledgeArticle,
   KnowledgeCategory,
   KnowledgeCorrection,
+  MailMessage,
   NotificationItem,
   ReadingFontScale,
   ReadingFontWeight,
@@ -105,9 +122,24 @@ struct Index {
   @State workflowInstances: WorkflowInstance[] = [];
   @State notifications: NotificationItem[] = [];
   @State auditLogs: AuditLog[] = [];
-  @State activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' = 'none';
-  @State detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' = 'none';
+  @State activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' = 'none';
+  @State detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' = 'none';
   @State ocrResult: OcrResult | null = null;
+  @State attendanceSummary: AttendanceTodaySummary = {
+    date: '',
+    checkedIn: false,
+    checkedOut: false,
+    checkInTime: '',
+    checkOutTime: '',
+    workDurationText: '',
+    statusText: '考勤未加载',
+    location: '',
+    recentRecords: []
+  };
+  @State attendanceRecords: AttendanceRecord[] = [];
+  @State inboxMails: MailMessage[] = [];
+  @State sentMails: MailMessage[] = [];
+  @State selectedMailId: string = '';
   @State assistantHistory: AssistantHistory[] = [];
   @State assistantQuestion: string = '';
   @State assistantReply: AssistantReply | null = null;
@@ -269,7 +301,7 @@ struct Index {
 
   @Builder
   private DemoAccountCard(account: string, roleLabel: string, description: string) {
-    Row() {
+    Row({ space: 12 }) {
       Column({ space: 4 }) {
         Text(account)
           .fontSize(15)
@@ -282,12 +314,12 @@ struct Index {
           .fontColor('#667085')
           .width('100%')
       }
+      .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
-
-      Blank()
 
       Button('填入')
         .fontSize(12)
+        .width(56)
         .height(34)
         .backgroundColor('#E9F0FF')
         .fontColor('#246BFD')
@@ -301,6 +333,7 @@ struct Index {
     .padding(16)
     .backgroundColor('#FFFFFF')
     .borderRadius(18)
+    .alignItems(VerticalAlign.Center)
   }
 
   @Builder
@@ -352,6 +385,62 @@ struct Index {
               this.openArticle(articleId);
             }
           })
+        } else if (this.activeSubPage === 'attendance') {
+          AttendancePage({
+            todaySummary: this.attendanceSummary,
+            records: this.attendanceRecords,
+            onBack: () => {
+              this.activeSubPage = 'none';
+            },
+            onCheckIn: (note: string) => {
+              void this.handleAttendanceCheckIn(note);
+            },
+            onCheckOut: (note: string) => {
+              void this.handleAttendanceCheckOut(note);
+            }
+          })
+        } else if (this.activeSubPage === 'mail') {
+          MailPage({
+            inbox: this.inboxMails,
+            sent: this.sentMails,
+            onBack: () => {
+              this.activeSubPage = 'none';
+            },
+            onOpenMail: (mailId: string) => {
+              void this.openMailDetail(mailId);
+            },
+            onCompose: () => {
+              this.activeSubPage = 'mailComposer';
+            }
+          })
+        } else if (this.activeSubPage === 'mailDetail' && this.getSelectedMail() !== null) {
+          MailDetailPage({
+            mail: this.getSelectedMailRequired(),
+            onBack: () => {
+              this.activeSubPage = 'mail';
+            },
+            onOpenWorkflow: (workflowId: string) => {
+              this.openWorkflowFromMessage(workflowId);
+            },
+            onOpenKnowledge: (knowledgeId: string) => {
+              this.openArticle(knowledgeId);
+            }
+          })
+        } else if (this.activeSubPage === 'mailComposer') {
+          MailComposerPage({
+            onBack: () => {
+              this.activeSubPage = 'mail';
+            },
+            onSend: (
+              receiverIds: string[],
+              subject: string,
+              content: string,
+              relatedWorkflowId: string,
+              relatedKnowledgeId: string
+            ) => {
+              void this.handleSendMail(receiverIds, subject, content, relatedWorkflowId, relatedKnowledgeId);
+            }
+          })
         } else if (this.activeSubPage === 'assistant') {
           AssistantPage({
             articles: this.getPublishedArticles(),
@@ -386,6 +475,12 @@ struct Index {
             },
             onOpenWorkflow: (instanceId: string) => {
               this.openWorkflowFromMessage(instanceId);
+            },
+            onOpenAttendance: () => {
+              void this.openAttendancePage();
+            },
+            onOpenMail: (mailId: string) => {
+              void this.openMailDetail(mailId);
             }
           })
         } else {
@@ -403,6 +498,8 @@ struct Index {
                   notifications: this.getVisibleMessages(),
                   templates: this.templates,
                   todoCount: this.getDashboardTodoCount(),
+                  attendanceStatus: this.getAttendanceStatusSummary(),
+                  mailUnreadCount: this.getUnreadMailCount(),
                   onOpenArticle: (articleId: string) => {
                     this.openArticle(articleId);
                   },
@@ -415,6 +512,12 @@ struct Index {
                   },
                   onOpenMessages: () => {
                     this.activeSubPage = 'messages';
+                  },
+                  onOpenAttendance: () => {
+                    void this.openAttendancePage();
+                  },
+                  onOpenMail: () => {
+                    void this.openMailPage();
                   },
                   onOpenTodo: () => {
                     this.activeSubPage = 'none';
@@ -448,11 +551,19 @@ struct Index {
                   favoriteArticles: this.getFavoriteArticles(),
                   unreadCount: this.getUnreadMessageCount(),
                   fontScale: this.readingFontScale,
+                  mailUnreadCount: this.getUnreadMailCount(),
+                  attendanceStatus: this.getAttendanceStatusSummary(),
                   onOpenArticle: (articleId: string) => {
                     this.openArticle(articleId);
                   },
                   onOpenMessages: () => {
                     this.activeSubPage = 'messages';
+                  },
+                  onOpenAttendance: () => {
+                    void this.openAttendancePage();
+                  },
+                  onOpenMail: () => {
+                    void this.openMailPage();
                   },
                   onFontScaleChange: (scale: ReadingFontScale) => {
                     this.readingFontScale = scale;
@@ -1233,6 +1344,21 @@ struct Index {
     this.workflowInstances = [];
     this.notifications = [];
     this.auditLogs = [];
+    this.attendanceSummary = {
+      date: '',
+      checkedIn: false,
+      checkedOut: false,
+      checkInTime: '',
+      checkOutTime: '',
+      workDurationText: '',
+      statusText: '考勤未加载',
+      location: '',
+      recentRecords: []
+    };
+    this.attendanceRecords = [];
+    this.inboxMails = [];
+    this.sentMails = [];
+    this.selectedMailId = '';
     this.assistantHistory = result.assistantHistory;
     this.assistantQuestion = result.assistantQuestion;
     this.assistantReply = result.assistantReply;
@@ -1270,6 +1396,8 @@ struct Index {
       this.workflowPanelVisible = false;
       this.workflowComposerVisible = false;
       this.applyBootstrapData(bootstrapData);
+      await this.loadAttendancePreview();
+      await this.loadMailPreview();
       if (this.selectedArticleId.length === 0 && this.articles.length > 0) {
         this.selectedArticleId = this.articles[0].id;
       }
@@ -1450,6 +1578,128 @@ struct Index {
     }
   }
 
+  private async loadAttendancePreview(): Promise<void> {
+    try {
+      const data = await loadAttendanceOverviewUseCase();
+      this.attendanceSummary = data.todaySummary;
+      this.attendanceRecords = data.records;
+    } catch (error) {
+      this.attendanceSummary = {
+        date: '',
+        checkedIn: false,
+        checkedOut: false,
+        checkInTime: '',
+        checkOutTime: '',
+        workDurationText: '',
+        statusText: '考勤暂不可用',
+        location: '',
+        recentRecords: []
+      };
+      this.attendanceRecords = [];
+      console.error(`attendance preview failed: ${error}`);
+    }
+  }
+
+  private async loadMailPreview(): Promise<void> {
+    try {
+      const mailbox = await loadMailBoxUseCase();
+      this.inboxMails = mailbox.inbox;
+      this.sentMails = mailbox.sent;
+    } catch (error) {
+      this.inboxMails = [];
+      this.sentMails = [];
+      console.error(`mail preview failed: ${error}`);
+    }
+  }
+
+  private async openAttendancePage(): Promise<void> {
+    await this.loadAttendancePreview();
+    this.activeSubPage = 'attendance';
+  }
+
+  private async openMailPage(): Promise<void> {
+    await this.loadMailPreview();
+    this.activeSubPage = 'mail';
+  }
+
+  private async openMailDetail(mailId: string): Promise<void> {
+    await this.loadMailPreview();
+    this.selectedMailId = mailId;
+    if (this.getSelectedMail() === null) {
+      this.activeSubPage = 'mail';
+      this.showMessage('邮件详情暂不可用。');
+      return;
+    }
+    try {
+      await markMailReadUseCase(mailId);
+    } catch (error) {
+      console.error(`mail read failed: ${error}`);
+    }
+    this.inboxMails = this.inboxMails.map((item: MailMessage) => {
+      if (item.id !== mailId) {
+        return item;
+      }
+      return {
+        id: item.id,
+        subject: item.subject,
+        summary: item.summary,
+        content: item.content,
+        senderId: item.senderId,
+        senderName: item.senderName,
+        recipients: item.recipients,
+        folder: item.folder,
+        importance: item.importance,
+        createTime: item.createTime,
+        read: true,
+        relatedWorkflowId: item.relatedWorkflowId,
+        relatedKnowledgeId: item.relatedKnowledgeId
+      };
+    });
+    this.activeSubPage = 'mailDetail';
+  }
+
+  private async handleAttendanceCheckIn(note: string): Promise<void> {
+    try {
+      const data = await submitAttendanceCheckInUseCase(note, '深圳南山办公区');
+      this.attendanceSummary = data.todaySummary;
+      this.attendanceRecords = data.records;
+      this.showMessage('签到成功。');
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '签到失败。';
+      this.showMessage(message);
+    }
+  }
+
+  private async handleAttendanceCheckOut(note: string): Promise<void> {
+    try {
+      const data = await submitAttendanceCheckOutUseCase(note, '深圳南山办公区');
+      this.attendanceSummary = data.todaySummary;
+      this.attendanceRecords = data.records;
+      this.showMessage('签退成功。');
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '签退失败。';
+      this.showMessage(message);
+    }
+  }
+
+  private async handleSendMail(
+    receiverIds: string[],
+    subject: string,
+    content: string,
+    relatedWorkflowId: string,
+    relatedKnowledgeId: string
+  ): Promise<void> {
+    try {
+      await sendInternalMailUseCase(receiverIds, subject, content, relatedWorkflowId, relatedKnowledgeId);
+      await this.loadMailPreview();
+      this.activeSubPage = 'mail';
+      this.showMessage('邮件已发送。');
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '发送邮件失败。';
+      this.showMessage(message);
+    }
+  }
+
   private getCurrentUser(): User {
     if (this.currentUser !== null) {
       return this.currentUser;
@@ -1500,6 +1750,23 @@ struct Index {
 
   private getVisibleMessages(): NotificationItem[] {
     return getVisibleMessagesUseCase(this.currentUser, this.notifications);
+  }
+
+  private getUnreadMailCount(): number {
+    return this.inboxMails.filter((item: MailMessage) => !item.read).length;
+  }
+
+  private getAttendanceStatusSummary(): string {
+    if (this.attendanceSummary.statusText.length === 0) {
+      return '考勤未加载';
+    }
+    if (this.attendanceSummary.checkedOut) {
+      return `${this.attendanceSummary.statusText} · 已签退`;
+    }
+    if (this.attendanceSummary.checkedIn) {
+      return `${this.attendanceSummary.statusText} · 已签到 ${this.attendanceSummary.checkInTime}`;
+    }
+    return this.attendanceSummary.statusText;
   }
 
   private getMyWorkflows(): WorkflowInstance[] {
@@ -1642,6 +1909,34 @@ struct Index {
 
   private getSelectedArticleRequired(): KnowledgeArticle {
     return getSelectedArticleRequiredUseCase(this.articles, this.selectedArticleId);
+  }
+
+  private getSelectedMail(): MailMessage | null {
+    const mails: MailMessage[] = this.inboxMails.concat(this.sentMails);
+    const item: MailMessage | undefined = mails.find((mail: MailMessage) => mail.id === this.selectedMailId);
+    return item === undefined ? null : item;
+  }
+
+  private getSelectedMailRequired(): MailMessage {
+    const item: MailMessage | null = this.getSelectedMail();
+    if (item !== null) {
+      return item;
+    }
+    return {
+      id: '',
+      subject: '',
+      summary: '',
+      content: '',
+      senderId: '',
+      senderName: '',
+      recipients: [],
+      folder: 'inbox',
+      importance: 'normal',
+      createTime: '',
+      read: true,
+      relatedWorkflowId: '',
+      relatedKnowledgeId: ''
+    };
   }
 
   private getSelectedArticleWorkflowNames(): string {

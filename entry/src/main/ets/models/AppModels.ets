@@ -1,9 +1,13 @@
 export type UserRole = 'employee' | 'approver' | 'knowledgeAdmin' | 'systemAdmin';
 export type ApprovalDecision = 'submitted' | 'approved' | 'rejected' | 'securityConfirmed';
 export type WorkflowStatus = '待审批' | '审批中' | '待二次确认' | '已通过' | '已驳回';
-export type NotificationTargetType = 'workflow' | 'knowledge' | 'none';
+export type NotificationTargetType = 'workflow' | 'knowledge' | 'attendance' | 'mail' | 'none';
 export type ReadingFontScale = 'small' | 'standard' | 'large';
 export type ReadingFontWeight = 'standard' | 'semiBold';
+export type AttendanceRecordType = 'checkIn' | 'checkOut';
+export type AttendanceRecordStatus = 'normal' | 'late' | 'earlyLeave' | 'offsite';
+export type MailFolder = 'inbox' | 'sent' | 'draft' | 'trash';
+export type MailImportance = 'normal' | 'important' | 'urgent';
 
 export interface User {
   id: string;
@@ -92,6 +96,52 @@ export interface NotificationItem {
   targetRoles: UserRole[];
   targetType: NotificationTargetType;
   targetId: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  type: AttendanceRecordType;
+  time: string;
+  location: string;
+  note: string;
+  status: AttendanceRecordStatus;
+}
+
+export interface AttendanceTodaySummary {
+  date: string;
+  checkedIn: boolean;
+  checkedOut: boolean;
+  checkInTime: string;
+  checkOutTime: string;
+  workDurationText: string;
+  statusText: string;
+  location: string;
+  recentRecords: AttendanceRecord[];
+}
+
+export interface MailRecipient {
+  userId: string;
+  userName: string;
+  read: boolean;
+  readTime: string;
+}
+
+export interface MailMessage {
+  id: string;
+  subject: string;
+  summary: string;
+  content: string;
+  senderId: string;
+  senderName: string;
+  recipients: MailRecipient[];
+  folder: MailFolder;
+  importance: MailImportance;
+  createTime: string;
+  read: boolean;
+  relatedWorkflowId: string;
+  relatedKnowledgeId: string;
 }
 
 export interface KnowledgeCorrection {

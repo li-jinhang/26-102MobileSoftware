@@ -1,9 +1,12 @@
 import {
+  AttendanceRecord,
+  AttendanceTodaySummary,
   AssistantReply,
   AuditLog,
   KnowledgeCorrection,
   KnowledgeArticle,
   KnowledgeCategory,
+  MailMessage,
   NotificationItem,
   User,
   WorkflowInstance,
@@ -23,6 +26,19 @@ export interface WorkflowCreatePayload {
   amountInput: number;
   reasonInput: string;
   attachmentInput: string;
+}
+
+export interface AttendanceSubmitPayload {
+  location: string;
+  note: string;
+}
+
+export interface MailSendPayload {
+  receiverIds: string[];
+  subject: string;
+  content: string;
+  relatedWorkflowId: string;
+  relatedKnowledgeId: string;
 }
 
 export interface AuthRepository {
@@ -52,6 +68,22 @@ export interface WorkflowRepository {
 export interface NotificationRepository {
   getNotifications(unreadOnly?: boolean): Promise<NotificationItem[]>;
   markRead(notificationId: string): Promise<void>;
+}
+
+export interface AttendanceRepository {
+  getTodaySummary(): Promise<AttendanceTodaySummary>;
+  getMyRecords(): Promise<AttendanceRecord[]>;
+  checkIn(input: AttendanceSubmitPayload): Promise<AttendanceTodaySummary>;
+  checkOut(input: AttendanceSubmitPayload): Promise<AttendanceTodaySummary>;
+}
+
+export interface MailRepository {
+  getInbox(): Promise<MailMessage[]>;
+  getSent(): Promise<MailMessage[]>;
+  getMail(mailId: string): Promise<MailMessage>;
+  sendMail(input: MailSendPayload): Promise<MailMessage>;
+  markRead(mailId: string): Promise<void>;
+  deleteMail(mailId: string): Promise<void>;
 }
 
 export interface AssistantRepository {

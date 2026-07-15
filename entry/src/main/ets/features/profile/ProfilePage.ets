@@ -15,9 +15,17 @@ export struct ProfilePage {
   unreadCount: number = 0;
   @Prop
   fontScale: ReadingFontScale = 'standard';
+  @Prop
+  mailUnreadCount: number = 0;
+  @Prop
+  attendanceStatus: string = '未加载';
   onOpenArticle: (articleId: string) => void = () => {
   };
   onOpenMessages: () => void = () => {
+  };
+  onOpenAttendance: () => void = () => {
+  };
+  onOpenMail: () => void = () => {
   };
   onFontScaleChange: (scale: ReadingFontScale) => void = () => {
   };
@@ -104,6 +112,36 @@ export struct ProfilePage {
             this.FontOption('large', '大')
           }
           .width('100%')
+
+          Row() {
+            Text('签到签退')
+              .fontSize(14)
+              .fontColor('#344054')
+            Blank()
+            Text(`${this.attendanceStatus} ›`)
+              .fontSize(13)
+              .fontColor('#175CD3')
+          }
+          .width('100%')
+          .padding({ top: 6, bottom: 6 })
+          .onClick(() => {
+            this.onOpenAttendance();
+          })
+
+          Row() {
+            Text('内部邮件')
+              .fontSize(14)
+              .fontColor('#344054')
+            Blank()
+            Text(`${this.mailUnreadCount} 封未读 ›`)
+              .fontSize(13)
+              .fontColor('#175CD3')
+          }
+          .width('100%')
+          .padding({ top: 6, bottom: 6 })
+          .onClick(() => {
+            this.onOpenMail();
+          })
         }
         .width('100%')
       }
