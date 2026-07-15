@@ -19,7 +19,10 @@ export struct OcrResultPage {
         Text('‹').fontSize(30).width(36).height(36).textAlign(TextAlign.Center).onClick(() => this.onBack())
         Column({ space: 3 }) {
           Text('图片文字识别').fontSize(20).fontWeight(FontWeight.Bold).fontColor('#1F2A44')
-          Text(this.result.success ? 'HarmonyOS OCR 识别完成' : '演示降级结果').fontSize(11).fontColor('#667085')
+          Text(this.result.source === 'system'
+            ? 'HarmonyOS OCR 识别完成'
+            : this.result.source === 'cloud' ? '视觉大模型 OCR 识别完成' : '演示降级结果')
+            .fontSize(11).fontColor('#667085')
         }.alignItems(HorizontalAlign.Start)
       }.width('100%').padding({ left: 16, right: 16, top: 12, bottom: 12 })
 
