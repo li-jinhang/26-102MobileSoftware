@@ -1,4 +1,6 @@
 import {
+  getMockAttendanceRecords,
+  getMockAttendanceTodaySummary,
   askAssistant,
   authenticateUser,
   buildWorkflowInstance,
@@ -6,26 +8,34 @@ import {
   getMockAuditLogs,
   getMockCategories,
   getMockInstances,
+  getMockMails,
   getMockNotifications,
   getMockTemplates
 } from '../MockData';
 import {
+  AttendanceRecord,
+  AttendanceTodaySummary,
   AssistantReply,
   AuditLog,
   KnowledgeCorrection,
   KnowledgeArticle,
   KnowledgeCategory,
+  MailMessage,
   NotificationItem,
   User,
   WorkflowInstance,
   WorkflowTemplate
 } from '../../models/AppModels';
 import {
+  AttendanceRepository,
+  AttendanceSubmitPayload,
   AuditRepository,
   AssistantRepository,
   AuthLoginResult,
   AuthRepository,
   KnowledgeRepository,
+  MailRepository,
+  MailSendPayload,
   NotificationRepository,
   WorkflowCreatePayload,
   WorkflowRepository
@@ -139,6 +149,66 @@ class MockNotificationRepository implements NotificationRepository {
   }
 }
 
+class MockAttendanceRepository implements AttendanceRepository {
+  async getTodaySummary(): Promise<AttendanceTodaySummary> {
+    return getMockAttendanceTodaySummary();
+  }
+
+  async getMyRecords(): Promise<AttendanceRecord[]> {
+    return getMockAttendanceRecords();
+  }
+
+  async checkIn(input: AttendanceSubmitPayload): Promise<AttendanceTodaySummary> {
+    return getMockAttendanceTodaySummary();
+  }
+
+  async checkOut(input: AttendanceSubmitPayload): Promise<AttendanceTodaySummary> {
+    return getMockAttendanceTodaySummary();
+  }
+}
+
+class MockMailRepository implements MailRepository {
+  async getInbox(): Promise<MailMessage[]> {
+    return getMockMails().filter((item: MailMessage) => item.folder === 'inbox');
+  }
+
+  async getSent(): Promise<MailMessage[]> {
+    return getMockMails().filter((item: MailMessage) => item.folder === 'sent');
+  }
+
+  async getMail(mailId: string): Promise<MailMessage> {
+    const item: MailMessage | undefined = getMockMails().find((mail: MailMessage) => mail.id === mailId);
+    if (item === undefined) {
+      throw new Error('邮件不存在');
+    }
+    return item;
+  }
+
+  async sendMail(input: MailSendPayload): Promise<MailMessage> {
+    return {
+      id: `mail-${Date.now()}`,
+      subject: input.subject,
+      summary: input.content.slice(0, 36),
+      content: input.content,
+      senderId: 'u1',
+      senderName: '张晓宁',
+      recipients: [],
+      folder: 'sent',
+      importance: 'normal',
+      createTime: '刚刚',
+      read: true,
+      relatedWorkflowId: input.relatedWorkflowId,
+      relatedKnowledgeId: input.relatedKnowledgeId
+    };
+  }
+
+  async markRead(mailId: string): Promise<void> {
+  }
+
+  async deleteMail(mailId: string): Promise<void> {
+  }
+}
+
 class MockAssistantRepository implements AssistantRepository {
   async ask(question: string): Promise<AssistantReply> {
     return askAssistant(question);
@@ -155,5 +225,7 @@ export const mockAuthRepository: AuthRepository = new MockAuthRepository();
 export const mockKnowledgeRepository: KnowledgeRepository = new MockKnowledgeRepository();
 export const mockWorkflowRepository: WorkflowRepository = new MockWorkflowRepository();
 export const mockNotificationRepository: NotificationRepository = new MockNotificationRepository();
+export const mockAttendanceRepository: AttendanceRepository = new MockAttendanceRepository();
+export const mockMailRepository: MailRepository = new MockMailRepository();
 export const mockAssistantRepository: AssistantRepository = new MockAssistantRepository();
 export const mockAuditRepository: AuditRepository = new MockAuditRepository();

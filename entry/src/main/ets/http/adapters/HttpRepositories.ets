@@ -1,6 +1,10 @@
 import { apiDelete, apiGet, apiPost, ApiQueryParam } from '../../common/services/ApiClient';
 import { clearAccessToken, setAccessToken } from '../../app/repositories/BackendSession';
 import {
+  AttendanceRecord,
+  AttendanceRecordStatus,
+  AttendanceRecordType,
+  AttendanceTodaySummary,
   ApprovalRecord,
   ApprovalDecision,
   AssistantReply,
@@ -8,6 +12,10 @@ import {
   KnowledgeCorrection,
   KnowledgeArticle,
   KnowledgeCategory,
+  MailFolder,
+  MailImportance,
+  MailMessage,
+  MailRecipient,
   NotificationItem,
   User,
   UserRole,
@@ -16,11 +24,15 @@ import {
   WorkflowTemplate
 } from '../../models/AppModels';
 import {
+  AttendanceRepository,
+  AttendanceSubmitPayload,
   AssistantRepository,
   AuditRepository,
   AuthLoginResult,
   AuthRepository,
   KnowledgeRepository,
+  MailRepository,
+  MailSendPayload,
   NotificationRepository,
   WorkflowCreatePayload,
   WorkflowRepository
@@ -104,6 +116,52 @@ interface BackendWorkflowInstance {
   securityConfirmed: boolean;
 }
 
+interface BackendAttendanceRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  type: AttendanceRecordType;
+  time: string;
+  location: string;
+  note: string;
+  status: AttendanceRecordStatus;
+}
+
+interface BackendAttendanceTodaySummary {
+  date: string;
+  checkedIn: boolean;
+  checkedOut: boolean;
+  checkInTime: string;
+  checkOutTime: string;
+  workDurationText: string;
+  statusText: string;
+  location: string;
+  recentRecords: BackendAttendanceRecord[];
+}
+
+interface BackendMailRecipient {
+  userId: string;
+  userName: string;
+  read: boolean;
+  readTime: string;
+}
+
+interface BackendMailMessage {
+  id: string;
+  subject: string;
+  summary: string;
+  content: string;
+  senderId: string;
+  senderName: string;
+  recipients: BackendMailRecipient[];
+  folder: MailFolder;
+  importance: MailImportance;
+  createTime: string;
+  read: boolean;
+  relatedWorkflowId: string;
+  relatedKnowledgeId: string;
+}
+
 interface LoginRequestBody {
   account: string;
   password: string;
@@ -122,6 +180,19 @@ interface AskAssistantRequestBody {
 }
 
 interface EmptyRequestBody {
+}
+
+interface AttendanceSubmitRequestBody {
+  location: string;
+  note: string;
+}
+
+interface MailSendRequestBody {
+  receiverIds: string[];
+  subject: string;
+  content: string;
+  relatedWorkflowId: string;
+  relatedKnowledgeId: string;
 }
 
 const EMPTY_BODY_JSON: string = '{}';
@@ -222,6 +293,60 @@ function mapWorkflowInstance(source: BackendWorkflowInstance): WorkflowInstance 
     riskReason: source.riskReason,
     requiresSecurityConfirm: source.requiresSecurityConfirm,
     securityConfirmed: source.securityConfirmed
+  };
+}
+
+function mapAttendanceRecord(source: BackendAttendanceRecord): AttendanceRecord {
+  return {
+    id: source.id,
+    userId: source.userId,
+    userName: source.userName,
+    type: source.type,
+    time: source.time,
+    location: source.location,
+    note: source.note,
+    status: source.status
+  };
+}
+
+function mapAttendanceTodaySummary(source: BackendAttendanceTodaySummary): AttendanceTodaySummary {
+  return {
+    date: source.date,
+    checkedIn: source.checkedIn,
+    checkedOut: source.checkedOut,
+    checkInTime: source.checkInTime,
+    checkOutTime: source.checkOutTime,
+    workDurationText: source.workDurationText,
+    statusText: source.statusText,
+    location: source.location,
+    recentRecords: source.recentRecords.map((item: BackendAttendanceRecord) => mapAttendanceRecord(item))
+  };
+}
+
+function mapMailRecipient(source: BackendMailRecipient): MailRecipient {
+  return {
+    userId: source.userId,
+    userName: source.userName,
+    read: source.read,
+    readTime: source.readTime
+  };
+}
+
+function mapMailMessage(source: BackendMailMessage): MailMessage {
+  return {
+    id: source.id,
+    subject: source.subject,
+    summary: source.summary,
+    content: source.content,
+    senderId: source.senderId,
+    senderName: source.senderName,
+    recipients: source.recipients.map((item: BackendMailRecipient) => mapMailRecipient(item)),
+    folder: source.folder,
+    importance: source.importance,
+    createTime: source.createTime,
+    read: source.read,
+    relatedWorkflowId: source.relatedWorkflowId,
+    relatedKnowledgeId: source.relatedKnowledgeId
   };
 }
 
@@ -366,6 +491,80 @@ class HttpNotificationRepository implements NotificationRepository {
   }
 }
 
+class HttpAttendanceRepository implements AttendanceRepository {
+  async getTodaySummary(): Promise<AttendanceTodaySummary> {
+    const result: BackendAttendanceTodaySummary = await apiGet<BackendAttendanceTodaySummary>('/attendance/today');
+    return mapAttendanceTodaySummary(result);
+  }
+
+  async getMyRecords(): Promise<AttendanceRecord[]> {
+    const items: BackendAttendanceRecord[] = await apiGet<BackendAttendanceRecord[]>('/attendance/records/my');
+    return items.map((item: BackendAttendanceRecord) => mapAttendanceRecord(item));
+  }
+
+  async checkIn(input: AttendanceSubmitPayload): Promise<AttendanceTodaySummary> {
+    const body: AttendanceSubmitRequestBody = {
+      location: input.location,
+      note: input.note
+    };
+    const result: BackendAttendanceTodaySummary = await apiPost<BackendAttendanceTodaySummary>(
+      '/attendance/check-in',
+      JSON.stringify(body)
+    );
+    return mapAttendanceTodaySummary(result);
+  }
+
+  async checkOut(input: AttendanceSubmitPayload): Promise<AttendanceTodaySummary> {
+    const body: AttendanceSubmitRequestBody = {
+      location: input.location,
+      note: input.note
+    };
+    const result: BackendAttendanceTodaySummary = await apiPost<BackendAttendanceTodaySummary>(
+      '/attendance/check-out',
+      JSON.stringify(body)
+    );
+    return mapAttendanceTodaySummary(result);
+  }
+}
+
+class HttpMailRepository implements MailRepository {
+  async getInbox(): Promise<MailMessage[]> {
+    const items: BackendMailMessage[] = await apiGet<BackendMailMessage[]>('/mail/inbox');
+    return items.map((item: BackendMailMessage) => mapMailMessage(item));
+  }
+
+  async getSent(): Promise<MailMessage[]> {
+    const items: BackendMailMessage[] = await apiGet<BackendMailMessage[]>('/mail/sent');
+    return items.map((item: BackendMailMessage) => mapMailMessage(item));
+  }
+
+  async getMail(mailId: string): Promise<MailMessage> {
+    const item: BackendMailMessage = await apiGet<BackendMailMessage>(`/mail/${mailId}`);
+    return mapMailMessage(item);
+  }
+
+  async sendMail(input: MailSendPayload): Promise<MailMessage> {
+    const body: MailSendRequestBody = {
+      receiverIds: input.receiverIds,
+      subject: input.subject,
+      content: input.content,
+      relatedWorkflowId: input.relatedWorkflowId,
+      relatedKnowledgeId: input.relatedKnowledgeId
+    };
+    const created: BackendIdResponse = await apiPost<BackendIdResponse>('/mail/send', JSON.stringify(body));
+    return this.getMail(created.id);
+  }
+
+  async markRead(mailId: string): Promise<void> {
+    const body: EmptyRequestBody = {};
+    await apiPost<BackendReadResponse>(`/mail/${mailId}/read`, JSON.stringify(body));
+  }
+
+  async deleteMail(mailId: string): Promise<void> {
+    await apiDelete<BackendIdResponse>(`/mail/${mailId}`);
+  }
+}
+
 class HttpAssistantRepository implements AssistantRepository {
   async ask(question: string): Promise<AssistantReply> {
     const body: AskAssistantRequestBody = { question };
@@ -383,5 +582,7 @@ export const httpAuthRepository: AuthRepository = new HttpAuthRepository();
 export const httpKnowledgeRepository: KnowledgeRepository = new HttpKnowledgeRepository();
 export const httpWorkflowRepository: WorkflowRepository = new HttpWorkflowRepository();
 export const httpNotificationRepository: NotificationRepository = new HttpNotificationRepository();
+export const httpAttendanceRepository: AttendanceRepository = new HttpAttendanceRepository();
+export const httpMailRepository: MailRepository = new HttpMailRepository();
 export const httpAssistantRepository: AssistantRepository = new HttpAssistantRepository();
 export const httpAuditRepository: AuditRepository = new HttpAuditRepository();

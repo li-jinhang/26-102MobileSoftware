@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  employee
+  approver
+  knowledgeAdmin
+  systemAdmin
+}
+
+enum WorkflowStatus {
+  pending
+  in_review
+  pending_security_confirm
+  approved
+  rejected
+}
+
+enum ApprovalDecision {
+  submitted
+  approved
+  rejected
+  security_confirmed
+}
+
+enum RiskLevel {
+  normal
+  high
+}
+
+enum NotificationTargetType {
+  workflow
+  knowledge
+  attendance
+  mail
+  none
+}
+
+enum AttendanceRecordType {
+  checkIn
+  checkOut
+}
+
+enum AttendanceRecordStatus {
+  normal
+  late
+  earlyLeave
+  offsite
+}
+
+enum MailFolder {
+  inbox
+  sent
+  draft
+  trash
+}
+
+enum MailImportance {
+  normal
+  important
+  urgent
+}
+
+model User {
+  id                   String             @id
+  name                 String
+  account              String             @unique
+  password             String
+  department           String
+  role                 UserRole
+  roleLabel            String
+  permissions          String
+  favoriteKnowledgeIds String
+  recentKnowledgeIds   String
+  todoCount            Int                @default(0)
+  workflowInstances    WorkflowInstance[] @relation("ApplicantWorkflows")
+  notifications        Notification[]
+  attendanceRecords    AttendanceRecord[]
+}
+
+model KnowledgeCategory {
+  id          String             @id
+  name        String
+  description String
+  articles    KnowledgeArticle[]
+}
+
+model KnowledgeArticle {
+  id                 String               @id
+  title              String
+  summary            String
+  content            String
+  categoryId         String
+  categoryName       String
+  tags               String
+  updateTime         String
+  version            String
+  status             String
+  attachments        String
+  relatedWorkflowIds String
+  category           KnowledgeCategory    @relation(fields: [categoryId], references: [id])
+  corrections        KnowledgeCorrection[]
+}
+
+model WorkflowTemplate {
+  id                   String             @id
+  name                 String
+  description          String
+  approverText         String
+  relatedKnowledgeIds  String
+  riskLevel            RiskLevel
+  riskHint             String
+  defaultApproverRoles String
+  instances            WorkflowInstance[]
+}
+
+model WorkflowInstance {
+  id                      String           @id
+  templateId              String
+  title                   String
+  applicantId             String
+  applicantName           String
+  status                  WorkflowStatus
+  currentNode             String
+  currentApproverRole     UserRole
+  createTime              String
+  latestComment           String
+  relatedKnowledgeIds     String
+  amount                  Float
+  formSummary             String
+  formDetail              String
+  riskLevel               RiskLevel
+  riskReason              String
+  requiresSecurityConfirm Boolean          @default(false)
+  securityConfirmed       Boolean          @default(false)
+  template                WorkflowTemplate @relation(fields: [templateId], references: [id])
+  applicant               User             @relation("ApplicantWorkflows", fields: [applicantId], references: [id])
+  approvalRecords         ApprovalRecord[]
+}
+
+model ApprovalRecord {
+  id            String           @id
+  workflowId    String
+  nodeName      String
+  operatorRole  UserRole
+  operatorName  String
+  decision      ApprovalDecision
+  comment       String
+  time          String
+  workflow      WorkflowInstance @relation(fields: [workflowId], references: [id])
+}
+
+model Notification {
+  id          String                 @id
+  title       String
+  content     String
+  time        String
+  read        Boolean                @default(false)
+  targetRoles String
+  targetType  NotificationTargetType
+  targetId    String
+  userId      String?
+  user        User?                  @relation(fields: [userId], references: [id])
+}
+
+model KnowledgeCorrection {
+  id         String           @id
+  articleId  String
+  userId     String
+  content    String
+  createTime String
+  article    KnowledgeArticle @relation(fields: [articleId], references: [id])
+}
+
+model AuditLog {
+  id           String    @id
+  module       String
+  action       String
+  operatorName String
+  operatorRole UserRole
+  riskLevel    RiskLevel
+  detail       String
+  time         String
+}
+
+model AttendanceRecord {
+  id       String                 @id
+  userId   String
+  userName String
+  type     AttendanceRecordType
+  time     String
+  location String
+  note     String
+  status   AttendanceRecordStatus
+  user     User                   @relation(fields: [userId], references: [id])
+}
+
+model InternalMail {
+  id                String          @id
+  subject           String
+  summary           String
+  content           String
+  senderId          String
+  senderName        String
+  folder            MailFolder
+  importance        MailImportance
+  createTime        String
+  read              Boolean         @default(false)
+  relatedWorkflowId String
+  relatedKnowledgeId String
+  recipients        MailRecipient[]
+}
+
+model MailRecipient {
+  id        String       @id
+  mailId    String
+  userId    String
+  userName  String
+  read      Boolean      @default(false)
+  readTime  String
+  mail      InternalMail @relation(fields: [mailId], references: [id])
+}

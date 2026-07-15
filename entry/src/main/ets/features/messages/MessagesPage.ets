@@ -15,6 +15,10 @@ export struct MessagesPage {
   };
   onOpenWorkflow: (instanceId: string) => void = () => {
   };
+  onOpenAttendance: () => void = () => {
+  };
+  onOpenMail: (mailId: string) => void = () => {
+  };
   @State unreadOnly: boolean = false;
 
   private getItems(): NotificationItem[] {
@@ -37,6 +41,14 @@ export struct MessagesPage {
     }
     if (item.targetType === 'workflow' && item.targetId.length > 0) {
       this.onOpenWorkflow(item.targetId);
+      return;
+    }
+    if (item.targetType === 'attendance') {
+      this.onOpenAttendance();
+      return;
+    }
+    if (item.targetType === 'mail' && item.targetId.length > 0) {
+      this.onOpenMail(item.targetId);
       return;
     }
     this.showMessage('这是一条通知消息，没有关联页面。');

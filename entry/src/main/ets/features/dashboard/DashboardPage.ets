@@ -33,6 +33,10 @@ export struct DashboardPage {
   templates: WorkflowTemplate[];
   @Prop
   todoCount: number = 0;
+  @Prop
+  attendanceStatus: string = '未加载';
+  @Prop
+  mailUnreadCount: number = 0;
   onOpenArticle: (articleId: string) => void = () => {
   };
   onOpenAssistant: () => void = () => {
@@ -42,6 +46,10 @@ export struct DashboardPage {
   onOpenKnowledge: () => void = () => {
   };
   onOpenTodo: () => void = () => {
+  };
+  onOpenAttendance: () => void = () => {
+  };
+  onOpenMail: () => void = () => {
   };
   onStartWorkflow: (templateId: string) => void = () => {
   };
@@ -147,6 +155,51 @@ export struct DashboardPage {
       .onClick(() => {
         this.onOpenAssistant();
       })
+
+      SectionBlock({ title: '办公入口', subtitle: '签到签退和内部邮件可以从这里进入。' }) {
+        Row({ space: 10 }) {
+          Column({ space: 6 }) {
+            Text('签到签退')
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#1F2A44')
+              .width('100%')
+            Text(this.attendanceStatus)
+              .fontSize(12)
+              .fontColor('#667085')
+              .lineHeight(18)
+              .width('100%')
+          }
+          .layoutWeight(1)
+          .padding(14)
+          .backgroundColor('#F8FAFC')
+          .borderRadius(10)
+          .onClick(() => {
+            this.onOpenAttendance();
+          })
+
+          Column({ space: 6 }) {
+            Text('内部邮件')
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#1F2A44')
+              .width('100%')
+            Text(`${this.mailUnreadCount} 封未读，进入收件箱`)
+              .fontSize(12)
+              .fontColor('#667085')
+              .lineHeight(18)
+              .width('100%')
+          }
+          .layoutWeight(1)
+          .padding(14)
+          .backgroundColor('#F8FAFC')
+          .borderRadius(10)
+          .onClick(() => {
+            this.onOpenMail();
+          })
+        }
+        .width('100%')
+      }
 
       if (this.recentArticles.length > 0) {
         SectionBlock({ title: '最近知识', subtitle: '继续阅读最近查看的制度和指南。' }) {
