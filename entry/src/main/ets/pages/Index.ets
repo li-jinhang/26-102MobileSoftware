@@ -269,7 +269,7 @@ struct Index {
 
   @Builder
   private DemoAccountCard(account: string, roleLabel: string, description: string) {
-    Row() {
+    Row({ space: 12 }) {
       Column({ space: 4 }) {
         Text(account)
           .fontSize(15)
@@ -282,12 +282,12 @@ struct Index {
           .fontColor('#667085')
           .width('100%')
       }
+      .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
-
-      Blank()
 
       Button('填入')
         .fontSize(12)
+        .width(56)
         .height(34)
         .backgroundColor('#E9F0FF')
         .fontColor('#246BFD')
@@ -301,6 +301,7 @@ struct Index {
     .padding(16)
     .backgroundColor('#FFFFFF')
     .borderRadius(18)
+    .alignItems(VerticalAlign.Center)
   }
 
   @Builder

@@ -1,8 +1,8 @@
 export interface WorkflowFormState {
   selectedTemplateId: string;
   activeTab: number;
-  activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages';
-  detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages';
+  activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult';
+  detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult';
   workflowTitleInput: string;
   workflowExtraInput: string;
   workflowDateInput: string;
