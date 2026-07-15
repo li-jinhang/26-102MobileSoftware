@@ -54,7 +54,13 @@ async function recognizePixelMap(
   previewUri: string,
   fallbackPrefix: string
 ): Promise<OcrResult> {
+  let initialized: boolean = false;
   try {
+    initialized = await textRecognition.init();
+    console.info(`[OCR-CAPABILITY] init=${initialized}`);
+    if (!initialized) {
+      return createOcrFallback(articles, `${fallbackPrefix}OCR 服务初始化失败，已显示演示识别结果。`, previewUri);
+    }
     const recognized = await textRecognition.recognizeText({ pixelMap: pixelMap });
     const text: string = recognized.value.trim();
     if (text.length === 0) {
@@ -69,8 +75,16 @@ async function recognizePixelMap(
       fallbackReason: ''
     };
   } catch (error) {
-    console.error(`recognizePixelMap failed: ${error}`);
+    console.error(`[OCR-CAPABILITY] recognize failed: ${error}`);
     return createOcrFallback(articles, `${fallbackPrefix}当前设备暂不支持 OCR，已显示演示识别结果。`, previewUri);
+  } finally {
+    if (initialized) {
+      try {
+        await textRecognition.release();
+      } catch (error) {
+        console.error(`[OCR-CAPABILITY] release failed: ${error}`);
+      }
+    }
   }
 }
 
