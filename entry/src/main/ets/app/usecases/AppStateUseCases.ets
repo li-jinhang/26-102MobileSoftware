@@ -34,7 +34,7 @@ export interface OpenArticleResult {
   success: boolean;
   currentUser: User | null;
   selectedArticleId: string;
-  detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages';
+  detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult';
   activeSubPage: 'knowledgeDetail';
 }
 
@@ -111,7 +111,7 @@ export function buildOpenArticleStateUseCase(
   currentUser: User | null,
   article: KnowledgeArticle | null,
   articleId: string,
-  activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages'
+  activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult'
 ): OpenArticleResult {
   if (currentUser === null || article === null) {
     return {
