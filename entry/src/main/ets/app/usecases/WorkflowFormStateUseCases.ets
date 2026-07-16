@@ -18,7 +18,7 @@ export interface WorkflowFormState {
 function buildWorkflowFormDefaults(templateId: string): WorkflowFormState {
   const baseState: WorkflowFormState = {
     selectedTemplateId: templateId,
-    activeTab: 2,
+    activeTab: 0,
     activeSubPage: 'none',
     detailReturnSubPage: 'none',
     workflowTitleInput: '',
@@ -44,22 +44,20 @@ export function splitWorkflowDateRange(value: string): WorkflowDateRange {
   if (normalized.length === 0) {
     return empty;
   }
-  const explicitParts: string[] = normalized.split(' 至 ');
-  if (explicitParts.length === 2) {
-    return { start: explicitParts[0].trim(), end: explicitParts[1].trim() };
+  const fullRange = normalized.match(
+    /^(\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2})\s*(?:\u81F3|\u5230|~|\uFF5E|\u2014|\u2013|-)\s*(\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2})$/
+  );
+  if (fullRange !== null) {
+    return { start: fullRange[1], end: fullRange[2] };
   }
-  const sameDay = normalized.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/);
+  const sameDay = normalized.match(
+    /^(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2})\s*(?:\u81F3|\u5230|~|\uFF5E|\u2014|\u2013|-)\s*(\d{1,2}:\d{2})$/
+  );
   if (sameDay !== null) {
     return {
       start: `${sameDay[1]} ${sameDay[2]}`,
       end: `${sameDay[1]} ${sameDay[3]}`
     };
-  }
-  const fullRange = normalized.match(
-    /^(\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2})\s*-\s*(\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2})$/
-  );
-  if (fullRange !== null) {
-    return { start: fullRange[1], end: fullRange[2] };
   }
   return { start: normalized, end: '' };
 }

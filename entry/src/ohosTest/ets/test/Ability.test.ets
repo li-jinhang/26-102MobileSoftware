@@ -10,6 +10,7 @@ import { getMockArticles } from '../../../main/ets/mock/MockData';
 import {
   buildOpenWorkflowComposerStateUseCase,
   buildStartWorkflowStateUseCase,
+  splitWorkflowDateRange,
   WorkflowFormState
 } from '../../../main/ets/app/usecases/WorkflowFormStateUseCases';
 import { AssistantFormDraft } from '../../../main/ets/models/AppModels';
@@ -87,6 +88,12 @@ export default function abilityTest() {
       expect(state.workflowDateInput).assertEqual('2026-07-18 09:00');
       expect(state.workflowEndDateInput).assertEqual('2026-07-18 18:00');
       expect(state.workflowAttachmentInput).assertEqual('');
+    })
+
+    it('splits API leave ranges with a Chinese separator', 0, () => {
+      const range = splitWorkflowDateRange('2026-07-18 09:00至2026-07-19 18:00');
+      expect(range.start).assertEqual('2026-07-18 09:00');
+      expect(range.end).assertEqual('2026-07-19 18:00');
     })
 
     it('openWorkflowStartsEmpty', 0, () => {

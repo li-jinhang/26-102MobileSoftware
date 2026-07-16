@@ -181,7 +181,7 @@ export function buildWorkflowMessageNavigationStateUseCase(
       success: false,
       activeSubPage: 'none',
       detailReturnSubPage: 'none',
-      activeTab: 2,
+      activeTab: 0,
       message: '关联流程暂不可用。'
     };
   }
@@ -190,7 +190,7 @@ export function buildWorkflowMessageNavigationStateUseCase(
     success: true,
     activeSubPage: 'none',
     detailReturnSubPage: 'none',
-    activeTab: 2,
-    message: '已进入协作页面。'
+    activeTab: 0,
+    message: '已打开关联流程。'
   };
 }

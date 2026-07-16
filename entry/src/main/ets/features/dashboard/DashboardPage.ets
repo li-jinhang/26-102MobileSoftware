@@ -3,7 +3,7 @@ import { KnowledgeCard } from '../../common/components/KnowledgeCard';
 import { SectionBlock } from '../../common/components/SectionBlock';
 import { AppTheme } from '../../common/theme/AppTheme';
 import { Typography } from '../../common/theme/Typography';
-import { KnowledgeArticle, NotificationItem, User, WorkflowTemplate } from '../../models/AppModels';
+import { KnowledgeArticle, NotificationItem, User } from '../../models/AppModels';
 
 @Component
 export struct DashboardPage {
@@ -13,7 +13,6 @@ export struct DashboardPage {
   @Require @Prop favoriteArticles: KnowledgeArticle[];
   @Require @Prop favoriteKnowledgeIds: string[];
   @Require @Prop notifications: NotificationItem[];
-  @Require @Prop templates: WorkflowTemplate[];
   @Prop todoCount: number = 0;
   @Prop waitingCount: number = 0;
   @Prop attendanceStatus: string = '未加载';
@@ -28,7 +27,6 @@ export struct DashboardPage {
   onOpenOrganization: () => void = () => {};
   onOpenCollaboration: () => void = () => {};
   onOpenWaiting: () => void = () => {};
-  onStartWorkflow: (templateId: string) => void = () => {};
 
   private getUnreadCount(): number {
     return this.notifications.filter((item: NotificationItem) => !item.read).length + this.mailUnreadCount;
@@ -118,7 +116,7 @@ export struct DashboardPage {
           Row() {
             this.StatItem('待处理', `${this.todoCount}`, AppTheme.primary(), () => this.onOpenTodo())
             Divider().vertical(true).height(34).color(AppTheme.divider())
-            this.StatItem('等待中', `${this.waitingCount}`, AppTheme.warning(), () => this.onOpenWaiting())
+            this.StatItem('等待中', `${this.waitingCount}`, '#027A48', () => this.onOpenWaiting())
             Divider().vertical(true).height(34).color(AppTheme.divider())
             this.StatItem('未读', `${this.getUnreadCount()}`, AppTheme.warning(), () => this.onOpenMessages())
             Divider().vertical(true).height(34).color(AppTheme.divider())
@@ -168,32 +166,6 @@ export struct DashboardPage {
           }
           .width('100%')
 
-          if (this.templates.length > 0) {
-            Divider().color(AppTheme.divider())
-            Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
-              ForEach(this.templates.slice(0, 4), (item: WorkflowTemplate) => {
-                Row({ space: 8 }) {
-                  Text('▶')
-                    .fontSize(16)
-                    .fontColor(AppTheme.primary())
-                  Text(item.name)
-                    .fontSize(Typography.metaSize())
-                    .fontColor(AppTheme.textPrimary())
-                    .maxLines(1)
-                }
-                .width('48%')
-                .height(40)
-                .padding({ left: 10, right: 10 })
-                .margin({ bottom: 8 })
-                .backgroundColor(AppTheme.surfaceMuted())
-                .borderRadius(AppTheme.radiusSmall())
-                .onClick(() => {
-                  this.onStartWorkflow(item.id);
-                })
-              }, (item: WorkflowTemplate) => item.id)
-            }
-            .width('100%')
-          }
         }
         .width('100%')
       }

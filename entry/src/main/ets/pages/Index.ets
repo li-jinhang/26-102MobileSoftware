@@ -5,7 +5,6 @@ import {
   submitAttendanceCheckOutUseCase
 } from '../app/usecases/AttendanceUseCases';
 import { askAssistantUseCase } from '../app/usecases/AssistantUseCases';
-import { buildCollaborationBoardUseCase } from '../app/usecases/CollaborationUseCases';
 import { loadAppBootstrapData, AppBootstrapData } from '../app/usecases/AppBootstrapUseCases';
 import { loadMyOrganizationUseCase } from '../app/usecases/OrganizationUseCases';
 import { loginWithAccount, logoutCurrentAccount } from '../app/usecases/AuthUseCases';
@@ -90,7 +89,6 @@ import {
   AuditLog,
   AttendanceRecord,
   AttendanceTodaySummary,
-  CollaborationBoard,
   KnowledgeArticle,
   KnowledgeCategory,
   KnowledgeCorrection,
@@ -185,6 +183,8 @@ struct Index {
   @State activeWorkflowModule: 'overview' | 'apply' | 'mine' = 'overview';
   @State workflowPanelVisible: boolean = false;
   @State workflowComposerVisible: boolean = false;
+  @State workflowTaskListVisible: boolean = false;
+  @State workflowTaskListType: 'todo' | 'waiting' = 'todo';
   private hostContext: common.UIAbilityContext | null = null;
 
   aboutToAppear(): void {
@@ -630,9 +630,8 @@ struct Index {
                   favoriteArticles: this.getFavoriteArticles(),
                   favoriteKnowledgeIds: this.favoriteKnowledgeIds,
                   notifications: this.getVisibleMessages(),
-                  templates: this.templates,
                   todoCount: this.getDashboardTodoCount(),
-                  waitingCount: this.getCollaborationWaitingCount(),
+                  waitingCount: this.getWaitingWorkflowCount(),
                   attendanceStatus: this.getAttendanceStatusSummary(),
                   mailUnreadCount: this.getUnreadMailCount(),
                   onOpenArticle: (articleId: string) => {
@@ -663,17 +662,10 @@ struct Index {
                     this.collaborationFocus = 'all';
                   },
                   onOpenWaiting: () => {
-                    this.activeSubPage = 'none';
-                    this.activeTab = 2;
-                    this.collaborationFocus = 'waiting';
+                    this.openWorkflowTaskList('waiting');
                   },
                   onOpenTodo: () => {
-                    this.activeSubPage = 'none';
-                    this.activeTab = 2;
-                    this.collaborationFocus = 'action';
-                  },
-                  onStartWorkflow: (templateId: string) => {
-                    this.startWorkflow(templateId);
+                    this.openWorkflowTaskList('todo');
                   }
                 })
               } else if (this.activeTab === 1) {
@@ -681,8 +673,12 @@ struct Index {
                   categories: this.categories,
                   articles: this.articles,
                   favoriteKnowledgeIds: this.favoriteKnowledgeIds,
+                  templates: this.templates,
                   onOpenArticle: (articleId: string) => {
                     this.openArticle(articleId);
+                  },
+                  onStartWorkflow: (templateId: string) => {
+                    this.startWorkflow(templateId);
                   }
                 })
               } else if (this.activeTab === 2) {
@@ -738,6 +734,10 @@ struct Index {
 
       if (this.workflowComposerVisible) {
         this.WorkflowComposerDialog();
+      }
+
+      if (this.workflowTaskListVisible) {
+        this.WorkflowTaskListDialog();
       }
     }
     .width('100%')
@@ -886,6 +886,68 @@ struct Index {
       .padding(18)
       .backgroundColor('#FFFFFF')
       .borderRadius(12)
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding(20)
+    .backgroundColor('#660B1220')
+  }
+
+  @Builder
+  private WorkflowTaskListDialog() {
+    Column() {
+      Column({ space: 14 }) {
+        Row() {
+          Column({ space: 4 }) {
+            Text(this.workflowTaskListType === 'todo' ? '待处理业务' : '等待中业务')
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(AppTheme.textPrimary())
+            Text(this.workflowTaskListType === 'todo'
+              ? '当前等待你处理的全部流程业务'
+              : '当前由其他人处理、等待结果的全部流程业务')
+              .fontSize(12)
+              .fontColor(AppTheme.textSecondary())
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+
+          Button('关闭')
+            .height(34)
+            .fontSize(12)
+            .backgroundColor(AppTheme.surfaceMuted())
+            .fontColor(AppTheme.textSecondary())
+            .borderRadius(AppTheme.radiusSmall())
+            .onClick(() => {
+              this.workflowTaskListVisible = false;
+            })
+        }
+        .width('100%')
+
+        Scroll() {
+          if (this.getWorkflowTaskListItems().length === 0) {
+            EmptyState({
+              title: this.workflowTaskListType === 'todo' ? '暂无待处理业务' : '暂无等待中业务',
+              description: this.workflowTaskListType === 'todo' ? '当前没有需要你处理的流程。' : '当前没有等待他人处理的流程。'
+            })
+          } else {
+            Column({ space: 10 }) {
+              ForEach(this.getWorkflowTaskListItems(), (item: WorkflowInstance) => {
+                this.WorkflowCard(item, this.workflowTaskListType === 'todo' && this.canHandleWorkflow(item));
+              }, (item: WorkflowInstance) => item.id)
+            }
+            .width('100%')
+          }
+        }
+        .scrollBar(BarState.Off)
+        .layoutWeight(1)
+      }
+      .width('100%')
+      .height('82%')
+      .padding(18)
+      .backgroundColor(AppTheme.surface())
+      .borderRadius(AppTheme.radiusMedium())
     }
     .width('100%')
     .height('100%')
@@ -1535,9 +1597,10 @@ struct Index {
 
   private openWorkflowFromMessage(instanceId: string): void {
     const result = buildWorkflowMessageNavigationStateUseCase(this.workflowInstances, instanceId);
-    this.activeSubPage = result.activeSubPage;
-    this.detailReturnSubPage = result.detailReturnSubPage;
-    this.activeTab = result.activeTab;
+    if (!result.success) {
+      this.showMessage(result.message);
+      return;
+    }
     this.openWorkflowModule('mine');
     this.selectedWorkflowId = instanceId;
     this.showMessage(result.message);
@@ -1592,6 +1655,7 @@ struct Index {
     this.activeWorkflowModule = 'overview';
     this.workflowPanelVisible = false;
     this.workflowComposerVisible = false;
+    this.workflowTaskListVisible = false;
   }
 
   private async handleLogin(): Promise<void> {
@@ -1621,6 +1685,7 @@ struct Index {
       this.activeWorkflowModule = 'overview';
       this.workflowPanelVisible = false;
       this.workflowComposerVisible = false;
+      this.workflowTaskListVisible = false;
       this.applyBootstrapData(bootstrapData);
       await this.loadAttendancePreview();
       await this.loadMailPreview();
@@ -1654,13 +1719,25 @@ struct Index {
   }
 
   private openWorkflowComposer(templateId: string): void {
+    const activeTab: number = this.activeTab;
+    const activeSubPage = this.activeSubPage;
+    const detailReturnSubPage = this.detailReturnSubPage;
     this.applyWorkflowFormState(buildOpenWorkflowComposerStateUseCase(templateId));
+    this.activeTab = activeTab;
+    this.activeSubPage = activeSubPage;
+    this.detailReturnSubPage = detailReturnSubPage;
     this.activeWorkflowModule = 'apply';
     this.workflowComposerVisible = true;
   }
 
   private startWorkflow(templateId: string, draft?: AssistantFormDraft): void {
+    const activeTab: number = this.activeTab;
+    const activeSubPage = this.activeSubPage;
+    const detailReturnSubPage = this.detailReturnSubPage;
     this.applyWorkflowFormState(buildStartWorkflowStateUseCase(templateId, draft));
+    this.activeTab = activeTab;
+    this.activeSubPage = activeSubPage;
+    this.detailReturnSubPage = detailReturnSubPage;
     this.activeWorkflowModule = 'apply';
     this.workflowComposerVisible = true;
   }
@@ -2005,15 +2082,11 @@ struct Index {
   }
 
   private getDashboardTodoCount(): number {
-    return this.getCollaborationBoard().actionCount;
+    return this.getTodoWorkflows().length;
   }
 
-  private getCollaborationWaitingCount(): number {
-    return this.getCollaborationBoard().waitingCount;
-  }
-
-  private getCollaborationBoard(): CollaborationBoard {
-    return buildCollaborationBoardUseCase(this.currentUser, this.organizationProfile, this.workflowInstances);
+  private getWaitingWorkflowCount(): number {
+    return this.getWaitingWorkflows().length;
   }
 
   private getActiveWorkflowCount(): number {
@@ -2063,6 +2136,30 @@ struct Index {
 
   private getTodoWorkflows(): WorkflowInstance[] {
     return getTodoWorkflowsUseCase(this.currentUser, this.workflowInstances);
+  }
+
+  private isPendingWorkflow(item: WorkflowInstance): boolean {
+    return item.status === '待审批' || item.status === '审批中' || item.status === '待二次确认';
+  }
+
+  private getWaitingWorkflows(): WorkflowInstance[] {
+    return this.getMyWorkflows().filter((item: WorkflowInstance) => {
+      return this.isPendingWorkflow(item) && !this.canHandleWorkflow(item);
+    });
+  }
+
+  private getWorkflowTaskListItems(): WorkflowInstance[] {
+    const items: WorkflowInstance[] = this.workflowTaskListType === 'todo'
+      ? this.getTodoWorkflows()
+      : this.getWaitingWorkflows();
+    return items.slice().sort((left: WorkflowInstance, right: WorkflowInstance) => {
+      return right.createTime.localeCompare(left.createTime);
+    });
+  }
+
+  private openWorkflowTaskList(type: 'todo' | 'waiting'): void {
+    this.workflowTaskListType = type;
+    this.workflowTaskListVisible = true;
   }
 
   private getWorkflowStatuses(): string[] {
