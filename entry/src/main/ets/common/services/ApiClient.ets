@@ -7,6 +7,10 @@ interface ApiErrorEnvelope {
   message: string;
 }
 
+interface ApiSuccessEnvelope<T> extends ApiErrorEnvelope {
+  data: T;
+}
+
 export interface ApiQueryParam {
   key: string;
   value: string;
@@ -60,6 +64,14 @@ function buildHeaders(withAuth: boolean): ApiHeaders {
   return headers;
 }
 
+function unwrapApiData<T>(payload: T | ApiSuccessEnvelope<T>): T {
+  const envelope = payload as ApiSuccessEnvelope<T>;
+  if (envelope.code === 0 && typeof envelope.message === 'string') {
+    return envelope.data;
+  }
+  return payload as T;
+}
+
 async function requestJson<T>(
   method: http.RequestMethod,
   path: string,
@@ -77,12 +89,13 @@ async function requestJson<T>(
     };
     const response = await client.request(buildUrl(path, options?.queryParams), requestOptions);
 
-    const payload: T | ApiErrorEnvelope = JSON.parse(String(response.result)) as T | ApiErrorEnvelope;
+    const payload: T | ApiSuccessEnvelope<T> | ApiErrorEnvelope =
+      JSON.parse(String(response.result)) as T | ApiSuccessEnvelope<T> | ApiErrorEnvelope;
     if (response.responseCode < 200 || response.responseCode >= 300) {
       const errorPayload: ApiErrorEnvelope = payload as ApiErrorEnvelope;
       throw new Error(errorPayload.message || '请求失败');
     }
-    return payload as T;
+    return unwrapApiData<T>(payload as T | ApiSuccessEnvelope<T>);
   } finally {
     client.destroy();
   }

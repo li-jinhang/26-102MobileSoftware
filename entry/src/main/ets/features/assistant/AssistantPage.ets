@@ -5,6 +5,7 @@ import { AppTheme } from '../../common/theme/AppTheme';
 import { Typography } from '../../common/theme/Typography';
 import {
   AssistantFormDraft,
+  AssistantAction,
   AssistantHistory,
   AssistantMailDraft,
   AssistantReply,
@@ -62,7 +63,11 @@ export struct AssistantPage {
   }
 
   private hasMailDraft(): boolean {
-    return this.reply !== null && this.reply.action.type === 'mail' && this.reply.action.mailDraft !== null;
+    if (this.reply === null) {
+      return false;
+    }
+    const action: AssistantAction | null | undefined = this.reply.action;
+    return action !== null && action !== undefined && action.type === 'mail' && action.mailDraft !== null;
   }
 
   build() {

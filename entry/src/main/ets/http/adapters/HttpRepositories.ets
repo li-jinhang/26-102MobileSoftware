@@ -7,6 +7,7 @@ import {
   AttendanceTodaySummary,
   ApprovalRecord,
   ApprovalDecision,
+  AssistantAction,
   AssistantAnalyzeInput,
   AssistantReply,
   AuditLog,
@@ -252,6 +253,10 @@ function mapUser(source: BackendUserProfile): User {
     jobTitle: source.jobTitle ?? source.roleLabel,
     employmentStatus: source.employmentStatus ?? 'active'
   };
+}
+
+interface AssistantReplyWithOptionalAction {
+  action?: AssistantAction | null;
 }
 
 function mapDirectoryItem(source: EmployeeDirectoryItem): EmployeeDirectoryItem {
@@ -600,6 +605,24 @@ class HttpMailRepository implements MailRepository {
   }
 }
 
+function normalizeAssistantReply(source: AssistantReply): AssistantReply {
+  const action: AssistantAction | null | undefined = (source as AssistantReplyWithOptionalAction).action;
+  if (action !== null && action !== undefined) {
+    return source;
+  }
+  return {
+    answer: source.answer,
+    recognizedText: source.recognizedText,
+    intent: source.intent,
+    relatedKnowledgeIds: source.relatedKnowledgeIds,
+    recommendedWorkflowId: source.recommendedWorkflowId,
+    confidence: source.confidence,
+    formDraft: source.formDraft,
+    missingFields: source.missingFields,
+    action: { type: 'none', label: '', mailDraft: null }
+  };
+}
+
 class HttpOrganizationRepository implements OrganizationRepository {
   async getMyOrganization(): Promise<OrganizationProfile> {
     const result: BackendOrganizationProfile = await apiGet<BackendOrganizationProfile>('/organization/me');
@@ -628,7 +651,8 @@ class HttpOrganizationRepository implements OrganizationRepository {
 
 class HttpAssistantRepository implements AssistantRepository {
   async analyze(input: AssistantAnalyzeInput): Promise<AssistantReply> {
-    return apiPost<AssistantReply>('/assistant/analyze', JSON.stringify(input), true, 60000);
+    const reply: AssistantReply = await apiPost<AssistantReply>('/assistant/analyze', JSON.stringify(input), true, 60000);
+    return normalizeAssistantReply(reply);
   }
 }
 

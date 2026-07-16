@@ -888,10 +888,6 @@ export struct CollaborationPage {
       .width('100%')
       .height('100%')
 
-      if (this.conversationVisible) {
-        this.ConversationDialog();
-      }
-
       if (this.meetingDialogVisible) {
         this.MeetingDialog();
       }
@@ -902,6 +898,10 @@ export struct CollaborationPage {
 
       if (this.collaborationModuleVisible) {
         this.CollaborationModuleDialog();
+      }
+
+      if (this.conversationVisible) {
+        this.ConversationDialog();
       }
     }
     .width('100%')
