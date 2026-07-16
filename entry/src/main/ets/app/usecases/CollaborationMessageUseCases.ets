@@ -51,7 +51,7 @@ export async function loadCollaborationMessagesUseCase(threadId: string): Promis
     if (error instanceof Error && isCollaborationRouteUnavailable(error)) {
       return loadMailboxConversation(threadId);
     }
-    throw error;
+    throw new Error(error instanceof Error ? error.message : '协作消息加载失败。');
   }
 }
 
@@ -65,7 +65,7 @@ export async function sendCollaborationMessageUseCase(
     return await repositories.collaborationRepository.sendMessage(payload);
   } catch (error) {
     if (!(error instanceof Error) || !isCollaborationRouteUnavailable(error)) {
-      throw error;
+      throw new Error(error instanceof Error ? error.message : '协作消息发送失败。');
     }
   }
 
