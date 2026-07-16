@@ -6,6 +6,7 @@ import {
   KnowledgeRepository,
   MailRepository,
   NotificationRepository,
+  OrganizationRepository,
   WorkflowRepository
 } from '../../domain/contracts/AppRepositories';
 import {
@@ -16,6 +17,7 @@ import {
   httpKnowledgeRepository,
   httpMailRepository,
   httpNotificationRepository,
+  httpOrganizationRepository,
   httpWorkflowRepository
 } from '../../http/adapters/HttpRepositories';
 
@@ -24,6 +26,7 @@ export interface RepositoryBundle {
   knowledgeRepository: KnowledgeRepository;
   workflowRepository: WorkflowRepository;
   notificationRepository: NotificationRepository;
+  organizationRepository: OrganizationRepository;
   attendanceRepository: AttendanceRepository;
   mailRepository: MailRepository;
   assistantRepository: AssistantRepository;
@@ -35,6 +38,7 @@ export const repositories: RepositoryBundle = {
   knowledgeRepository: httpKnowledgeRepository,
   workflowRepository: httpWorkflowRepository,
   notificationRepository: httpNotificationRepository,
+  organizationRepository: httpOrganizationRepository,
   attendanceRepository: httpAttendanceRepository,
   mailRepository: httpMailRepository,
   assistantRepository: httpAssistantRepository,

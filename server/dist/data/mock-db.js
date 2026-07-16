@@ -2,6 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getUserByToken = getUserByToken;
 exports.authenticate = authenticate;
+exports.getMyOrganization = getMyOrganization;
+exports.getDepartmentTree = getDepartmentTree;
+exports.searchOrganizationUsers = searchOrganizationUsers;
 exports.getCategories = getCategories;
 exports.getArticles = getArticles;
 exports.favoriteArticle = favoriteArticle;
@@ -35,6 +38,10 @@ const users = [
         account: 'employee01',
         password: '123456',
         department: '产品研发部',
+        departmentId: 'd-rd',
+        managerId: 'u2',
+        jobTitle: '产品经理',
+        employmentStatus: 'active',
         role: 'employee',
         roleLabel: '普通员工',
         permissions: ['知识查询', '收藏知识', '发起流程', '查看我的流程', '签到签退', '内部邮件'],
@@ -47,7 +54,11 @@ const users = [
         name: '李清越',
         account: 'manager01',
         password: '123456',
-        department: '部门负责人',
+        department: '产品研发部',
+        departmentId: 'd-rd',
+        managerId: '',
+        jobTitle: '研发部负责人',
+        employmentStatus: 'active',
         role: 'approver',
         roleLabel: '审批人',
         permissions: ['知识查询', '发起流程', '处理待办', '查看关联制度', '内部邮件'],
@@ -61,6 +72,10 @@ const users = [
         account: 'admin01',
         password: '123456',
         department: '信息化管理部',
+        departmentId: 'd-it',
+        managerId: '',
+        jobTitle: '系统管理员',
+        employmentStatus: 'active',
         role: 'systemAdmin',
         roleLabel: '系统管理员',
         permissions: ['知识管理', '用户角色管理', '流程模板管理', '查看操作日志', '安全确认'],
@@ -74,12 +89,42 @@ const users = [
         account: 'knowledge01',
         password: '123456',
         department: '知识运营组',
+        departmentId: 'd-knowledge',
+        managerId: '',
+        jobTitle: '知识运营专员',
+        employmentStatus: 'active',
         role: 'knowledgeAdmin',
         roleLabel: '知识管理员',
         permissions: ['知识管理', '知识分类维护', '知识发布下架', '查看审计摘要'],
         favoriteKnowledgeIds: ['k2', 'k5'],
         recentKnowledgeIds: ['k5', 'k2'],
         todoCount: 1
+    }
+];
+const departments = [
+    {
+        id: 'd-rd',
+        name: '产品研发部',
+        parentId: '',
+        leaderId: 'u2',
+        sortOrder: 1,
+        status: 'active'
+    },
+    {
+        id: 'd-it',
+        name: '信息化管理部',
+        parentId: '',
+        leaderId: 'u3',
+        sortOrder: 2,
+        status: 'active'
+    },
+    {
+        id: 'd-knowledge',
+        name: '知识运营组',
+        parentId: '',
+        leaderId: 'u4',
+        sortOrder: 3,
+        status: 'active'
     }
 ];
 const categories = [
@@ -473,8 +518,51 @@ function cloneUser(user) {
         permissions: cloneStringArray(user.permissions),
         favoriteKnowledgeIds: cloneStringArray(user.favoriteKnowledgeIds),
         recentKnowledgeIds: cloneStringArray(user.recentKnowledgeIds),
-        todoCount: user.todoCount
+        todoCount: user.todoCount,
+        departmentId: user.departmentId,
+        managerId: user.managerId,
+        jobTitle: user.jobTitle,
+        employmentStatus: user.employmentStatus
     };
+}
+function getDepartmentById(departmentId) {
+    return departments.find((item) => item.id === departmentId);
+}
+function buildDirectoryItem(user) {
+    var _a, _b, _c;
+    const manager = users.find((item) => item.id === user.managerId);
+    return {
+        id: user.id,
+        name: user.name,
+        account: user.account,
+        departmentId: user.departmentId,
+        departmentName: (_b = (_a = getDepartmentById(user.departmentId)) === null || _a === void 0 ? void 0 : _a.name) !== null && _b !== void 0 ? _b : user.department,
+        jobTitle: user.jobTitle,
+        managerId: user.managerId,
+        managerName: (_c = manager === null || manager === void 0 ? void 0 : manager.name) !== null && _c !== void 0 ? _c : '',
+        employmentStatus: user.employmentStatus
+    };
+}
+function cloneDirectoryItem(item) {
+    return {
+        id: item.id,
+        name: item.name,
+        account: item.account,
+        departmentId: item.departmentId,
+        departmentName: item.departmentName,
+        jobTitle: item.jobTitle,
+        managerId: item.managerId,
+        managerName: item.managerName,
+        employmentStatus: item.employmentStatus
+    };
+}
+function getVisibleDirectoryUsers(user, scope) {
+    if (user.role === 'systemAdmin' && scope === 'all') {
+        return users.filter((item) => item.employmentStatus === 'active');
+    }
+    return users.filter((item) => {
+        return item.employmentStatus === 'active' && item.departmentId === user.departmentId;
+    });
 }
 function cloneArticle(article) {
     return {
@@ -611,6 +699,65 @@ function authenticate(account, password) {
         token: `mock-token-${user.account}`,
         user: cloneUser(user)
     };
+}
+function getMyOrganization(token) {
+    const user = getUserByToken(token);
+    const manager = users.find((item) => item.id === user.managerId);
+    const directReports = users.filter((item) => {
+        return item.managerId === user.id && item.employmentStatus === 'active';
+    });
+    const departmentMembers = users.filter((item) => {
+        return item.departmentId === user.departmentId && item.employmentStatus === 'active';
+    });
+    return {
+        employee: cloneDirectoryItem(buildDirectoryItem(user)),
+        manager: manager === undefined ? null : cloneDirectoryItem(buildDirectoryItem(manager)),
+        directReports: directReports.map((item) => cloneDirectoryItem(buildDirectoryItem(item))),
+        departmentMembers: departmentMembers.map((item) => cloneDirectoryItem(buildDirectoryItem(item)))
+    };
+}
+function getDepartmentTree(token) {
+    const user = getUserByToken(token);
+    const visibleDepartments = user.role === 'systemAdmin'
+        ? departments.filter((item) => item.status === 'active')
+        : departments.filter((item) => item.id === user.departmentId);
+    const buildTree = (parentId) => {
+        return visibleDepartments
+            .filter((item) => item.parentId === parentId)
+            .sort((left, right) => left.sortOrder - right.sortOrder)
+            .map((item) => {
+            var _a;
+            const leader = users.find((candidate) => candidate.id === item.leaderId);
+            return {
+                id: item.id,
+                name: item.name,
+                parentId: item.parentId,
+                leaderId: item.leaderId,
+                sortOrder: item.sortOrder,
+                status: item.status,
+                leaderName: (_a = leader === null || leader === void 0 ? void 0 : leader.name) !== null && _a !== void 0 ? _a : '',
+                children: buildTree(item.id)
+            };
+        });
+    };
+    return buildTree('');
+}
+function searchOrganizationUsers(token, scope, departmentId, keyword, activeOnly) {
+    const currentUser = getUserByToken(token);
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    const visibleUsers = getVisibleDirectoryUsers(currentUser, scope);
+    return visibleUsers
+        .filter((item) => departmentId.length === 0 || item.departmentId === departmentId)
+        .filter((item) => !activeOnly || item.employmentStatus === 'active')
+        .filter((item) => {
+        if (normalizedKeyword.length === 0) {
+            return true;
+        }
+        return item.name.toLowerCase().includes(normalizedKeyword) ||
+            item.account.toLowerCase().includes(normalizedKeyword) ||
+            item.jobTitle.toLowerCase().includes(normalizedKeyword);
+    })
+        .map((item) => cloneDirectoryItem(buildDirectoryItem(item)));
 }
 function getCategories() {
     return categories.map((item) => ({ id: item.id, name: item.name, description: item.description }));

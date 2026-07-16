@@ -6,6 +6,40 @@ export type AttendanceRecordType = 'checkIn' | 'checkOut';
 export type AttendanceRecordStatus = 'normal' | 'late' | 'earlyLeave' | 'offsite';
 export type MailFolder = 'inbox' | 'sent' | 'draft' | 'trash';
 export type MailImportance = 'normal' | 'important' | 'urgent';
+export type EmploymentStatus = 'active' | 'inactive';
+
+export interface DepartmentProfile {
+  id: string;
+  name: string;
+  parentId: string;
+  leaderId: string;
+  sortOrder: number;
+  status: EmploymentStatus;
+}
+
+export interface DirectoryItem {
+  id: string;
+  name: string;
+  account: string;
+  departmentId: string;
+  departmentName: string;
+  jobTitle: string;
+  managerId: string;
+  managerName: string;
+  employmentStatus: EmploymentStatus;
+}
+
+export interface OrganizationProfile {
+  employee: DirectoryItem;
+  manager: DirectoryItem | null;
+  directReports: DirectoryItem[];
+  departmentMembers: DirectoryItem[];
+}
+
+export interface DepartmentTreeItem extends DepartmentProfile {
+  leaderName: string;
+  children: DepartmentTreeItem[];
+}
 
 export interface UserProfile {
   id: string;
@@ -19,6 +53,10 @@ export interface UserProfile {
   favoriteKnowledgeIds: string[];
   recentKnowledgeIds: string[];
   todoCount: number;
+  departmentId: string;
+  managerId: string;
+  jobTitle: string;
+  employmentStatus: EmploymentStatus;
 }
 
 export interface KnowledgeCategory {
@@ -164,6 +202,10 @@ const users: UserProfile[] = [
     account: 'employee01',
     password: '123456',
     department: '产品研发部',
+    departmentId: 'd-rd',
+    managerId: 'u2',
+    jobTitle: '产品经理',
+    employmentStatus: 'active',
     role: 'employee',
     roleLabel: '普通员工',
     permissions: ['知识查询', '收藏知识', '发起流程', '查看我的流程', '签到签退', '内部邮件'],
@@ -176,7 +218,11 @@ const users: UserProfile[] = [
     name: '李清越',
     account: 'manager01',
     password: '123456',
-    department: '部门负责人',
+    department: '产品研发部',
+    departmentId: 'd-rd',
+    managerId: '',
+    jobTitle: '研发部负责人',
+    employmentStatus: 'active',
     role: 'approver',
     roleLabel: '审批人',
     permissions: ['知识查询', '发起流程', '处理待办', '查看关联制度', '内部邮件'],
@@ -190,6 +236,10 @@ const users: UserProfile[] = [
     account: 'admin01',
     password: '123456',
     department: '信息化管理部',
+    departmentId: 'd-it',
+    managerId: '',
+    jobTitle: '系统管理员',
+    employmentStatus: 'active',
     role: 'systemAdmin',
     roleLabel: '系统管理员',
     permissions: ['知识管理', '用户角色管理', '流程模板管理', '查看操作日志', '安全确认'],
@@ -203,12 +253,43 @@ const users: UserProfile[] = [
     account: 'knowledge01',
     password: '123456',
     department: '知识运营组',
+    departmentId: 'd-knowledge',
+    managerId: '',
+    jobTitle: '知识运营专员',
+    employmentStatus: 'active',
     role: 'knowledgeAdmin',
     roleLabel: '知识管理员',
     permissions: ['知识管理', '知识分类维护', '知识发布下架', '查看审计摘要'],
     favoriteKnowledgeIds: ['k2', 'k5'],
     recentKnowledgeIds: ['k5', 'k2'],
     todoCount: 1
+  }
+];
+
+const departments: DepartmentProfile[] = [
+  {
+    id: 'd-rd',
+    name: '产品研发部',
+    parentId: '',
+    leaderId: 'u2',
+    sortOrder: 1,
+    status: 'active'
+  },
+  {
+    id: 'd-it',
+    name: '信息化管理部',
+    parentId: '',
+    leaderId: 'u3',
+    sortOrder: 2,
+    status: 'active'
+  },
+  {
+    id: 'd-knowledge',
+    name: '知识运营组',
+    parentId: '',
+    leaderId: 'u4',
+    sortOrder: 3,
+    status: 'active'
   }
 ];
 
@@ -613,8 +694,54 @@ function cloneUser(user: UserProfile): UserProfile {
     permissions: cloneStringArray(user.permissions),
     favoriteKnowledgeIds: cloneStringArray(user.favoriteKnowledgeIds),
     recentKnowledgeIds: cloneStringArray(user.recentKnowledgeIds),
-    todoCount: user.todoCount
+    todoCount: user.todoCount,
+    departmentId: user.departmentId,
+    managerId: user.managerId,
+    jobTitle: user.jobTitle,
+    employmentStatus: user.employmentStatus
   };
+}
+
+function getDepartmentById(departmentId: string): DepartmentProfile | undefined {
+  return departments.find((item: DepartmentProfile) => item.id === departmentId);
+}
+
+function buildDirectoryItem(user: UserProfile): DirectoryItem {
+  const manager: UserProfile | undefined = users.find((item: UserProfile) => item.id === user.managerId);
+  return {
+    id: user.id,
+    name: user.name,
+    account: user.account,
+    departmentId: user.departmentId,
+    departmentName: getDepartmentById(user.departmentId)?.name ?? user.department,
+    jobTitle: user.jobTitle,
+    managerId: user.managerId,
+    managerName: manager?.name ?? '',
+    employmentStatus: user.employmentStatus
+  };
+}
+
+function cloneDirectoryItem(item: DirectoryItem): DirectoryItem {
+  return {
+    id: item.id,
+    name: item.name,
+    account: item.account,
+    departmentId: item.departmentId,
+    departmentName: item.departmentName,
+    jobTitle: item.jobTitle,
+    managerId: item.managerId,
+    managerName: item.managerName,
+    employmentStatus: item.employmentStatus
+  };
+}
+
+function getVisibleDirectoryUsers(user: UserProfile, scope: string): UserProfile[] {
+  if (user.role === 'systemAdmin' && scope === 'all') {
+    return users.filter((item: UserProfile) => item.employmentStatus === 'active');
+  }
+  return users.filter((item: UserProfile) => {
+    return item.employmentStatus === 'active' && item.departmentId === user.departmentId;
+  });
 }
 
 function cloneArticle(article: KnowledgeArticle): KnowledgeArticle {
@@ -762,6 +889,73 @@ export function authenticate(account: string, password: string): { token: string
     token: `mock-token-${user.account}`,
     user: cloneUser(user)
   };
+}
+
+export function getMyOrganization(token: string): OrganizationProfile {
+  const user: UserProfile = getUserByToken(token);
+  const manager: UserProfile | undefined = users.find((item: UserProfile) => item.id === user.managerId);
+  const directReports: UserProfile[] = users.filter((item: UserProfile) => {
+    return item.managerId === user.id && item.employmentStatus === 'active';
+  });
+  const departmentMembers: UserProfile[] = users.filter((item: UserProfile) => {
+    return item.departmentId === user.departmentId && item.employmentStatus === 'active';
+  });
+  return {
+    employee: cloneDirectoryItem(buildDirectoryItem(user)),
+    manager: manager === undefined ? null : cloneDirectoryItem(buildDirectoryItem(manager)),
+    directReports: directReports.map((item: UserProfile) => cloneDirectoryItem(buildDirectoryItem(item))),
+    departmentMembers: departmentMembers.map((item: UserProfile) => cloneDirectoryItem(buildDirectoryItem(item)))
+  };
+}
+
+export function getDepartmentTree(token: string): DepartmentTreeItem[] {
+  const user: UserProfile = getUserByToken(token);
+  const visibleDepartments: DepartmentProfile[] = user.role === 'systemAdmin'
+    ? departments.filter((item: DepartmentProfile) => item.status === 'active')
+    : departments.filter((item: DepartmentProfile) => item.id === user.departmentId);
+  const buildTree = (parentId: string): DepartmentTreeItem[] => {
+    return visibleDepartments
+      .filter((item: DepartmentProfile) => item.parentId === parentId)
+      .sort((left: DepartmentProfile, right: DepartmentProfile) => left.sortOrder - right.sortOrder)
+      .map((item: DepartmentProfile) => {
+        const leader: UserProfile | undefined = users.find((candidate: UserProfile) => candidate.id === item.leaderId);
+        return {
+          id: item.id,
+          name: item.name,
+          parentId: item.parentId,
+          leaderId: item.leaderId,
+          sortOrder: item.sortOrder,
+          status: item.status,
+          leaderName: leader?.name ?? '',
+          children: buildTree(item.id)
+        };
+      });
+  };
+  return buildTree('');
+}
+
+export function searchOrganizationUsers(
+  token: string,
+  scope: string,
+  departmentId: string,
+  keyword: string,
+  activeOnly: boolean
+): DirectoryItem[] {
+  const currentUser: UserProfile = getUserByToken(token);
+  const normalizedKeyword: string = keyword.trim().toLowerCase();
+  const visibleUsers: UserProfile[] = getVisibleDirectoryUsers(currentUser, scope);
+  return visibleUsers
+    .filter((item: UserProfile) => departmentId.length === 0 || item.departmentId === departmentId)
+    .filter((item: UserProfile) => !activeOnly || item.employmentStatus === 'active')
+    .filter((item: UserProfile) => {
+      if (normalizedKeyword.length === 0) {
+        return true;
+      }
+      return item.name.toLowerCase().includes(normalizedKeyword) ||
+        item.account.toLowerCase().includes(normalizedKeyword) ||
+        item.jobTitle.toLowerCase().includes(normalizedKeyword);
+    })
+    .map((item: UserProfile) => cloneDirectoryItem(buildDirectoryItem(item)));
 }
 
 export function getCategories(): KnowledgeCategory[] {

@@ -14,6 +14,7 @@ const auth_controller_1 = require("./modules/auth/auth.controller");
 const knowledge_controller_1 = require("./modules/knowledge/knowledge.controller");
 const mail_controller_1 = require("./modules/mail/mail.controller");
 const notifications_controller_1 = require("./modules/notifications/notifications.controller");
+const organization_controller_1 = require("./modules/organization/organization.controller");
 const workflow_controller_1 = require("./modules/workflow/workflow.controller");
 let AppModule = class AppModule {
 };
@@ -25,6 +26,7 @@ exports.AppModule = AppModule = __decorate([
             knowledge_controller_1.KnowledgeController,
             workflow_controller_1.WorkflowController,
             notifications_controller_1.NotificationsController,
+            organization_controller_1.OrganizationController,
             assistant_controller_1.AssistantController,
             attendance_controller_1.AttendanceController,
             mail_controller_1.MailController

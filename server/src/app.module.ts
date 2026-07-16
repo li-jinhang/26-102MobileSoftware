@@ -5,6 +5,7 @@ import { AuthController } from './modules/auth/auth.controller';
 import { KnowledgeController } from './modules/knowledge/knowledge.controller';
 import { MailController } from './modules/mail/mail.controller';
 import { NotificationsController } from './modules/notifications/notifications.controller';
+import { OrganizationController } from './modules/organization/organization.controller';
 import { WorkflowController } from './modules/workflow/workflow.controller';
 
 @Module({
@@ -13,6 +14,7 @@ import { WorkflowController } from './modules/workflow/workflow.controller';
     KnowledgeController,
     WorkflowController,
     NotificationsController,
+    OrganizationController,
     AssistantController,
     AttendanceController,
     MailController

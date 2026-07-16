@@ -9,8 +9,8 @@ export interface LoginStateResult {
   favoriteKnowledgeIds: string[];
   selectedArticleId: string;
   activeTab: number;
-  activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer';
-  detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer';
+  activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' | 'organization';
+  detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' | 'organization';
   usefulKnowledgeIds: string[];
   assistantHistory: AssistantHistory[];
   assistantQuestion: string;
@@ -20,7 +20,7 @@ export interface LoginStateResult {
 export interface LogoutStateResult {
   currentUser: User | null;
   activeTab: number;
-  activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer';
+  activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' | 'organization';
   selectedArticleId: string;
   favoriteKnowledgeIds: string[];
   usefulKnowledgeIds: string[];
@@ -34,7 +34,7 @@ export interface OpenArticleResult {
   success: boolean;
   currentUser: User | null;
   selectedArticleId: string;
-  detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer';
+  detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' | 'organization';
   activeSubPage: 'knowledgeDetail';
 }
 
@@ -45,8 +45,8 @@ export interface ToggleFavoriteResult {
 
 export interface WorkflowMessageNavigationResult {
   success: boolean;
-  activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer';
-  detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer';
+  activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' | 'organization';
+  detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' | 'organization';
   activeTab: number;
   message: string;
 }
@@ -71,7 +71,11 @@ function cloneUser(user: User): User {
     permissions: copyStringArray(user.permissions),
     favoriteKnowledgeIds: copyStringArray(user.favoriteKnowledgeIds),
     recentKnowledgeIds: copyStringArray(user.recentKnowledgeIds),
-    todoCount: user.todoCount
+    todoCount: user.todoCount,
+    departmentId: user.departmentId,
+    managerId: user.managerId,
+    jobTitle: user.jobTitle,
+    employmentStatus: user.employmentStatus
   };
 }
 
@@ -111,7 +115,7 @@ export function buildOpenArticleStateUseCase(
   currentUser: User | null,
   article: KnowledgeArticle | null,
   articleId: string,
-  activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer'
+  activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' | 'organization'
 ): OpenArticleResult {
   if (currentUser === null || article === null) {
     return {

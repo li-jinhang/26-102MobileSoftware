@@ -16,6 +16,10 @@ export declare class AuthController {
             favoriteKnowledgeIds: string[];
             recentKnowledgeIds: string[];
             todoCount: number;
+            departmentId: string;
+            managerId: string;
+            jobTitle: string;
+            employmentStatus: import("../../data/mock-db").EmploymentStatus;
         };
     }>;
     getMe(authorization?: string): import("../../common/api-response").ApiEnvelope<{
@@ -30,6 +34,10 @@ export declare class AuthController {
         favoriteKnowledgeIds: string[];
         recentKnowledgeIds: string[];
         todoCount: number;
+        departmentId: string;
+        managerId: string;
+        jobTitle: string;
+        employmentStatus: import("../../data/mock-db").EmploymentStatus;
     }>;
     logout(): import("../../common/api-response").ApiEnvelope<null>;
 }

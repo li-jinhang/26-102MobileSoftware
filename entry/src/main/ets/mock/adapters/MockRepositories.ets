@@ -23,6 +23,9 @@ import {
   KnowledgeCategory,
   MailMessage,
   NotificationItem,
+  DepartmentTreeItem,
+  EmployeeDirectoryItem,
+  OrganizationProfile,
   User,
   WorkflowInstance,
   WorkflowTemplate
@@ -38,6 +41,7 @@ import {
   MailRepository,
   MailSendPayload,
   NotificationRepository,
+  OrganizationRepository,
   WorkflowCreatePayload,
   WorkflowRepository
 } from '../../domain/contracts/AppRepositories';
@@ -210,6 +214,47 @@ class MockMailRepository implements MailRepository {
   }
 }
 
+class MockOrganizationRepository implements OrganizationRepository {
+  async getMyOrganization(): Promise<OrganizationProfile> {
+    const user: User | null = authenticateUser('employee01', '123456');
+    const employee: EmployeeDirectoryItem = {
+      id: user?.id ?? '',
+      name: user?.name ?? '',
+      account: user?.account ?? '',
+      departmentId: user?.departmentId ?? '',
+      departmentName: user?.department ?? '',
+      jobTitle: user?.jobTitle ?? '',
+      managerId: user?.managerId ?? '',
+      managerName: '李清越',
+      employmentStatus: user?.employmentStatus ?? 'active'
+    };
+    return {
+      employee,
+      manager: {
+        id: 'u2', name: '李清越', account: 'manager01', departmentId: 'd-rd',
+        departmentName: '产品研发部', jobTitle: '研发部负责人', managerId: '', managerName: '', employmentStatus: 'active'
+      },
+      directReports: [],
+      departmentMembers: [employee, {
+        id: 'u2', name: '李清越', account: 'manager01', departmentId: 'd-rd',
+        departmentName: '产品研发部', jobTitle: '研发部负责人', managerId: '', managerName: '', employmentStatus: 'active'
+      }]
+    };
+  }
+
+  async getDepartmentTree(): Promise<DepartmentTreeItem[]> {
+    return [];
+  }
+
+  async searchUsers(
+    scope: 'department' | 'team' | 'all',
+    keyword: string = '',
+    departmentId: string = ''
+  ): Promise<EmployeeDirectoryItem[]> {
+    return (await this.getMyOrganization()).departmentMembers;
+  }
+}
+
 class MockAssistantRepository implements AssistantRepository {
   async analyze(input: AssistantAnalyzeInput): Promise<AssistantReply> {
     const reply = askAssistant(input.text);
@@ -240,5 +285,6 @@ export const mockWorkflowRepository: WorkflowRepository = new MockWorkflowReposi
 export const mockNotificationRepository: NotificationRepository = new MockNotificationRepository();
 export const mockAttendanceRepository: AttendanceRepository = new MockAttendanceRepository();
 export const mockMailRepository: MailRepository = new MockMailRepository();
+export const mockOrganizationRepository: OrganizationRepository = new MockOrganizationRepository();
 export const mockAssistantRepository: AssistantRepository = new MockAssistantRepository();
 export const mockAuditRepository: AuditRepository = new MockAuditRepository();

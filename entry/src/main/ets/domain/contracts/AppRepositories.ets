@@ -9,6 +9,9 @@ import {
   KnowledgeCategory,
   MailMessage,
   NotificationItem,
+  DepartmentTreeItem,
+  EmployeeDirectoryItem,
+  OrganizationProfile,
   User,
   WorkflowInstance,
   WorkflowTemplate
@@ -85,6 +88,12 @@ export interface MailRepository {
   sendMail(input: MailSendPayload): Promise<MailMessage>;
   markRead(mailId: string): Promise<void>;
   deleteMail(mailId: string): Promise<void>;
+}
+
+export interface OrganizationRepository {
+  getMyOrganization(): Promise<OrganizationProfile>;
+  getDepartmentTree(): Promise<DepartmentTreeItem[]>;
+  searchUsers(scope: 'department' | 'team' | 'all', keyword?: string, departmentId?: string): Promise<EmployeeDirectoryItem[]>;
 }
 
 export interface AssistantRepository {

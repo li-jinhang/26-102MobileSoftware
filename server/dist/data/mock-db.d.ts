@@ -6,6 +6,36 @@ export type AttendanceRecordType = 'checkIn' | 'checkOut';
 export type AttendanceRecordStatus = 'normal' | 'late' | 'earlyLeave' | 'offsite';
 export type MailFolder = 'inbox' | 'sent' | 'draft' | 'trash';
 export type MailImportance = 'normal' | 'important' | 'urgent';
+export type EmploymentStatus = 'active' | 'inactive';
+export interface DepartmentProfile {
+    id: string;
+    name: string;
+    parentId: string;
+    leaderId: string;
+    sortOrder: number;
+    status: EmploymentStatus;
+}
+export interface DirectoryItem {
+    id: string;
+    name: string;
+    account: string;
+    departmentId: string;
+    departmentName: string;
+    jobTitle: string;
+    managerId: string;
+    managerName: string;
+    employmentStatus: EmploymentStatus;
+}
+export interface OrganizationProfile {
+    employee: DirectoryItem;
+    manager: DirectoryItem | null;
+    directReports: DirectoryItem[];
+    departmentMembers: DirectoryItem[];
+}
+export interface DepartmentTreeItem extends DepartmentProfile {
+    leaderName: string;
+    children: DepartmentTreeItem[];
+}
 export interface UserProfile {
     id: string;
     name: string;
@@ -18,6 +48,10 @@ export interface UserProfile {
     favoriteKnowledgeIds: string[];
     recentKnowledgeIds: string[];
     todoCount: number;
+    departmentId: string;
+    managerId: string;
+    jobTitle: string;
+    employmentStatus: EmploymentStatus;
 }
 export interface KnowledgeCategory {
     id: string;
@@ -148,6 +182,9 @@ export declare function authenticate(account: string, password: string): {
     token: string;
     user: UserProfile;
 };
+export declare function getMyOrganization(token: string): OrganizationProfile;
+export declare function getDepartmentTree(token: string): DepartmentTreeItem[];
+export declare function searchOrganizationUsers(token: string, scope: string, departmentId: string, keyword: string, activeOnly: boolean): DirectoryItem[];
 export declare function getCategories(): KnowledgeCategory[];
 export declare function getArticles(token: string): KnowledgeArticle[];
 export declare function favoriteArticle(token: string, articleId: string): {

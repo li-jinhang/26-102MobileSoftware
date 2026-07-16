@@ -25,6 +25,8 @@ export struct ProfilePage {
   };
   onOpenMail: () => void = () => {
   };
+  onOpenOrganization: () => void = () => {
+  };
   onLogout: () => void = () => {
   };
 
@@ -50,6 +52,32 @@ export struct ProfilePage {
       }
       .width('100%')
       .padding({ top: 20, bottom: 12 })
+
+      SectionBlock({ title: '我的组织', subtitle: `${this.user.department} · ${this.user.jobTitle}` }) {
+        Row() {
+          Column({ space: 4 }) {
+            Text(this.user.managerId.length > 0 ? '查看直属上级与团队成员' : '查看部门成员')
+              .fontSize(14)
+              .fontColor('#344054')
+              .fontWeight(FontWeight.Medium)
+              .width('100%')
+            Text('组织关系会根据人员目录实时更新')
+              .fontSize(12)
+              .fontColor('#667085')
+              .width('100%')
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+          Text('›')
+            .fontSize(18)
+            .fontColor('#175CD3')
+        }
+        .width('100%')
+        .padding({ top: 6, bottom: 6 })
+        .onClick(() => {
+          this.onOpenOrganization();
+        })
+      }
 
       SectionBlock({ title: '签到签退' }) {
         Row() {

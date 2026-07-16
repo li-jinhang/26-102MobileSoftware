@@ -51,6 +51,8 @@ export struct DashboardPage {
   };
   onOpenMail: () => void = () => {
   };
+  onOpenOrganization: () => void = () => {
+  };
   onStartWorkflow: (templateId: string) => void = () => {
   };
 
@@ -203,6 +205,29 @@ export struct DashboardPage {
           })
         }
         .width('100%')
+      }
+
+      SectionBlock({ title: '团队关系', subtitle: `${this.user.department} · ${this.user.jobTitle}` }) {
+        Row({ space: 10 }) {
+          Column({ space: 4 }) {
+            Text(this.user.managerId.length > 0 ? '已设置直属上级' : '暂未设置直属上级')
+              .fontSize(14)
+              .fontColor('#344054')
+            Text('查看我的组织与部门成员')
+              .fontSize(12)
+              .fontColor('#667085')
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+          Text('›')
+            .fontSize(18)
+            .fontColor('#175CD3')
+        }
+        .width('100%')
+        .padding({ top: 6, bottom: 6 })
+        .onClick(() => {
+          this.onOpenOrganization();
+        })
       }
 
       if (this.recentArticles.length > 0) {

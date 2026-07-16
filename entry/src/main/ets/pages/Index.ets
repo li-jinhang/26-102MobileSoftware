@@ -6,6 +6,7 @@ import {
 } from '../app/usecases/AttendanceUseCases';
 import { askAssistantUseCase } from '../app/usecases/AssistantUseCases';
 import { loadAppBootstrapData, AppBootstrapData } from '../app/usecases/AppBootstrapUseCases';
+import { loadMyOrganizationUseCase } from '../app/usecases/OrganizationUseCases';
 import { loginWithAccount, logoutCurrentAccount } from '../app/usecases/AuthUseCases';
 import {
   loadMailBoxUseCase,
@@ -75,6 +76,7 @@ import { MailComposerPage } from '../features/mail/MailComposerPage';
 import { MailDetailPage } from '../features/mail/MailDetailPage';
 import { MailPage } from '../features/mail/MailPage';
 import { MessagesPage } from '../features/messages/MessagesPage';
+import { OrganizationPage } from '../features/organization/OrganizationPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 import {
   AssistantAnalyzeInput,
@@ -91,6 +93,7 @@ import {
   KnowledgeCorrection,
   MailMessage,
   NotificationItem,
+  OrganizationProfile,
   ReadingFontScale,
   ReadingFontWeight,
   User,
@@ -120,8 +123,9 @@ struct Index {
   @State workflowInstances: WorkflowInstance[] = [];
   @State notifications: NotificationItem[] = [];
   @State auditLogs: AuditLog[] = [];
-  @State activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' = 'none';
-  @State detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' = 'none';
+  @State activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' | 'organization' = 'none';
+  @State detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' | 'organization' = 'none';
+  @State organizationProfile: OrganizationProfile | null = null;
   @State attendanceSummary: AttendanceTodaySummary = {
     date: '',
     checkedIn: false,
@@ -340,7 +344,14 @@ struct Index {
   private AppShell() {
     Stack() {
       Column() {
-        if (this.activeSubPage === 'knowledgeDetail') {
+        if (this.activeSubPage === 'organization' && this.organizationProfile !== null) {
+          OrganizationPage({
+            profile: this.organizationProfile,
+            onBack: () => {
+              this.activeSubPage = 'none';
+            }
+          })
+        } else if (this.activeSubPage === 'knowledgeDetail') {
           KnowledgeDetailPage({
             article: this.getSelectedArticleRequired(),
             favorite: this.isFavorite(this.selectedArticleId),
@@ -518,6 +529,9 @@ struct Index {
                   onOpenMail: () => {
                     void this.openMailPage();
                   },
+                  onOpenOrganization: () => {
+                    void this.openOrganizationPage();
+                  },
                   onOpenTodo: () => {
                     this.activeSubPage = 'none';
                     this.activeTab = 2;
@@ -556,6 +570,9 @@ struct Index {
                   },
                   onOpenMail: () => {
                     void this.openMailPage();
+                  },
+                  onOpenOrganization: () => {
+                    void this.openOrganizationPage();
                   },
                   onLogout: () => {
                     void this.logout();
@@ -1378,6 +1395,7 @@ struct Index {
 
     const result = buildLogoutStateUseCase();
     this.currentUser = result.currentUser;
+    this.organizationProfile = null;
     this.categories = [];
     this.articles = [];
     this.templates = [];
@@ -1804,8 +1822,22 @@ struct Index {
       permissions: [],
       favoriteKnowledgeIds: [],
       recentKnowledgeIds: [],
-      todoCount: 0
+      todoCount: 0,
+      departmentId: '',
+      managerId: '',
+      jobTitle: '',
+      employmentStatus: 'active'
     };
+  }
+
+  private async openOrganizationPage(): Promise<void> {
+    try {
+      this.organizationProfile = await loadMyOrganizationUseCase();
+      this.activeSubPage = 'organization';
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '组织信息暂不可用。';
+      this.showMessage(message);
+    }
   }
 
   private getSelectedTemplate(): WorkflowTemplate {

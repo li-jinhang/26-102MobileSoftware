@@ -18,6 +18,9 @@ import {
   MailMessage,
   MailRecipient,
   NotificationItem,
+  DepartmentTreeItem,
+  EmployeeDirectoryItem,
+  OrganizationProfile,
   User,
   UserRole,
   WorkflowInstance,
@@ -35,6 +38,7 @@ import {
   MailRepository,
   MailSendPayload,
   NotificationRepository,
+  OrganizationRepository,
   WorkflowCreatePayload,
   WorkflowRepository
 } from '../../domain/contracts/AppRepositories';
@@ -53,6 +57,13 @@ interface BackendUserProfile {
   favoriteKnowledgeIds: string[];
   recentKnowledgeIds: string[];
   todoCount: number;
+  departmentId: string;
+  managerId: string;
+  jobTitle: string;
+  employmentStatus: 'active' | 'inactive';
+}
+
+interface BackendOrganizationProfile extends OrganizationProfile {
 }
 
 interface BackendLoginResponseData {
@@ -235,7 +246,34 @@ function mapUser(source: BackendUserProfile): User {
     permissions: source.permissions,
     favoriteKnowledgeIds: source.favoriteKnowledgeIds,
     recentKnowledgeIds: source.recentKnowledgeIds,
-    todoCount: source.todoCount
+    todoCount: source.todoCount,
+    departmentId: source.departmentId ?? '',
+    managerId: source.managerId ?? '',
+    jobTitle: source.jobTitle ?? source.roleLabel,
+    employmentStatus: source.employmentStatus ?? 'active'
+  };
+}
+
+function mapDirectoryItem(source: EmployeeDirectoryItem): EmployeeDirectoryItem {
+  return {
+    id: source.id,
+    name: source.name,
+    account: source.account,
+    departmentId: source.departmentId,
+    departmentName: source.departmentName,
+    jobTitle: source.jobTitle,
+    managerId: source.managerId,
+    managerName: source.managerName,
+    employmentStatus: source.employmentStatus
+  };
+}
+
+function mapOrganizationProfile(source: BackendOrganizationProfile): OrganizationProfile {
+  return {
+    employee: mapDirectoryItem(source.employee),
+    manager: source.manager === null ? null : mapDirectoryItem(source.manager),
+    directReports: source.directReports.map((item: EmployeeDirectoryItem) => mapDirectoryItem(item)),
+    departmentMembers: source.departmentMembers.map((item: EmployeeDirectoryItem) => mapDirectoryItem(item))
   };
 }
 
@@ -562,6 +600,32 @@ class HttpMailRepository implements MailRepository {
   }
 }
 
+class HttpOrganizationRepository implements OrganizationRepository {
+  async getMyOrganization(): Promise<OrganizationProfile> {
+    const result: BackendOrganizationProfile = await apiGet<BackendOrganizationProfile>('/organization/me');
+    return mapOrganizationProfile(result);
+  }
+
+  async getDepartmentTree(): Promise<DepartmentTreeItem[]> {
+    return apiGet<DepartmentTreeItem[]>('/organization/departments/tree');
+  }
+
+  async searchUsers(
+    scope: 'department' | 'team' | 'all',
+    keyword: string = '',
+    departmentId: string = ''
+  ): Promise<EmployeeDirectoryItem[]> {
+    const queryParams: ApiQueryParam[] = [
+      { key: 'scope', value: scope },
+      { key: 'keyword', value: keyword },
+      { key: 'departmentId', value: departmentId },
+      { key: 'activeOnly', value: 'true' }
+    ];
+    const result: EmployeeDirectoryItem[] = await apiGet<EmployeeDirectoryItem[]>('/organization/users', queryParams);
+    return result.map((item: EmployeeDirectoryItem) => mapDirectoryItem(item));
+  }
+}
+
 class HttpAssistantRepository implements AssistantRepository {
   async analyze(input: AssistantAnalyzeInput): Promise<AssistantReply> {
     return apiPost<AssistantReply>('/assistant/analyze', JSON.stringify(input), true, 60000);
@@ -580,5 +644,6 @@ export const httpWorkflowRepository: WorkflowRepository = new HttpWorkflowReposi
 export const httpNotificationRepository: NotificationRepository = new HttpNotificationRepository();
 export const httpAttendanceRepository: AttendanceRepository = new HttpAttendanceRepository();
 export const httpMailRepository: MailRepository = new HttpMailRepository();
+export const httpOrganizationRepository: OrganizationRepository = new HttpOrganizationRepository();
 export const httpAssistantRepository: AssistantRepository = new HttpAssistantRepository();
 export const httpAuditRepository: AuditRepository = new HttpAuditRepository();

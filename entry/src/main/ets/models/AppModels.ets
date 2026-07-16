@@ -8,6 +8,7 @@ export type AttendanceRecordType = 'checkIn' | 'checkOut';
 export type AttendanceRecordStatus = 'normal' | 'late' | 'earlyLeave' | 'offsite';
 export type MailFolder = 'inbox' | 'sent' | 'draft' | 'trash';
 export type MailImportance = 'normal' | 'important' | 'urgent';
+export type EmploymentStatus = 'active' | 'inactive';
 
 export interface User {
   id: string;
@@ -21,6 +22,43 @@ export interface User {
   favoriteKnowledgeIds: string[];
   recentKnowledgeIds: string[];
   todoCount: number;
+  departmentId: string;
+  managerId: string;
+  jobTitle: string;
+  employmentStatus: EmploymentStatus;
+}
+
+export interface Department {
+  id: string;
+  name: string;
+  parentId: string;
+  leaderId: string;
+  sortOrder: number;
+  status: EmploymentStatus;
+}
+
+export interface EmployeeDirectoryItem {
+  id: string;
+  name: string;
+  account: string;
+  departmentId: string;
+  departmentName: string;
+  jobTitle: string;
+  managerId: string;
+  managerName: string;
+  employmentStatus: EmploymentStatus;
+}
+
+export interface OrganizationProfile {
+  employee: EmployeeDirectoryItem;
+  manager: EmployeeDirectoryItem | null;
+  directReports: EmployeeDirectoryItem[];
+  departmentMembers: EmployeeDirectoryItem[];
+}
+
+export interface DepartmentTreeItem extends Department {
+  leaderName: string;
+  children: DepartmentTreeItem[];
 }
 
 export interface KnowledgeCategory {

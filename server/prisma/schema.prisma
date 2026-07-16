@@ -67,6 +67,11 @@ enum MailImportance {
   urgent
 }
 
+enum EmploymentStatus {
+  active
+  inactive
+}
+
 model User {
   id                   String             @id
   name                 String
@@ -79,9 +84,28 @@ model User {
   favoriteKnowledgeIds String
   recentKnowledgeIds   String
   todoCount            Int                @default(0)
+  departmentId         String?
+  managerId            String?
+  jobTitle             String             @default("")
+  employmentStatus     EmploymentStatus  @default(active)
+  departmentEntity     Department?       @relation("UserDepartment", fields: [departmentId], references: [id])
+  manager              User?              @relation("UserManager", fields: [managerId], references: [id])
+  directReports        User[]             @relation("UserManager")
   workflowInstances    WorkflowInstance[] @relation("ApplicantWorkflows")
   notifications        Notification[]
   attendanceRecords    AttendanceRecord[]
+}
+
+model Department {
+  id        String       @id
+  name      String
+  parentId  String?
+  leaderId  String?
+  sortOrder Int          @default(0)
+  status    String       @default("active")
+  parent    Department?  @relation("DepartmentTree", fields: [parentId], references: [id])
+  children  Department[] @relation("DepartmentTree")
+  users     User[]       @relation("UserDepartment")
 }
 
 model KnowledgeCategory {
