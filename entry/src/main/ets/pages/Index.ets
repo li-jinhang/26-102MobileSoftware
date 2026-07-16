@@ -264,7 +264,7 @@ struct Index {
     Stack() {
       Column({ space: 18 }) {
         Column({ space: 8 }) {
-          Text('智协库')
+          Text('白泽')
             .fontSize(34)
             .fontWeight(FontWeight.Bold)
             .fontColor('#1F2A44')
