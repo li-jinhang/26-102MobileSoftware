@@ -199,12 +199,13 @@ struct Index {
   }
   @State selectedTemplateId: string = 'wf1';
   @State workflowTitleInput: string = '';
-  @State workflowExtraInput: string = '年假';
-  @State workflowDateInput: string = '2026-07-18 09:00-18:00';
+  @State workflowExtraInput: string = '';
+  @State workflowDateInput: string = '';
+  @State workflowEndDateInput: string = '';
   @State workflowAmountInput: string = '';
   @State workflowReasonInput: string = '';
   @State workflowAttachmentInput: string = '';
-  @State approvalComment: string = '材料齐全，建议通过。';
+  @State approvalComment: string = '';
   @State selectedWorkflowId: string = '';
 
   build() {
@@ -955,6 +956,99 @@ struct Index {
     .backgroundColor('#660B1220')
   }
 
+  private padDateTimePart(value: number): string {
+    return value < 10 ? `0${value}` : `${value}`;
+  }
+
+  private parseWorkflowDateTime(value: string): Date {
+    const parsed: Date = new Date(value.trim().replace(' ', 'T'));
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
+
+  private workflowDateTimeMillis(value: string): number {
+    if (value.trim().length === 0) {
+      return -1;
+    }
+    const parsed: Date = new Date(value.trim().replace(' ', 'T'));
+    return Number.isNaN(parsed.getTime()) ? -1 : parsed.getTime();
+  }
+
+  private formatWorkflowDateTime(value: Date): string {
+    return `${value.getFullYear()}-${this.padDateTimePart(value.getMonth() + 1)}-${this.padDateTimePart(value.getDate())} ` +
+      `${this.padDateTimePart(value.getHours())}:${this.padDateTimePart(value.getMinutes())}`;
+  }
+
+  private selectWorkflowDateTime(isEnd: boolean): void {
+    if (isEnd && this.workflowDateInput.length === 0) {
+      this.showMessage('请先选择开始时间。');
+      return;
+    }
+    const currentValue: string = isEnd ? this.workflowEndDateInput : this.workflowDateInput;
+    const selected: Date = this.parseWorkflowDateTime(currentValue);
+    this.getUIContext().showDatePickerDialog({
+      selected,
+      onAccept: (dateResult: DatePickerResult) => {
+        const selectedDate: Date = new Date(selected.getTime());
+        const year: number = dateResult.year === undefined ? selected.getFullYear() : dateResult.year;
+        const month: number = dateResult.month === undefined ? selected.getMonth() : dateResult.month;
+        const day: number = dateResult.day === undefined ? selected.getDate() : dateResult.day;
+        selectedDate.setFullYear(year, month, day);
+        this.getUIContext().showTimePickerDialog({
+          selected: selectedDate,
+          useMilitaryTime: true,
+          onAccept: (timeResult: TimePickerResult) => {
+            selectedDate.setHours(timeResult.hour, timeResult.minute, 0, 0);
+            const formatted: string = this.formatWorkflowDateTime(selectedDate);
+            if (isEnd) {
+              const startMillis: number = this.workflowDateTimeMillis(this.workflowDateInput);
+              if (startMillis >= 0 && selectedDate.getTime() <= startMillis) {
+                this.showMessage('结束时间必须晚于开始时间。');
+                return;
+              }
+              this.workflowEndDateInput = formatted;
+              return;
+            }
+            this.workflowDateInput = formatted;
+            const endMillis: number = this.workflowDateTimeMillis(this.workflowEndDateInput);
+            if (endMillis >= 0 && endMillis <= selectedDate.getTime()) {
+              this.workflowEndDateInput = '';
+            }
+          }
+        });
+      }
+    });
+  }
+
+  @Builder
+  private WorkflowDateTimeSelector(label: string, value: string, isEnd: boolean) {
+    Column({ space: 6 }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor('#667085')
+        .width('100%')
+      Row() {
+        Text(value.length > 0 ? value : '请选择日期和时间')
+          .fontSize(14)
+          .fontColor(value.length > 0 ? '#1F2A44' : '#98A2B3')
+          .maxLines(1)
+          .layoutWeight(1)
+        Text('›')
+          .fontSize(22)
+          .fontColor('#667085')
+      }
+      .width('100%')
+      .height(46)
+      .padding({ left: 14, right: 14 })
+      .backgroundColor('#F8FAFC')
+      .borderRadius(14)
+      .onClick(() => {
+        this.selectWorkflowDateTime(isEnd);
+      })
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
   @Builder
   private WorkflowComposerFormFields() {
     Column({ space: 12 }) {
@@ -977,14 +1071,8 @@ struct Index {
             this.workflowExtraInput = value;
           })
 
-        TextInput({ placeholder: '请假时间，例如：7 月 18 日 09:00-18:00', text: this.workflowDateInput })
-          .height(46)
-          .borderRadius(14)
-          .backgroundColor('#F8FAFC')
-          .padding({ left: 14, right: 14 })
-          .onChange((value: string) => {
-            this.workflowDateInput = value;
-          })
+        this.WorkflowDateTimeSelector('开始时间', this.workflowDateInput, false)
+        this.WorkflowDateTimeSelector('结束时间', this.workflowEndDateInput, true)
       } else if (this.selectedTemplateId === 'wf2') {
         TextInput({ placeholder: '费用类型，例如：差旅 / 招待 / 打车', text: this.workflowExtraInput })
           .height(46)
@@ -1385,6 +1473,7 @@ struct Index {
     this.workflowTitleInput = state.workflowTitleInput;
     this.workflowExtraInput = state.workflowExtraInput;
     this.workflowDateInput = state.workflowDateInput;
+    this.workflowEndDateInput = state.workflowEndDateInput;
     this.workflowAmountInput = state.workflowAmountInput;
     this.workflowReasonInput = state.workflowReasonInput;
     this.workflowAttachmentInput = state.workflowAttachmentInput;
@@ -1409,6 +1498,20 @@ struct Index {
     }
 
     try {
+      let dateInput: string = this.workflowDateInput;
+      if (this.selectedTemplateId === 'wf1') {
+        if (this.workflowDateInput.length === 0 || this.workflowEndDateInput.length === 0) {
+          this.showMessage('请选择请假开始时间和结束时间。');
+          return;
+        }
+        const startMillis: number = this.workflowDateTimeMillis(this.workflowDateInput);
+        const endMillis: number = this.workflowDateTimeMillis(this.workflowEndDateInput);
+        if (startMillis < 0 || endMillis <= startMillis) {
+          this.showMessage('结束时间必须晚于开始时间。');
+          return;
+        }
+        dateInput = `${this.workflowDateInput} 至 ${this.workflowEndDateInput}`;
+      }
       const result = await createWorkflowUseCase({
         template: this.getSelectedTemplate(),
         user: this.getCurrentUser(),
@@ -1416,7 +1519,7 @@ struct Index {
         notifications: this.notifications,
         titleInput: this.workflowTitleInput,
         extraInput: this.workflowExtraInput,
-        dateInput: this.workflowDateInput,
+        dateInput,
         amountInput: this.workflowAmountInput,
         reasonInput: this.workflowReasonInput,
         attachmentInput: this.workflowAttachmentInput

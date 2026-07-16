@@ -73,25 +73,32 @@ export default function abilityTest() {
 
     it('prefillWorkflowFromAssistantDraft', 0, () => {
       const draft: AssistantFormDraft = {
-        title: '华南差旅报销',
-        extra: '差旅',
-        date: '',
-        amount: '3680',
-        reason: '客户现场交通费用',
+        title: '病假申请',
+        extra: '病假',
+        date: '2026-07-18 09:00-18:00',
+        amount: '',
+        reason: '身体不适，需要就医',
         attachment: ''
       };
-      const state: WorkflowFormState = buildStartWorkflowStateUseCase('wf2', draft);
-      expect(state.workflowTitleInput).assertEqual('华南差旅报销');
-      expect(state.workflowAmountInput).assertEqual('3680');
-      expect(state.workflowReasonInput).assertEqual('客户现场交通费用');
-      expect(state.workflowDateInput).assertEqual('');
+      const state: WorkflowFormState = buildStartWorkflowStateUseCase('wf1', draft);
+      expect(state.workflowTitleInput).assertEqual('病假申请');
+      expect(state.workflowExtraInput).assertEqual('病假');
+      expect(state.workflowReasonInput).assertEqual('身体不适，需要就医');
+      expect(state.workflowDateInput).assertEqual('2026-07-18 09:00');
+      expect(state.workflowEndDateInput).assertEqual('2026-07-18 18:00');
       expect(state.workflowAttachmentInput).assertEqual('');
     })
 
-    it('openWorkflowKeepsCurrentDefaults', 0, () => {
+    it('openWorkflowStartsEmpty', 0, () => {
       const state: WorkflowFormState = buildOpenWorkflowComposerStateUseCase('wf2');
-      expect(state.workflowExtraInput.length > 0).assertTrue();
-      expect(state.workflowAmountInput.length > 0).assertTrue();
+      expect(state.workflowTitleInput).assertEqual('');
+      expect(state.workflowExtraInput).assertEqual('');
+      expect(state.workflowDateInput).assertEqual('');
+      expect(state.workflowEndDateInput).assertEqual('');
+      expect(state.workflowAmountInput).assertEqual('');
+      expect(state.workflowReasonInput).assertEqual('');
+      expect(state.workflowAttachmentInput).assertEqual('');
+      expect(state.approvalComment).assertEqual('');
     })
   })
 }
