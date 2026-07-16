@@ -67,6 +67,7 @@ import {
 } from '../common/services/ExperienceStateService';
 import { selectAssistantImage } from '../common/services/AssistantMediaService';
 import { SectionBlock } from '../common/components/SectionBlock';
+import { AppTheme } from '../common/theme/AppTheme';
 import { AttendancePage } from '../features/attendance/AttendancePage';
 import { AssistantPage } from '../features/assistant/AssistantPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
@@ -106,7 +107,7 @@ import {
 struct Index {
   @StorageLink('launchPage') launchPage: string = '';
   private readonly tabLabels: string[] = ['工作台', '知识库', '流程', '我的'];
-  private readonly tabMarks: string[] = ['工', '知', '流', '我'];
+  private readonly tabMarks: string[] = ['⌂', '▤', '✓', '♙'];
 
   @State loginAccount: string = 'employee01';
   @State loginPassword: string = '123456';
@@ -222,7 +223,7 @@ struct Index {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F3F6FB')
+    .backgroundColor(AppTheme.pageBackground())
   }
 
   @Builder
@@ -230,22 +231,23 @@ struct Index {
     Column({ space: 18 }) {
       Column({ space: 8 }) {
         Text('智协库')
-          .fontSize(34)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1F2A44')
+          .fontSize(30)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppTheme.textPrimary())
 
         Text('面向公司内部的知识库与流程协作鸿蒙应用基础框架')
           .fontSize(14)
-          .fontColor('#667085')
+          .fontColor(AppTheme.textSecondary())
           .textAlign(TextAlign.Center)
       }
       .margin({ top: 60, bottom: 18 })
 
       Column({ space: 14 }) {
         TextInput({ placeholder: '请输入账号', text: this.loginAccount })
-          .height(52)
-          .borderRadius(16)
-          .backgroundColor('#FFFFFF')
+          .height(48)
+          .borderRadius(AppTheme.radiusMedium())
+          .backgroundColor(AppTheme.surface())
+          .border({ width: 1, color: AppTheme.border() })
           .padding({ left: 16, right: 16 })
           .onChange((value: string) => {
             this.loginAccount = value;
@@ -253,9 +255,10 @@ struct Index {
 
         TextInput({ placeholder: '请输入密码', text: this.loginPassword })
           .type(InputType.Password)
-          .height(52)
-          .borderRadius(16)
-          .backgroundColor('#FFFFFF')
+          .height(48)
+          .borderRadius(AppTheme.radiusMedium())
+          .backgroundColor(AppTheme.surface())
+          .border({ width: 1, color: AppTheme.border() })
           .padding({ left: 16, right: 16 })
           .onChange((value: string) => {
             this.loginPassword = value;
@@ -263,11 +266,11 @@ struct Index {
 
         Button(this.isLoading ? '正在连接后端...' : '登录并进入工作台')
           .width('100%')
-          .height(50)
+          .height(48)
           .fontSize(16)
           .fontWeight(FontWeight.Medium)
-          .backgroundColor('#246BFD')
-          .borderRadius(16)
+          .backgroundColor(AppTheme.primary())
+          .borderRadius(AppTheme.radiusMedium())
           .enabled(!this.isLoading)
           .onClick(() => {
             void this.handleLogin();
@@ -275,8 +278,9 @@ struct Index {
       }
       .width('100%')
       .padding(20)
-      .backgroundColor('#FDFEFF')
-      .borderRadius(24)
+      .backgroundColor(AppTheme.surface())
+      .borderRadius(AppTheme.radiusMedium())
+      .border({ width: 1, color: AppTheme.divider() })
 
       Column({ space: 10 }) {
         Text('课程演示账号')
@@ -326,8 +330,8 @@ struct Index {
         .width(56)
         .height(34)
         .backgroundColor('#E9F0FF')
-        .fontColor('#246BFD')
-        .borderRadius(12)
+        .fontColor(AppTheme.primary())
+        .borderRadius(AppTheme.radiusSmall())
         .onClick(() => {
           this.loginAccount = account;
           this.loginPassword = '123456';
@@ -335,8 +339,9 @@ struct Index {
     }
     .width('100%')
     .padding(16)
-    .backgroundColor('#FFFFFF')
-    .borderRadius(18)
+    .backgroundColor(AppTheme.surface())
+    .borderRadius(AppTheme.radiusMedium())
+    .border({ width: 1, color: AppTheme.divider() })
     .alignItems(VerticalAlign.Center)
   }
 
@@ -607,36 +612,36 @@ struct Index {
   @Builder
   private PageHeader() {
     Row() {
-      Column({ space: 4 }) {
+      Column({ space: 2 }) {
         Text(this.tabLabels[this.activeTab])
-          .fontSize(24)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1F2A44')
+          .fontSize(22)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppTheme.textPrimary())
 
         Text(`${this.getCurrentUser().name} · ${this.getCurrentUser().roleLabel}`)
-          .fontSize(13)
-          .fontColor('#667085')
+          .fontSize(12)
+          .fontColor(AppTheme.textSecondary())
       }
       .alignItems(HorizontalAlign.Start)
 
       Blank()
 
       Text(this.getCurrentUser().department)
-        .fontSize(12)
-        .fontColor(this.getRoleColor(this.getCurrentUser().role))
-        .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-        .backgroundColor('#FFFFFF')
-        .borderRadius(14)
+        .fontSize(11)
+        .fontColor(AppTheme.primary())
+        .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+        .backgroundColor(AppTheme.primarySoft())
+        .borderRadius(AppTheme.radiusSmall())
     }
     .width('100%')
-    .padding({ left: 16, right: 16, top: 18, bottom: 14 })
-    .backgroundColor('#F3F6FB')
+    .padding({ left: 16, right: 16, top: 12, bottom: 10 })
+    .backgroundColor(AppTheme.pageBackground())
   }
 
   @Builder
   private WorkflowTab() {
-    SectionBlock({ title: '流程中心', subtitle: '' }) {
-      Column({ space: 12 }) {
+    SectionBlock({ title: '流程中心', subtitle: '发起申请或跟进当前流程' }) {
+      Column() {
         this.WorkflowModuleCard(
           '申请流程',
           '',
@@ -656,44 +661,41 @@ struct Index {
 
   @Builder
   private WorkflowModuleCard(title: string, description: string, statText: string, moduleKey: string) {
-    Column({ space: 10 }) {
-      Text(title)
-        .fontSize(18)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.isWorkflowModuleActive(moduleKey) ? '#175CD3' : '#1F2A44')
-        .width('100%')
+    Row({ space: 12 }) {
+      Text(moduleKey === 'apply' ? '＋' : '✓')
+        .fontSize(20)
+        .fontColor(AppTheme.primary())
+        .width(40)
+        .height(40)
+        .textAlign(TextAlign.Center)
+        .padding({ top: 7 })
+        .backgroundColor(AppTheme.primarySoft())
+        .borderRadius(AppTheme.radiusMedium())
 
-      if (description.length > 0) {
-        Text(description)
+      Column({ space: 4 }) {
+        Text(title)
+          .fontSize(16)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppTheme.textPrimary())
+          .width('100%')
+
+        Text(description.length > 0 ? description : statText)
           .fontSize(12)
-          .fontColor('#667085')
-          .lineHeight(18)
+          .fontColor(AppTheme.textSecondary())
+          .maxLines(1)
           .width('100%')
       }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
 
-      Blank()
-
-      Text(statText)
-        .fontSize(12)
-        .fontColor(this.isWorkflowModuleActive(moduleKey) ? '#175CD3' : '#344054')
-        .width('100%')
-
-      Button(this.isWorkflowModuleActive(moduleKey) ? '当前模块' : '点击进入')
-        .width('100%')
-        .height(38)
-        .backgroundColor(this.isWorkflowModuleActive(moduleKey) ? '#DCE7FF' : '#246BFD')
-        .fontColor(this.isWorkflowModuleActive(moduleKey) ? '#175CD3' : '#FFFFFF')
-        .borderRadius(12)
-        .onClick(() => {
-          this.openWorkflowModule(moduleKey);
-        })
+      Text('›')
+        .fontSize(22)
+        .fontColor(AppTheme.textTertiary())
     }
     .width('100%')
-    .height(156)
-    .alignItems(HorizontalAlign.Start)
-    .padding(16)
-    .backgroundColor(this.isWorkflowModuleActive(moduleKey) ? '#EEF4FF' : '#F8FAFF')
-    .borderRadius(20)
+    .height(68)
+    .padding({ left: 4, right: 4 })
+    .border({ width: { bottom: 1 }, color: AppTheme.divider() })
     .onClick(() => {
       this.openWorkflowModule(moduleKey);
     })
@@ -748,7 +750,7 @@ struct Index {
       .height('82%')
       .padding(18)
       .backgroundColor('#FFFFFF')
-      .borderRadius(24)
+      .borderRadius(12)
     }
     .width('100%')
     .height('100%')
@@ -795,17 +797,18 @@ struct Index {
           Button('填写申请')
             .width('100%')
             .height(40)
-            .backgroundColor('#246BFD')
+            .backgroundColor(AppTheme.primary())
             .fontColor('#FFFFFF')
-            .borderRadius(12)
+            .borderRadius(AppTheme.radiusMedium())
             .onClick(() => {
               this.openWorkflowComposer(item.id);
             })
         }
         .width('100%')
         .padding(14)
-        .backgroundColor('#F8FAFF')
-        .borderRadius(18)
+        .backgroundColor(AppTheme.surfaceMuted())
+        .borderRadius(AppTheme.radiusMedium())
+        .border({ width: 1, color: AppTheme.divider() })
       }, (item: WorkflowTemplate) => item.id)
     }
     .width('100%')
@@ -824,7 +827,7 @@ struct Index {
 
           TextInput({ placeholder: '请输入审批意见', text: this.approvalComment })
             .height(46)
-            .borderRadius(14)
+            .borderRadius(AppTheme.radiusMedium())
             .backgroundColor('#F8FAFC')
             .padding({ left: 14, right: 14 })
             .onChange((value: string) => {
@@ -833,8 +836,8 @@ struct Index {
         }
         .width('100%')
         .padding(14)
-        .backgroundColor('#F8FAFF')
-        .borderRadius(18)
+        .backgroundColor(AppTheme.surfaceMuted())
+        .borderRadius(AppTheme.radiusMedium())
       }
 
       if (this.getRoleWorkflowItems().length === 0) {
@@ -883,7 +886,8 @@ struct Index {
     .width('100%')
     .padding(14)
     .backgroundColor('#FFFFFF')
-    .borderRadius(18)
+    .borderRadius(AppTheme.radiusMedium())
+    .border({ width: 1, color: AppTheme.divider() })
   }
 
   @Builder
@@ -959,7 +963,7 @@ struct Index {
       .height('82%')
       .padding(18)
       .backgroundColor('#FFFFFF')
-      .borderRadius(24)
+      .borderRadius(12)
     }
     .width('100%')
     .height('100%')
@@ -1180,33 +1184,34 @@ struct Index {
   private BottomNav() {
     Row() {
       ForEach(this.tabLabels, (item: string, index: number) => {
-        Column({ space: 6 }) {
+        Column({ space: 3 }) {
           Text(this.tabMarks[index])
-            .fontSize(14)
+            .fontSize(20)
             .fontWeight(FontWeight.Medium)
-            .fontColor(this.activeTab === index ? '#FFFFFF' : '#667085')
-            .width(28)
+            .fontColor(this.activeTab === index ? AppTheme.primary() : AppTheme.textSecondary())
+            .width(36)
             .height(28)
             .textAlign(TextAlign.Center)
-            .padding({ top: 5 })
-            .backgroundColor(this.activeTab === index ? '#246BFD' : '#E5E7EB')
-            .borderRadius(14)
 
           Text(item)
             .fontSize(11)
-            .fontColor(this.activeTab === index ? '#246BFD' : '#667085')
+            .fontWeight(this.activeTab === index ? FontWeight.Medium : FontWeight.Regular)
+            .fontColor(this.activeTab === index ? AppTheme.primary() : AppTheme.textSecondary())
         }
         .layoutWeight(1)
-        .padding({ top: 10, bottom: 10 })
+        .height(AppTheme.navHeight())
+        .padding({ top: 7, bottom: 5 })
+        .backgroundColor(this.activeTab === index ? AppTheme.surfaceActive() : AppTheme.surface())
+        .borderRadius(AppTheme.radiusSmall())
         .onClick(() => {
           this.activeTab = index;
         })
       }, (item: string) => item)
     }
     .width('100%')
-    .padding({ left: 10, right: 10, bottom: 8 })
-    .backgroundColor('#FFFFFF')
-    .borderRadius({ topLeft: 24, topRight: 24 })
+    .padding({ left: 8, right: 8, top: 4, bottom: 6 })
+    .backgroundColor(AppTheme.surface())
+    .border({ width: { top: 1 }, color: AppTheme.divider() })
   }
 
   @Builder

@@ -1,5 +1,7 @@
 import { EmptyState } from '../../common/components/EmptyState';
+import { AppTopBar } from '../../common/components/AppTopBar';
 import { SectionBlock } from '../../common/components/SectionBlock';
+import { AppTheme } from '../../common/theme/AppTheme';
 import { Typography } from '../../common/theme/Typography';
 import { EmployeeDirectoryItem, OrganizationProfile } from '../../models/AppModels';
 
@@ -44,28 +46,11 @@ export struct OrganizationPage {
 
   build() {
     Column({ space: 14 }) {
-      Row({ space: 12 }) {
-        Text('‹')
-          .fontSize(Typography.iconBackSize())
-          .fontColor('#1F2A44')
-          .width(36)
-          .height(36)
-          .textAlign(TextAlign.Center)
-          .onClick(() => {
-            this.onBack();
-          })
-        Column({ space: 3 }) {
-          Text('我的组织')
-            .fontSize(Typography.pageTitleSize())
-            .fontWeight(Typography.titleWeight())
-            .fontColor('#1F2A44')
-          Text('查看直属关系与部门成员')
-            .fontSize(Typography.captionSize())
-            .fontColor('#667085')
-        }
-        .alignItems(HorizontalAlign.Start)
-      }
-      .width('100%')
+      AppTopBar({
+        title: '我的组织',
+        subtitle: '查看直属关系与部门成员',
+        onBack: () => this.onBack()
+      })
 
       SectionBlock({ title: '汇报关系' }) {
         Column({ space: 4 }) {
@@ -104,6 +89,6 @@ export struct OrganizationPage {
     .width('100%')
     .height('100%')
     .padding(16)
-    .backgroundColor('#F3F6FB')
+    .backgroundColor(AppTheme.pageBackground())
   }
 }

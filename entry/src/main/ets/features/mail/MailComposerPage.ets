@@ -1,3 +1,6 @@
+import { AppTopBar } from '../../common/components/AppTopBar';
+import { AppTheme } from '../../common/theme/AppTheme';
+
 @Component
 export struct MailComposerPage {
   onBack: () => void = () => {
@@ -29,22 +32,7 @@ export struct MailComposerPage {
 
   build() {
     Column({ space: 14 }) {
-      Row({ space: 12 }) {
-        Text('‹')
-          .fontSize(30)
-          .fontColor('#1F2A44')
-          .width(36)
-          .height(36)
-          .textAlign(TextAlign.Center)
-          .onClick(() => {
-            this.onBack();
-          })
-        Text('写邮件')
-          .fontSize(20)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1F2A44')
-      }
-      .width('100%')
+      AppTopBar({ title: '写邮件', onBack: () => this.onBack() })
 
       Column({ space: 12 }) {
         TextInput({ placeholder: '收件人 ID，多个用英文逗号分隔', text: this.receiverInput })
@@ -114,6 +102,6 @@ export struct MailComposerPage {
     .width('100%')
     .height('100%')
     .padding(16)
-    .backgroundColor('#F3F6FB')
+    .backgroundColor(AppTheme.pageBackground())
   }
 }

@@ -2,6 +2,7 @@ import { EmptyState } from '../../common/components/EmptyState';
 import { KnowledgeCard } from '../../common/components/KnowledgeCard';
 import { SectionBlock } from '../../common/components/SectionBlock';
 import { searchKnowledge } from '../../common/services/KnowledgeService';
+import { AppTheme } from '../../common/theme/AppTheme';
 import { KnowledgeArticle, KnowledgeCategory } from '../../models/AppModels';
 
 @Component
@@ -28,18 +29,19 @@ export struct KnowledgePage {
   }
 
   build() {
-    Column({ space: 14 }) {
-      SectionBlock({ title: '知识分类', subtitle: '按分类浏览已发布的公司制度与操作指南。' }) {
-        Column({ space: 12 }) {
+    Column({ space: 12 }) {
+      SectionBlock({ title: '知识分类', subtitle: '按分类浏览公司制度与操作指南' }) {
+        Column({ space: 8 }) {
           Scroll() {
             Row({ space: 8 }) {
               ForEach(this.categories, (item: KnowledgeCategory) => {
                 Text(item.name)
                   .fontSize(12)
-                  .fontColor(this.selectedCategoryId === item.id ? '#FFFFFF' : '#475467')
-                  .padding({ left: 14, right: 14, top: 9, bottom: 9 })
-                  .backgroundColor(this.selectedCategoryId === item.id ? '#246BFD' : '#F2F4F7')
-                  .borderRadius(12)
+                  .fontColor(this.selectedCategoryId === item.id ? '#FFFFFF' : AppTheme.textSecondary())
+                  .height(34)
+                  .padding({ left: 14, right: 14, top: 7 })
+                  .backgroundColor(this.selectedCategoryId === item.id ? AppTheme.primary() : AppTheme.surfaceMuted())
+                  .borderRadius(AppTheme.radiusSmall())
                   .onClick(() => {
                     this.selectedCategoryId = item.id;
                   })
@@ -52,7 +54,7 @@ export struct KnowledgePage {
         .width('100%')
       }
 
-      SectionBlock({ title: '知识列表', subtitle: `共找到 ${this.getResults().length} 条内容` }) {
+      SectionBlock({ title: '全部知识', subtitle: `${this.getResults().length} 条内容` }) {
         if (this.getResults().length === 0) {
           EmptyState({
             title: '没有匹配的知识',
@@ -63,7 +65,7 @@ export struct KnowledgePage {
             }
           })
         } else {
-          Column({ space: 10 }) {
+          Column() {
             ForEach(this.getResults(), (item: KnowledgeArticle) => {
               KnowledgeCard({
                 article: item,

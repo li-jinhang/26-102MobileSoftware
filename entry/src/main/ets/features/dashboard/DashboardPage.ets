@@ -1,60 +1,31 @@
-import { KnowledgeCard } from '../../common/components/KnowledgeCard';
 import { EdgeLightPanel } from '../../common/components/EdgeLightPanel';
+import { KnowledgeCard } from '../../common/components/KnowledgeCard';
 import { SectionBlock } from '../../common/components/SectionBlock';
-import {
-  KnowledgeArticle,
-  NotificationItem,
-  User,
-  WorkflowTemplate
-} from '../../models/AppModels';
+import { AppTheme } from '../../common/theme/AppTheme';
+import { Typography } from '../../common/theme/Typography';
+import { KnowledgeArticle, NotificationItem, User, WorkflowTemplate } from '../../models/AppModels';
 
 @Component
 export struct DashboardPage {
-  @Require
-  @Prop
-  user: User;
-  @Require
-  @Prop
-  articles: KnowledgeArticle[];
-  @Require
-  @Prop
-  recentArticles: KnowledgeArticle[];
-  @Require
-  @Prop
-  favoriteArticles: KnowledgeArticle[];
-  @Require
-  @Prop
-  favoriteKnowledgeIds: string[];
-  @Require
-  @Prop
-  notifications: NotificationItem[];
-  @Require
-  @Prop
-  templates: WorkflowTemplate[];
-  @Prop
-  todoCount: number = 0;
-  @Prop
-  attendanceStatus: string = '未加载';
-  @Prop
-  mailUnreadCount: number = 0;
-  onOpenArticle: (articleId: string) => void = () => {
-  };
-  onOpenAssistant: () => void = () => {
-  };
-  onOpenMessages: () => void = () => {
-  };
-  onOpenKnowledge: () => void = () => {
-  };
-  onOpenTodo: () => void = () => {
-  };
-  onOpenAttendance: () => void = () => {
-  };
-  onOpenMail: () => void = () => {
-  };
-  onOpenOrganization: () => void = () => {
-  };
-  onStartWorkflow: (templateId: string) => void = () => {
-  };
+  @Require @Prop user: User;
+  @Require @Prop articles: KnowledgeArticle[];
+  @Require @Prop recentArticles: KnowledgeArticle[];
+  @Require @Prop favoriteArticles: KnowledgeArticle[];
+  @Require @Prop favoriteKnowledgeIds: string[];
+  @Require @Prop notifications: NotificationItem[];
+  @Require @Prop templates: WorkflowTemplate[];
+  @Prop todoCount: number = 0;
+  @Prop attendanceStatus: string = '未加载';
+  @Prop mailUnreadCount: number = 0;
+  onOpenArticle: (articleId: string) => void = () => {};
+  onOpenAssistant: () => void = () => {};
+  onOpenMessages: () => void = () => {};
+  onOpenKnowledge: () => void = () => {};
+  onOpenTodo: () => void = () => {};
+  onOpenAttendance: () => void = () => {};
+  onOpenMail: () => void = () => {};
+  onOpenOrganization: () => void = () => {};
+  onStartWorkflow: (templateId: string) => void = () => {};
 
   private getUnreadCount(): number {
     return this.notifications.filter((item: NotificationItem) => !item.read).length;
@@ -62,184 +33,175 @@ export struct DashboardPage {
 
   @Builder
   private StatItem(label: string, value: string, color: string, onClick: () => void) {
-    Column({ space: 5 }) {
+    Column({ space: 3 }) {
       Text(value)
-        .fontSize(23)
+        .fontSize(22)
         .fontWeight(FontWeight.Bold)
         .fontColor(color)
+        .maxLines(1)
       Text(label)
-        .fontSize(11)
-        .fontColor('#667085')
+        .fontSize(Typography.captionSize())
+        .fontColor(AppTheme.textSecondary())
+        .maxLines(1)
     }
     .layoutWeight(1)
-    .height(78)
+    .height(68)
     .justifyContent(FlexAlign.Center)
-    .backgroundColor('#F8FAFC')
-    .borderRadius(12)
+    .onClick(() => {
+      onClick();
+    })
+  }
+
+  @Builder
+  private QuickEntry(mark: string, label: string, detail: string, onClick: () => void) {
+    Column({ space: 7 }) {
+      Text(mark)
+        .fontSize(20)
+        .fontColor(AppTheme.primary())
+        .width(40)
+        .height(40)
+        .textAlign(TextAlign.Center)
+        .padding({ top: 7 })
+        .backgroundColor(AppTheme.primarySoft())
+        .borderRadius(AppTheme.radiusMedium())
+      Text(label)
+        .fontSize(Typography.bodySize())
+        .fontWeight(FontWeight.Medium)
+        .fontColor(AppTheme.textPrimary())
+        .maxLines(1)
+      Text(detail)
+        .fontSize(Typography.microSize())
+        .fontColor(AppTheme.textTertiary())
+        .maxLines(1)
+    }
+    .layoutWeight(1)
+    .constraintSize({ minWidth: 0, minHeight: 94 })
     .onClick(() => {
       onClick();
     })
   }
 
   build() {
-    Column({ space: 14 }) {
+    Column({ space: 12 }) {
       EdgeLightPanel({
-        radiusValue: 16,
+        radiusValue: AppTheme.radiusMedium(),
         todoCount: this.todoCount,
         unreadCount: this.getUnreadCount()
       }) {
-        SectionBlock({ title: `你好，${this.user.name}`, subtitle: `${this.user.department} · ${this.user.roleLabel}` }) {
-          Row({ space: 8 }) {
-            this.StatItem('待处理', `${this.todoCount}`, '#246BFD', () => {
-              this.onOpenTodo();
-            })
-            this.StatItem('知识', `${this.articles.length}`, '#027A48', () => {
-              this.onOpenKnowledge();
-            })
-            this.StatItem('未读消息', `${this.getUnreadCount()}`, '#B54708', () => {
-              this.onOpenMessages();
-            })
+        Column({ space: 10 }) {
+          Row() {
+            Column({ space: 3 }) {
+              Text(`你好，${this.user.name}`)
+                .fontSize(20)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(AppTheme.textPrimary())
+              Text(`${this.user.department} · ${this.user.roleLabel}`)
+                .fontSize(Typography.metaSize())
+                .fontColor(AppTheme.textSecondary())
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+
+            Text('今日工作')
+              .fontSize(Typography.captionSize())
+              .fontColor(AppTheme.primary())
+              .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+              .backgroundColor(AppTheme.primarySoft())
+              .borderRadius(AppTheme.radiusSmall())
+          }
+          .width('100%')
+
+          Row() {
+            this.StatItem('待处理', `${this.todoCount}`, AppTheme.primary(), () => this.onOpenTodo())
+            Divider().vertical(true).height(34).color(AppTheme.divider())
+            this.StatItem('知识', `${this.articles.length}`, AppTheme.success(), () => this.onOpenKnowledge())
+            Divider().vertical(true).height(34).color(AppTheme.divider())
+            this.StatItem('未读', `${this.getUnreadCount()}`, AppTheme.warning(), () => this.onOpenMessages())
+            Divider().vertical(true).height(34).color(AppTheme.divider())
+            this.StatItem('邮件', `${this.mailUnreadCount}`, AppTheme.primaryPressed(), () => this.onOpenMail())
           }
           .width('100%')
         }
-      }
-
-      SectionBlock({ title: '快捷流程', subtitle: '常用申请可在两步内进入填写。' }) {
-        Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
-          ForEach(this.templates, (item: WorkflowTemplate) => {
-            Column({ space: 6 }) {
-              Text(item.name)
-                .fontSize(15)
-                .fontWeight(FontWeight.Medium)
-                .fontColor('#1F2A44')
-                .width('100%')
-              Text(item.description)
-                .fontSize(11)
-                .fontColor('#667085')
-                .lineHeight(17)
-                .maxLines(2)
-                .width('100%')
-            }
-            .width('48%')
-            .constraintSize({ minHeight: 96 })
-            .padding(12)
-            .margin({ bottom: 10 })
-            .backgroundColor('#F8FAFC')
-            .borderRadius(12)
-            .onClick(() => {
-              this.onStartWorkflow(item.id);
-            })
-          }, (item: WorkflowTemplate) => item.id)
-        }
         .width('100%')
+        .padding(16)
       }
 
-      Column({ space: 10 }) {
+      Column({ space: 8 }) {
         Row() {
-          Column({ space: 4 }) {
+          Column({ space: 3 }) {
             Text('智能知识助手')
-              .fontSize(18)
-              .fontWeight(FontWeight.Bold)
+              .fontSize(Typography.sectionTitleSize())
+              .fontWeight(FontWeight.Medium)
               .fontColor('#FFFFFF')
-            Text('模拟 Agent / Skill：查制度并推荐流程')
-              .fontSize(12)
-              .fontColor('#DCE7FF')
+            Text('文字或图片提问，查知识并处理表单')
+              .fontSize(Typography.metaSize())
+              .fontColor('#D6E4FF')
           }
           .alignItems(HorizontalAlign.Start)
           .layoutWeight(1)
 
-          Text('›')
-            .fontSize(28)
-            .fontColor('#FFFFFF')
+          Text('✦')
+            .fontSize(23)
+            .fontColor('#78E6D0')
         }
         .width('100%')
       }
       .width('100%')
-      .padding(18)
-      .backgroundColor('#175CD3')
-      .borderRadius(16)
+      .padding({ left: 16, right: 16, top: 14, bottom: 14 })
+      .backgroundColor(AppTheme.primaryPressed())
+      .borderRadius(AppTheme.radiusMedium())
       .onClick(() => {
         this.onOpenAssistant();
       })
 
-      SectionBlock({ title: '办公入口', subtitle: '签到签退和内部邮件可以从这里进入。' }) {
-        Row({ space: 10 }) {
-          Column({ space: 6 }) {
-            Text('签到签退')
-              .fontSize(16)
-              .fontWeight(FontWeight.Medium)
-              .fontColor('#1F2A44')
-              .width('100%')
-            Text(this.attendanceStatus)
-              .fontSize(12)
-              .fontColor('#667085')
-              .lineHeight(18)
-              .width('100%')
+      SectionBlock({ title: '常用应用', subtitle: '快速进入日常协作工具' }) {
+        Column({ space: 12 }) {
+          Row({ space: 8 }) {
+            this.QuickEntry('✓', '签到签退', this.attendanceStatus, () => this.onOpenAttendance())
+            this.QuickEntry('✉', '内部邮件', `${this.mailUnreadCount} 封未读`, () => this.onOpenMail())
+            this.QuickEntry('⌘', '我的组织', this.user.department, () => this.onOpenOrganization())
+            this.QuickEntry('▤', '知识库', `${this.articles.length} 条`, () => this.onOpenKnowledge())
           }
-          .layoutWeight(1)
-          .padding(14)
-          .backgroundColor('#F8FAFC')
-          .borderRadius(12)
-          .onClick(() => {
-            this.onOpenAttendance();
-          })
+          .width('100%')
 
-          Column({ space: 6 }) {
-            Text('内部邮件')
-              .fontSize(16)
-              .fontWeight(FontWeight.Medium)
-              .fontColor('#1F2A44')
-              .width('100%')
-            Text(`${this.mailUnreadCount} 封未读，进入收件箱`)
-              .fontSize(12)
-              .fontColor('#667085')
-              .lineHeight(18)
-              .width('100%')
+          if (this.templates.length > 0) {
+            Divider().color(AppTheme.divider())
+            Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
+              ForEach(this.templates.slice(0, 4), (item: WorkflowTemplate) => {
+                Row({ space: 8 }) {
+                  Text('＋')
+                    .fontSize(16)
+                    .fontColor(AppTheme.primary())
+                  Text(item.name)
+                    .fontSize(Typography.metaSize())
+                    .fontColor(AppTheme.textPrimary())
+                    .maxLines(1)
+                }
+                .width('48%')
+                .height(40)
+                .padding({ left: 10, right: 10 })
+                .margin({ bottom: 8 })
+                .backgroundColor(AppTheme.surfaceMuted())
+                .borderRadius(AppTheme.radiusSmall())
+                .onClick(() => {
+                  this.onStartWorkflow(item.id);
+                })
+              }, (item: WorkflowTemplate) => item.id)
+            }
+            .width('100%')
           }
-          .layoutWeight(1)
-          .padding(14)
-          .backgroundColor('#F8FAFC')
-          .borderRadius(12)
-          .onClick(() => {
-            this.onOpenMail();
-          })
         }
         .width('100%')
-      }
-
-      SectionBlock({ title: '团队关系', subtitle: `${this.user.department} · ${this.user.jobTitle}` }) {
-        Row({ space: 10 }) {
-          Column({ space: 4 }) {
-            Text(this.user.managerId.length > 0 ? '已设置直属上级' : '暂未设置直属上级')
-              .fontSize(14)
-              .fontColor('#344054')
-            Text('查看我的组织与部门成员')
-              .fontSize(12)
-              .fontColor('#667085')
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
-          Text('›')
-            .fontSize(18)
-            .fontColor('#175CD3')
-        }
-        .width('100%')
-        .padding({ top: 6, bottom: 6 })
-        .onClick(() => {
-          this.onOpenOrganization();
-        })
       }
 
       if (this.recentArticles.length > 0) {
-        SectionBlock({ title: '最近知识', subtitle: '继续阅读最近查看的制度和指南。' }) {
-          Column({ space: 10 }) {
+        SectionBlock({ title: '最近知识', subtitle: '继续阅读最近查看的制度和指南' }) {
+          Column() {
             ForEach(this.recentArticles.slice(0, 3), (item: KnowledgeArticle) => {
               KnowledgeCard({
                 article: item,
                 favorite: this.favoriteKnowledgeIds.includes(item.id),
-                onOpen: (articleId: string) => {
-                  this.onOpenArticle(articleId);
-                }
+                onOpen: (articleId: string) => this.onOpenArticle(articleId)
               })
             }, (item: KnowledgeArticle) => item.id)
           }
@@ -248,15 +210,13 @@ export struct DashboardPage {
       }
 
       if (this.favoriteArticles.length > 0) {
-        SectionBlock({ title: '我的收藏', subtitle: '工作台直接进入常用知识。' }) {
-          Column({ space: 10 }) {
+        SectionBlock({ title: '我的收藏', subtitle: `${this.favoriteArticles.length} 条常用内容` }) {
+          Column() {
             ForEach(this.favoriteArticles.slice(0, 2), (item: KnowledgeArticle) => {
               KnowledgeCard({
                 article: item,
                 favorite: true,
-                onOpen: (articleId: string) => {
-                  this.onOpenArticle(articleId);
-                }
+                onOpen: (articleId: string) => this.onOpenArticle(articleId)
               })
             }, (item: KnowledgeArticle) => item.id)
           }
@@ -264,47 +224,36 @@ export struct DashboardPage {
         }
       }
 
-      SectionBlock({ title: '消息提醒', subtitle: `当前有 ${this.getUnreadCount()} 条未读消息` }) {
-        Column({ space: 10 }) {
-          ForEach(this.notifications.slice(0, 3), (item: NotificationItem) => {
-            Row({ space: 10 }) {
-              Column({ space: 4 }) {
-                Text(item.title)
-                  .fontSize(14)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor('#1F2A44')
-                  .width('100%')
-                Text(item.content)
-                  .fontSize(11)
-                  .fontColor('#667085')
-                  .maxLines(2)
-                  .width('100%')
+      if (this.notifications.length > 0) {
+        SectionBlock({ title: '消息动态', subtitle: `${this.getUnreadCount()} 条未读` }) {
+          Column() {
+            ForEach(this.notifications.slice(0, 3), (item: NotificationItem) => {
+              Row({ space: 10 }) {
+                Column({ space: 3 }) {
+                  Text(item.title)
+                    .fontSize(Typography.bodySize())
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(AppTheme.textPrimary())
+                    .maxLines(1)
+                  Text(item.content)
+                    .fontSize(Typography.captionSize())
+                    .fontColor(AppTheme.textSecondary())
+                    .maxLines(1)
+                }
+                .layoutWeight(1)
+                .alignItems(HorizontalAlign.Start)
+                if (!item.read) {
+                  Circle({ width: 7, height: 7 }).fill(AppTheme.danger())
+                }
               }
-              .layoutWeight(1)
-              .alignItems(HorizontalAlign.Start)
-
-              if (!item.read) {
-                Circle({ width: 7, height: 7 })
-                  .fill('#F04438')
-              }
-            }
-            .width('100%')
-            .padding(12)
-            .backgroundColor(item.read ? '#F8FAFC' : '#EEF4FF')
-            .borderRadius(12)
-          }, (item: NotificationItem) => item.id)
-
-          Button('查看全部消息')
-            .width('100%')
-            .height(40)
-            .fontColor('#175CD3')
-            .backgroundColor('#EAF1FF')
-            .borderRadius(10)
-            .onClick(() => {
-              this.onOpenMessages();
-            })
+              .width('100%')
+              .padding({ top: 11, bottom: 11 })
+              .border({ width: { bottom: 1 }, color: AppTheme.divider() })
+            }, (item: NotificationItem) => item.id)
+          }
+          .width('100%')
+          .onClick(() => this.onOpenMessages())
         }
-        .width('100%')
       }
     }
     .width('100%')

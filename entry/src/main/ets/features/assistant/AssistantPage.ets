@@ -1,5 +1,7 @@
 import { EmptyState } from '../../common/components/EmptyState';
 import { KnowledgeCard } from '../../common/components/KnowledgeCard';
+import { AppTopBar } from '../../common/components/AppTopBar';
+import { AppTheme } from '../../common/theme/AppTheme';
 import { Typography } from '../../common/theme/Typography';
 import {
   AssistantFormDraft,
@@ -59,29 +61,11 @@ export struct AssistantPage {
 
   build() {
     Column() {
-      Row({ space: 12 }) {
-        Text('‹')
-          .fontSize(Typography.iconBackSize())
-          .fontColor('#1F2A44')
-          .width(36)
-          .height(36)
-          .textAlign(TextAlign.Center)
-          .onClick(() => {
-            this.onBack();
-          })
-        Column({ space: 3 }) {
-          Text('智能知识助手')
-            .fontSize(Typography.pageTitleSize())
-            .fontWeight(Typography.titleWeight())
-            .fontColor('#1F2A44')
-          Text('文字与图片均由大模型分析')
-            .fontSize(Typography.captionSize())
-            .fontColor('#667085')
-        }
-        .alignItems(HorizontalAlign.Start)
-      }
-      .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+      AppTopBar({
+        title: '智能知识助手',
+        subtitle: '文字与图片均由大模型分析',
+        onBack: () => this.onBack()
+      })
 
       Scroll() {
         Column({ space: 14 }) {
@@ -92,8 +76,9 @@ export struct AssistantPage {
             })
               .width('100%')
               .height(92)
-              .backgroundColor('#FFFFFF')
-              .borderRadius(8)
+              .backgroundColor(AppTheme.surface())
+              .border({ width: 1, color: AppTheme.border() })
+              .borderRadius(AppTheme.radiusMedium())
               .padding(12)
               .onChange((value: string) => {
                 this.question = value;
@@ -123,9 +108,9 @@ export struct AssistantPage {
               Button('从相册选择')
                 .layoutWeight(1)
                 .height(44)
-                .fontColor('#175CD3')
-                .backgroundColor('#EAF1FF')
-                .borderRadius(8)
+                .fontColor(AppTheme.primary())
+                .backgroundColor(AppTheme.primarySoft())
+                .borderRadius(AppTheme.radiusMedium())
                 .enabled(!this.loading)
                 .onClick(() => {
                   this.onSelectImage();
@@ -134,8 +119,8 @@ export struct AssistantPage {
                 .layoutWeight(1)
                 .height(44)
                 .fontColor('#FFFFFF')
-                .backgroundColor(this.canAsk() ? '#246BFD' : '#D0D5DD')
-                .borderRadius(8)
+                .backgroundColor(this.canAsk() ? AppTheme.primary() : AppTheme.textDisabled())
+                .borderRadius(AppTheme.radiusMedium())
                 .enabled(this.canAsk())
                 .onClick(() => {
                   this.onAsk();
@@ -277,6 +262,6 @@ export struct AssistantPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F3F6FB')
+    .backgroundColor(AppTheme.pageBackground())
   }
 }

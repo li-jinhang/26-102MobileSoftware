@@ -1,5 +1,7 @@
 import { KnowledgeArticle, ReadingFontScale, ReadingFontWeight } from '../../models/AppModels';
 import { EdgeLightPanel } from '../../common/components/EdgeLightPanel';
+import { AppTopBar } from '../../common/components/AppTopBar';
+import { AppTheme } from '../../common/theme/AppTheme';
 import { Typography } from '../../common/theme/Typography';
 
 @Component
@@ -78,35 +80,15 @@ export struct KnowledgeDetailPage {
 
   build() {
     Column() {
-      Row({ space: 12 }) {
-        Text('‹')
-          .fontSize(Typography.iconBackSize())
-          .fontColor('#1F2A44')
-          .width(36)
-          .height(36)
-          .textAlign(TextAlign.Center)
-          .onClick(() => {
-            this.onBack();
-          })
-
-        Column({ space: 3 }) {
-          Text('知识详情')
-            .fontSize(Typography.pageTitleSize())
-            .fontWeight(Typography.titleWeight())
-            .fontColor('#1F2A44')
-          Text(`${this.article.categoryName} · ${this.article.version}`)
-            .fontSize(Typography.metaSize())
-            .fontColor('#667085')
-        }
-        .alignItems(HorizontalAlign.Start)
-      }
-      .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 12 })
-      .backgroundColor('#F3F6FB')
+      AppTopBar({
+        title: '知识详情',
+        subtitle: `${this.article.categoryName} · ${this.article.version}`,
+        onBack: () => this.onBack()
+      })
 
       Scroll() {
         Column({ space: 14 }) {
-          EdgeLightPanel({ radiusValue: 16 }) {
+          EdgeLightPanel({ radiusValue: AppTheme.radiusMedium() }) {
             Column({ space: 10 }) {
               Text(this.article.title)
                 .fontSize(Typography.detailTitleSize())
@@ -269,6 +251,6 @@ export struct KnowledgeDetailPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F3F6FB')
+    .backgroundColor(AppTheme.pageBackground())
   }
 }

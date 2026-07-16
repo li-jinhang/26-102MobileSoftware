@@ -1,3 +1,5 @@
+import { AppTopBar } from '../../common/components/AppTopBar';
+import { AppTheme } from '../../common/theme/AppTheme';
 import { Typography } from '../../common/theme/Typography';
 import { MailMessage, MailRecipient } from '../../models/AppModels';
 
@@ -23,22 +25,7 @@ export struct MailDetailPage {
 
   build() {
     Column({ space: 14 }) {
-      Row({ space: 12 }) {
-        Text('‹')
-          .fontSize(Typography.iconBackSize())
-          .fontColor('#1F2A44')
-          .width(36)
-          .height(36)
-          .textAlign(TextAlign.Center)
-          .onClick(() => {
-            this.onBack();
-          })
-        Text('邮件详情')
-          .fontSize(Typography.pageTitleSize())
-          .fontWeight(Typography.titleWeight())
-          .fontColor('#1F2A44')
-      }
-      .width('100%')
+      AppTopBar({ title: '邮件详情', onBack: () => this.onBack() })
 
       Column({ space: 10 }) {
         Text(this.mail.subject)
@@ -105,6 +92,6 @@ export struct MailDetailPage {
     .width('100%')
     .height('100%')
     .padding(16)
-    .backgroundColor('#F3F6FB')
+    .backgroundColor(AppTheme.pageBackground())
   }
 }

@@ -1,4 +1,6 @@
 import { EmptyState } from '../../common/components/EmptyState';
+import { AppTopBar } from '../../common/components/AppTopBar';
+import { AppTheme } from '../../common/theme/AppTheme';
 import { AttendanceRecord, AttendanceRecordStatus, AttendanceRecordType, AttendanceTodaySummary } from '../../models/AppModels';
 
 @Component
@@ -54,28 +56,11 @@ export struct AttendancePage {
 
   build() {
     Column({ space: 14 }) {
-      Row({ space: 12 }) {
-        Text('‹')
-          .fontSize(30)
-          .fontColor('#1F2A44')
-          .width(36)
-          .height(36)
-          .textAlign(TextAlign.Center)
-          .onClick(() => {
-            this.onBack();
-          })
-        Column({ space: 3 }) {
-          Text('签到签退')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#1F2A44')
-          Text(this.todaySummary.date)
-            .fontSize(11)
-            .fontColor('#667085')
-        }
-        .alignItems(HorizontalAlign.Start)
-      }
-      .width('100%')
+      AppTopBar({
+        title: '签到签退',
+        subtitle: this.todaySummary.date,
+        onBack: () => this.onBack()
+      })
 
       Column({ space: 10 }) {
         Text(this.todaySummary.statusText)
@@ -117,7 +102,8 @@ export struct AttendancePage {
       .width('100%')
       .padding(16)
       .backgroundColor('#FFFFFF')
-      .borderRadius(12)
+      .borderRadius(AppTheme.radiusMedium())
+      .border({ width: 1, color: AppTheme.divider() })
 
       Column({ space: 10 }) {
         TextInput({ placeholder: '备注，例如：外出拜访客户 / 正常到岗', text: this.noteInput })
@@ -156,7 +142,8 @@ export struct AttendancePage {
       .width('100%')
       .padding(16)
       .backgroundColor('#FFFFFF')
-      .borderRadius(12)
+      .borderRadius(AppTheme.radiusMedium())
+      .border({ width: 1, color: AppTheme.divider() })
 
       Column({ space: 10 }) {
         Text('最近记录')
@@ -211,6 +198,6 @@ export struct AttendancePage {
     .width('100%')
     .height('100%')
     .padding(16)
-    .backgroundColor('#F3F6FB')
+    .backgroundColor(AppTheme.pageBackground())
   }
 }

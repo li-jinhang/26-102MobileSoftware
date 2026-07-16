@@ -6,7 +6,7 @@ export class Typography {
   }
 
   static pageTitleSize(): number {
-    return 20;
+    return 22;
   }
 
   static detailTitleSize(): number {
@@ -14,7 +14,7 @@ export class Typography {
   }
 
   static sectionTitleSize(): number {
-    return 18;
+    return 17;
   }
 
   static cardTitleSize(): number {
@@ -86,7 +86,7 @@ export class Typography {
   }
 
   static titleWeight(): FontWeight {
-    return FontWeight.Bold;
+    return FontWeight.Medium;
   }
 
   static emphasisWeight(): FontWeight {
