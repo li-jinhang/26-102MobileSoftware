@@ -1,5 +1,7 @@
 import { KnowledgeCard } from '../../common/components/KnowledgeCard';
+import { AppTopBar } from '../../common/components/AppTopBar';
 import { OcrResult } from '../../common/services/OcrService';
+import { AppTheme } from '../../common/theme/AppTheme';
 import { Typography } from '../../common/theme/Typography';
 import { KnowledgeArticle } from '../../models/AppModels';
 
@@ -16,16 +18,13 @@ export struct OcrResultPage {
 
   build() {
     Column() {
-      Row({ space: 12 }) {
-        Text('‹').fontSize(Typography.iconBackSize()).width(36).height(36).textAlign(TextAlign.Center).onClick(() => this.onBack())
-        Column({ space: 3 }) {
-          Text('图片文字识别').fontSize(Typography.pageTitleSize()).fontWeight(Typography.titleWeight()).fontColor('#1F2A44')
-          Text(this.result.source === 'system'
-            ? 'HarmonyOS OCR 识别完成'
-            : this.result.source === 'cloud' ? '视觉大模型 OCR 识别完成' : '演示降级结果')
-            .fontSize(Typography.captionSize()).fontColor('#667085')
-        }.alignItems(HorizontalAlign.Start)
-      }.width('100%').padding({ left: 16, right: 16, top: 12, bottom: 12 })
+      AppTopBar({
+        title: '图片文字识别',
+        subtitle: this.result.source === 'system'
+          ? 'HarmonyOS OCR 识别完成'
+          : this.result.source === 'cloud' ? '视觉大模型 OCR 识别完成' : '演示降级结果',
+        onBack: () => this.onBack()
+      })
 
       Scroll() {
         Column({ space: 14 }) {
@@ -49,6 +48,6 @@ export struct OcrResultPage {
           }, (item: KnowledgeArticle) => item.id)
         }.width('100%').padding({ left: 16, right: 16, bottom: 24 })
       }.layoutWeight(1).scrollBar(BarState.Off)
-    }.width('100%').height('100%').backgroundColor('#F3F6FB')
+    }.width('100%').height('100%').backgroundColor(AppTheme.pageBackground())
   }
 }

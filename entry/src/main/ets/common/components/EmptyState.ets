@@ -1,4 +1,5 @@
 import { Typography } from '../theme/Typography';
+import { AppTheme } from '../theme/AppTheme';
 
 @Component
 export struct EmptyState {
@@ -10,19 +11,19 @@ export struct EmptyState {
 
   build() {
     Column({ space: 8 }) {
-      Text('○')
-        .fontSize(Typography.iconBackSize())
-        .fontColor('#98A2B3')
+      Text('暂无内容')
+        .fontSize(Typography.captionSize())
+        .fontColor(AppTheme.textTertiary())
 
       Text(this.title)
         .fontSize(Typography.cardTitleSize())
         .fontWeight(Typography.emphasisWeight())
-        .fontColor('#344054')
+        .fontColor(AppTheme.textPrimary())
 
       if (this.description.length > 0) {
         Text(this.description)
           .fontSize(Typography.metaSize())
-          .fontColor('#667085')
+          .fontColor(AppTheme.textSecondary())
           .lineHeight(Typography.summaryLineHeight())
           .textAlign(TextAlign.Center)
       }
@@ -31,13 +32,15 @@ export struct EmptyState {
         Button(this.actionLabel)
           .height(36)
           .fontSize(Typography.metaSize())
-          .borderRadius(8)
+          .fontColor(AppTheme.primary())
+          .backgroundColor(AppTheme.primarySoft())
+          .borderRadius(AppTheme.radiusSmall())
           .onClick(() => {
             this.onAction();
           })
       }
     }
     .width('100%')
-    .padding({ top: 24, bottom: 24 })
+    .padding({ top: 20, bottom: 20 })
   }
 }

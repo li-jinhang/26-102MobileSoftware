@@ -1,5 +1,7 @@
 import { EmptyState } from '../../common/components/EmptyState';
+import { AppTopBar } from '../../common/components/AppTopBar';
 import { filterNotifications } from '../../common/services/MessageService';
+import { AppTheme } from '../../common/theme/AppTheme';
 import { NotificationItem } from '../../models/AppModels';
 
 @Component
@@ -56,29 +58,11 @@ export struct MessagesPage {
 
   build() {
     Column() {
-      Row({ space: 12 }) {
-        Text('‹')
-          .fontSize(30)
-          .fontColor('#1F2A44')
-          .width(36)
-          .height(36)
-          .textAlign(TextAlign.Center)
-          .onClick(() => {
-            this.onBack();
-          })
-        Column({ space: 3 }) {
-          Text('消息')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#1F2A44')
-          Text(`${this.notifications.filter((item: NotificationItem) => !item.read).length} 条未读`)
-            .fontSize(11)
-            .fontColor('#667085')
-        }
-        .alignItems(HorizontalAlign.Start)
-      }
-      .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 12 })
+      AppTopBar({
+        title: '消息',
+        subtitle: `${this.notifications.filter((item: NotificationItem) => !item.read).length} 条未读`,
+        onBack: () => this.onBack()
+      })
 
       Row({ space: 6 }) {
         Text('全部')
@@ -87,8 +71,8 @@ export struct MessagesPage {
           .fontSize(13)
           .fontColor(this.unreadOnly ? '#475467' : '#FFFFFF')
           .padding({ top: 10, bottom: 10 })
-          .backgroundColor(this.unreadOnly ? '#F2F4F7' : '#246BFD')
-          .borderRadius(12)
+          .backgroundColor(this.unreadOnly ? AppTheme.surfaceMuted() : AppTheme.primary())
+          .borderRadius(AppTheme.radiusSmall())
           .onClick(() => {
             this.unreadOnly = false;
           })
@@ -98,8 +82,8 @@ export struct MessagesPage {
           .fontSize(13)
           .fontColor(this.unreadOnly ? '#FFFFFF' : '#475467')
           .padding({ top: 10, bottom: 10 })
-          .backgroundColor(this.unreadOnly ? '#246BFD' : '#F2F4F7')
-          .borderRadius(12)
+          .backgroundColor(this.unreadOnly ? AppTheme.primary() : AppTheme.surfaceMuted())
+          .borderRadius(AppTheme.radiusSmall())
           .onClick(() => {
             this.unreadOnly = true;
           })
@@ -177,6 +161,6 @@ export struct MessagesPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F3F6FB')
+    .backgroundColor(AppTheme.pageBackground())
   }
 }

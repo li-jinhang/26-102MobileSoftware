@@ -1,4 +1,5 @@
 import { EmptyState } from '../../common/components/EmptyState';
+import { AppTheme } from '../../common/theme/AppTheme';
 import { Typography } from '../../common/theme/Typography';
 import { MailFolder, MailImportance, MailMessage } from '../../models/AppModels';
 
@@ -54,7 +55,7 @@ export struct MailPage {
       Row({ space: 12 }) {
         Text('‹')
           .fontSize(Typography.iconBackSize())
-          .fontColor('#1F2A44')
+          .fontColor(AppTheme.textPrimary())
           .width(36)
           .height(36)
           .textAlign(TextAlign.Center)
@@ -65,10 +66,10 @@ export struct MailPage {
           Text('内部邮件')
             .fontSize(Typography.pageTitleSize())
             .fontWeight(Typography.titleWeight())
-            .fontColor('#1F2A44')
+            .fontColor(AppTheme.textPrimary())
           Text(`${this.getUnreadCount()} 封未读`)
             .fontSize(Typography.captionSize())
-            .fontColor('#667085')
+            .fontColor(AppTheme.textSecondary())
         }
         .alignItems(HorizontalAlign.Start)
 
@@ -77,9 +78,9 @@ export struct MailPage {
         Button('写邮件')
           .height(36)
           .fontSize(Typography.metaSize())
-          .fontColor('#175CD3')
-          .backgroundColor('#EAF1FF')
-          .borderRadius(12)
+          .fontColor(AppTheme.primary())
+          .backgroundColor(AppTheme.primarySoft())
+          .borderRadius(AppTheme.radiusSmall())
           .onClick(() => {
             this.onCompose();
           })
@@ -172,6 +173,6 @@ export struct MailPage {
     .width('100%')
     .height('100%')
     .padding(16)
-    .backgroundColor('#F3F6FB')
+    .backgroundColor(AppTheme.pageBackground())
   }
 }
