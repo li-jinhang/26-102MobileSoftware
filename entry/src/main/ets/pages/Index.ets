@@ -1244,16 +1244,17 @@ struct Index {
   }
 
   @Builder
-  private WorkflowDateTimeSelector(label: string, value: string, isEnd: boolean) {
+  private WorkflowDateTimeSelector(label: string, isEnd: boolean) {
     Column({ space: 6 }) {
       Text(label)
         .fontSize(12)
         .fontColor('#667085')
         .width('100%')
       Row() {
-        Text(value.length > 0 ? value : '请选择日期和时间')
+        Text((isEnd ? this.workflowEndDateInput : this.workflowDateInput).length > 0 ?
+          (isEnd ? this.workflowEndDateInput : this.workflowDateInput) : '请选择日期和时间')
           .fontSize(14)
-          .fontColor(value.length > 0 ? '#1F2A44' : '#98A2B3')
+          .fontColor((isEnd ? this.workflowEndDateInput : this.workflowDateInput).length > 0 ? '#1F2A44' : '#98A2B3')
           .maxLines(1)
           .layoutWeight(1)
         Text('›')
@@ -1295,8 +1296,8 @@ struct Index {
             this.workflowExtraInput = value;
           })
 
-        this.WorkflowDateTimeSelector('开始时间', this.workflowDateInput, false)
-        this.WorkflowDateTimeSelector('结束时间', this.workflowEndDateInput, true)
+        this.WorkflowDateTimeSelector('开始时间', false)
+        this.WorkflowDateTimeSelector('结束时间', true)
       } else if (this.selectedTemplateId === 'wf2') {
         TextInput({ placeholder: '费用类型，例如：差旅 / 招待 / 打车', text: this.workflowExtraInput })
           .height(46)
