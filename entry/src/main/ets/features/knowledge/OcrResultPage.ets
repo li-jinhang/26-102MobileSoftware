@@ -1,5 +1,6 @@
 import { KnowledgeCard } from '../../common/components/KnowledgeCard';
 import { OcrResult } from '../../common/services/OcrService';
+import { Typography } from '../../common/theme/Typography';
 import { KnowledgeArticle } from '../../models/AppModels';
 
 @Component
@@ -16,13 +17,13 @@ export struct OcrResultPage {
   build() {
     Column() {
       Row({ space: 12 }) {
-        Text('‹').fontSize(30).width(36).height(36).textAlign(TextAlign.Center).onClick(() => this.onBack())
+        Text('‹').fontSize(Typography.iconBackSize()).width(36).height(36).textAlign(TextAlign.Center).onClick(() => this.onBack())
         Column({ space: 3 }) {
-          Text('图片文字识别').fontSize(20).fontWeight(FontWeight.Bold).fontColor('#1F2A44')
+          Text('图片文字识别').fontSize(Typography.pageTitleSize()).fontWeight(Typography.titleWeight()).fontColor('#1F2A44')
           Text(this.result.source === 'system'
             ? 'HarmonyOS OCR 识别完成'
             : this.result.source === 'cloud' ? '视觉大模型 OCR 识别完成' : '演示降级结果')
-            .fontSize(11).fontColor('#667085')
+            .fontSize(Typography.captionSize()).fontColor('#667085')
         }.alignItems(HorizontalAlign.Start)
       }.width('100%').padding({ left: 16, right: 16, top: 12, bottom: 12 })
 
@@ -32,16 +33,16 @@ export struct OcrResultPage {
             Image(this.result.previewUri).width('100%').height(180).objectFit(ImageFit.Contain).backgroundColor('#FFFFFF')
           }
           if (this.result.fallbackReason.length > 0) {
-            Text(this.result.fallbackReason).fontSize(12).fontColor('#B54708').width('100%').padding(12)
+            Text(this.result.fallbackReason).fontSize(Typography.metaSize()).lineHeight(Typography.summaryLineHeight()).fontColor('#B54708').width('100%').padding(12)
               .backgroundColor('#FFFAEB').borderRadius(8)
           }
           Column({ space: 10 }) {
-            Text('识别全文').fontSize(16).fontWeight(FontWeight.Bold).fontColor('#1F2A44').width('100%')
-            Text(this.result.text).fontSize(15).lineHeight(24).fontColor('#344054').width('100%')
+            Text('识别全文').fontSize(Typography.bodyLargeSize()).fontWeight(Typography.emphasisWeight()).fontColor('#1F2A44').width('100%')
+            Text(this.result.text).fontSize(Typography.bodyLargeSize()).lineHeight(Typography.bodyLargeLineHeight()).fontColor('#344054').width('100%')
           }.width('100%').padding(16).backgroundColor('#FFFFFF').borderRadius(8)
 
           if (this.result.keywords.length > 0) {
-            Text(`关键词：${this.result.keywords.join('、')}`).fontSize(12).fontColor('#175CD3').width('100%')
+            Text(`关键词：${this.result.keywords.join('、')}`).fontSize(Typography.metaSize()).fontColor('#175CD3').width('100%')
           }
           ForEach(this.getRelatedArticles(), (item: KnowledgeArticle) => {
             KnowledgeCard({ article: item, onOpen: (id: string) => this.onOpenArticle(id) })

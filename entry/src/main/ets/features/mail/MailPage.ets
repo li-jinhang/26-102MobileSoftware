@@ -1,4 +1,5 @@
 import { EmptyState } from '../../common/components/EmptyState';
+import { Typography } from '../../common/theme/Typography';
 import { MailFolder, MailImportance, MailMessage } from '../../models/AppModels';
 
 @Component
@@ -52,7 +53,7 @@ export struct MailPage {
     Column({ space: 14 }) {
       Row({ space: 12 }) {
         Text('‹')
-          .fontSize(30)
+          .fontSize(Typography.iconBackSize())
           .fontColor('#1F2A44')
           .width(36)
           .height(36)
@@ -62,11 +63,11 @@ export struct MailPage {
           })
         Column({ space: 3 }) {
           Text('内部邮件')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
+            .fontSize(Typography.pageTitleSize())
+            .fontWeight(Typography.titleWeight())
             .fontColor('#1F2A44')
           Text(`${this.getUnreadCount()} 封未读`)
-            .fontSize(11)
+            .fontSize(Typography.captionSize())
             .fontColor('#667085')
         }
         .alignItems(HorizontalAlign.Start)
@@ -75,7 +76,7 @@ export struct MailPage {
 
         Button('写邮件')
           .height(36)
-          .fontSize(12)
+          .fontSize(Typography.metaSize())
           .fontColor('#175CD3')
           .backgroundColor('#EAF1FF')
           .borderRadius(8)
@@ -89,7 +90,7 @@ export struct MailPage {
         Text('收件箱')
           .layoutWeight(1)
           .textAlign(TextAlign.Center)
-          .fontSize(13)
+          .fontSize(Typography.metaSize())
           .fontColor(this.currentFolder === 'inbox' ? '#FFFFFF' : '#475467')
           .padding({ top: 10, bottom: 10 })
           .backgroundColor(this.currentFolder === 'inbox' ? '#246BFD' : '#F2F4F7')
@@ -100,7 +101,7 @@ export struct MailPage {
         Text('已发送')
           .layoutWeight(1)
           .textAlign(TextAlign.Center)
-          .fontSize(13)
+          .fontSize(Typography.metaSize())
           .fontColor(this.currentFolder === 'sent' ? '#FFFFFF' : '#475467')
           .padding({ top: 10, bottom: 10 })
           .backgroundColor(this.currentFolder === 'sent' ? '#246BFD' : '#F2F4F7')
@@ -123,30 +124,31 @@ export struct MailPage {
               Column({ space: 8 }) {
                 Row({ space: 8 }) {
                   Text(item.subject)
-                    .fontSize(15)
-                    .fontWeight(FontWeight.Medium)
+                    .fontSize(Typography.cardTitleSize())
+                    .fontWeight(Typography.emphasisWeight())
                     .fontColor('#1F2A44')
                     .layoutWeight(1)
                     .maxLines(1)
                   Text(this.getImportanceLabel(item.importance))
-                    .fontSize(10)
+                    .fontSize(Typography.microSize())
                     .fontColor(this.getImportanceColor(item.importance))
                 }
                 .width('100%')
 
                 Text(item.summary)
-                  .fontSize(12)
+                  .fontSize(Typography.metaSize())
                   .fontColor('#667085')
+                  .lineHeight(Typography.summaryLineHeight())
                   .maxLines(2)
                   .width('100%')
 
                 Row() {
                   Text(this.currentFolder === 'inbox' ? item.senderName : `收件人 ${item.recipients.length} 人`)
-                    .fontSize(11)
+                    .fontSize(Typography.captionSize())
                     .fontColor('#475467')
                   Blank()
                   Text(item.createTime)
-                    .fontSize(10)
+                    .fontSize(Typography.microSize())
                     .fontColor('#98A2B3')
                 }
                 .width('100%')

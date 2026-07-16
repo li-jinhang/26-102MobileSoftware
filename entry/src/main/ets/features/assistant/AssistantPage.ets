@@ -1,5 +1,6 @@
 import { EmptyState } from '../../common/components/EmptyState';
 import { KnowledgeCard } from '../../common/components/KnowledgeCard';
+import { Typography } from '../../common/theme/Typography';
 import {
   AssistantHistory,
   AssistantReply,
@@ -68,7 +69,7 @@ export struct AssistantPage {
     Column() {
       Row({ space: 12 }) {
         Text('‹')
-          .fontSize(30)
+          .fontSize(Typography.iconBackSize())
           .fontColor('#1F2A44')
           .width(36)
           .height(36)
@@ -78,11 +79,11 @@ export struct AssistantPage {
           })
         Column({ space: 3 }) {
           Text('智能知识助手')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
+            .fontSize(Typography.pageTitleSize())
+            .fontWeight(Typography.titleWeight())
             .fontColor('#1F2A44')
           Text('关键词匹配演示 · Agent / Skill 接口预留')
-            .fontSize(11)
+            .fontSize(Typography.captionSize())
             .fontColor('#667085')
         }
         .alignItems(HorizontalAlign.Start)
@@ -115,13 +116,13 @@ export struct AssistantPage {
           if (this.reply !== null) {
             Column({ space: 12 }) {
               Text('模拟回答')
-                .fontSize(12)
+                .fontSize(Typography.metaSize())
                 .fontColor('#175CD3')
                 .width('100%')
               Text(this.reply.answer)
-                .fontSize(15)
+                .fontSize(Typography.bodyLargeSize())
                 .fontColor('#344054')
-                .lineHeight(24)
+                .lineHeight(Typography.bodyLargeLineHeight())
                 .width('100%')
 
               ForEach(this.getRelatedArticles(), (item: KnowledgeArticle) => {
@@ -154,8 +155,8 @@ export struct AssistantPage {
 
           Column({ space: 10 }) {
             Text('最近问答')
-              .fontSize(17)
-              .fontWeight(FontWeight.Bold)
+              .fontSize(Typography.sectionTitleSize())
+              .fontWeight(Typography.titleWeight())
               .fontColor('#1F2A44')
               .width('100%')
             if (this.history.length === 0) {
@@ -164,18 +165,18 @@ export struct AssistantPage {
               ForEach(this.history, (item: AssistantHistory) => {
                 Column({ space: 6 }) {
                   Text(item.question)
-                    .fontSize(14)
-                    .fontWeight(FontWeight.Medium)
+                    .fontSize(Typography.bodySize())
+                    .fontWeight(Typography.emphasisWeight())
                     .fontColor('#1F2A44')
                     .width('100%')
                   Text(item.answer)
-                    .fontSize(12)
+                    .fontSize(Typography.metaSize())
                     .fontColor('#667085')
-                    .lineHeight(18)
+                    .lineHeight(Typography.summaryLineHeight())
                     .maxLines(3)
                     .width('100%')
                   Text(item.time)
-                    .fontSize(10)
+                    .fontSize(Typography.microSize())
                     .fontColor('#98A2B3')
                 }
                 .width('100%')

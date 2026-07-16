@@ -1,3 +1,4 @@
+import { Typography } from '../../common/theme/Typography';
 import { MailMessage, MailRecipient } from '../../models/AppModels';
 
 @Component
@@ -24,7 +25,7 @@ export struct MailDetailPage {
     Column({ space: 14 }) {
       Row({ space: 12 }) {
         Text('‹')
-          .fontSize(30)
+          .fontSize(Typography.iconBackSize())
           .fontColor('#1F2A44')
           .width(36)
           .height(36)
@@ -33,28 +34,28 @@ export struct MailDetailPage {
             this.onBack();
           })
         Text('邮件详情')
-          .fontSize(20)
-          .fontWeight(FontWeight.Bold)
+          .fontSize(Typography.pageTitleSize())
+          .fontWeight(Typography.titleWeight())
           .fontColor('#1F2A44')
       }
       .width('100%')
 
       Column({ space: 10 }) {
         Text(this.mail.subject)
-          .fontSize(20)
-          .fontWeight(FontWeight.Bold)
+          .fontSize(Typography.pageTitleSize())
+          .fontWeight(Typography.titleWeight())
           .fontColor('#1F2A44')
           .width('100%')
         Text(`发件人：${this.mail.senderName}`)
-          .fontSize(12)
+          .fontSize(Typography.metaSize())
           .fontColor('#475467')
           .width('100%')
         Text(`收件人：${this.getRecipientsLabel()}`)
-          .fontSize(12)
+          .fontSize(Typography.metaSize())
           .fontColor('#475467')
           .width('100%')
         Text(`时间：${this.mail.createTime}`)
-          .fontSize(12)
+          .fontSize(Typography.metaSize())
           .fontColor('#667085')
           .width('100%')
       }
@@ -65,8 +66,8 @@ export struct MailDetailPage {
 
       Column() {
         Text(this.mail.content)
-          .fontSize(14)
-          .lineHeight(22)
+          .fontSize(Typography.bodySize())
+          .lineHeight(Typography.bodyLineHeight())
           .fontColor('#1F2A44')
           .width('100%')
       }

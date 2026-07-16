@@ -1,3 +1,5 @@
+import { Typography } from '../theme/Typography';
+
 @Component
 export struct SectionBlock {
   title: string = '';
@@ -12,16 +14,16 @@ export struct SectionBlock {
     Column({ space: 12 }) {
       Column({ space: 4 }) {
         Text(this.title)
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
+          .fontSize(Typography.sectionTitleSize())
+          .fontWeight(Typography.titleWeight())
           .fontColor('#1F2A44')
           .width('100%')
 
         if (this.subtitle.length > 0) {
           Text(this.subtitle)
-            .fontSize(12)
+            .fontSize(Typography.metaSize())
             .fontColor('#667085')
-            .lineHeight(18)
+            .lineHeight(Typography.summaryLineHeight())
             .width('100%')
         }
       }

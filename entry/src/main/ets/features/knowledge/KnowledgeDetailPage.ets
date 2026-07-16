@@ -1,5 +1,6 @@
 import { KnowledgeArticle, ReadingFontScale, ReadingFontWeight } from '../../models/AppModels';
 import { EdgeLightPanel } from '../../common/components/EdgeLightPanel';
+import { Typography } from '../../common/theme/Typography';
 
 @Component
 export struct KnowledgeDetailPage {
@@ -32,17 +33,15 @@ export struct KnowledgeDetailPage {
   @State correctionText: string = '';
 
   private getBodyFontSize(): number {
-    if (this.fontScale === 'small') {
-      return 14;
-    }
-    if (this.fontScale === 'large') {
-      return 19;
-    }
-    return 16;
+    return Typography.readingSize(this.fontScale);
+  }
+
+  private getBodyLineHeight(): number {
+    return Typography.readingLineHeight(this.fontScale);
   }
 
   private getBodyFontWeight(): FontWeight {
-    return this.fontWeight === 'semiBold' ? FontWeight.Medium : FontWeight.Regular;
+    return Typography.readingWeight(this.fontWeight);
   }
 
   private showMessage(message: string): void {
@@ -65,7 +64,7 @@ export struct KnowledgeDetailPage {
   @Builder
   private FontScaleOption(scale: ReadingFontScale, label: string) {
     Text(label)
-      .fontSize(12)
+      .fontSize(Typography.metaSize())
       .fontColor(this.fontScale === scale ? '#FFFFFF' : '#475467')
       .textAlign(TextAlign.Center)
       .layoutWeight(1)
@@ -81,7 +80,7 @@ export struct KnowledgeDetailPage {
     Column() {
       Row({ space: 12 }) {
         Text('‹')
-          .fontSize(30)
+          .fontSize(Typography.iconBackSize())
           .fontColor('#1F2A44')
           .width(36)
           .height(36)
@@ -92,11 +91,11 @@ export struct KnowledgeDetailPage {
 
         Column({ space: 3 }) {
           Text('知识详情')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
+            .fontSize(Typography.pageTitleSize())
+            .fontWeight(Typography.titleWeight())
             .fontColor('#1F2A44')
           Text(`${this.article.categoryName} · ${this.article.version}`)
-            .fontSize(12)
+            .fontSize(Typography.metaSize())
             .fontColor('#667085')
         }
         .alignItems(HorizontalAlign.Start)
@@ -110,14 +109,14 @@ export struct KnowledgeDetailPage {
           EdgeLightPanel({ radiusValue: 8 }) {
             Column({ space: 10 }) {
               Text(this.article.title)
-                .fontSize(26)
-                .fontWeight(FontWeight.Bold)
+                .fontSize(Typography.detailTitleSize())
+                .fontWeight(Typography.titleWeight())
                 .fontColor('#172B4D')
-                .lineHeight(34)
+                .lineHeight(Typography.detailTitleLineHeight())
                 .width('100%')
 
               Text(`${this.article.updateTime} 更新 · ${this.article.tags.join(' / ')}`)
-                .fontSize(12)
+                .fontSize(Typography.metaSize())
                 .fontColor('#667085')
                 .width('100%')
             }
@@ -130,12 +129,12 @@ export struct KnowledgeDetailPage {
           Column({ space: 12 }) {
             Row() {
               Text('阅读字号')
-                .fontSize(14)
-                .fontWeight(FontWeight.Medium)
+                .fontSize(Typography.bodySize())
+                .fontWeight(Typography.emphasisWeight())
                 .fontColor('#344054')
               Blank()
               Text('HarmonyOS 阅读体验')
-                .fontSize(11)
+                .fontSize(Typography.captionSize())
                 .fontColor('#175CD3')
             }
             .width('100%')
@@ -149,11 +148,11 @@ export struct KnowledgeDetailPage {
 
             Row({ space: 6 }) {
               Text('字重')
-                .fontSize(12)
+                .fontSize(Typography.metaSize())
                 .fontColor('#667085')
                 .layoutWeight(1)
               Text(this.fontWeight === 'semiBold' ? '半粗' : '标准')
-                .fontSize(12)
+                .fontSize(Typography.metaSize())
                 .fontColor('#175CD3')
                 .textAlign(TextAlign.Center)
                 .width(64)
@@ -176,17 +175,17 @@ export struct KnowledgeDetailPage {
               .fontSize(this.getBodyFontSize())
               .fontWeight(this.getBodyFontWeight())
               .fontColor('#344054')
-              .lineHeight(this.getBodyFontSize() + 10)
+              .lineHeight(this.getBodyLineHeight())
               .width('100%')
 
             Text(`附件：${this.article.attachments.length > 0 ? this.article.attachments.join('、') : '无'}`)
-              .fontSize(12)
+              .fontSize(Typography.metaSize())
               .fontColor('#667085')
               .width('100%')
 
             if (this.workflowNames.length > 0) {
               Text(`适用流程：${this.workflowNames}`)
-                .fontSize(12)
+                .fontSize(Typography.metaSize())
                 .fontColor('#667085')
                 .width('100%')
             }
@@ -234,8 +233,8 @@ export struct KnowledgeDetailPage {
 
           Column({ space: 10 }) {
             Text('纠错建议')
-              .fontSize(16)
-              .fontWeight(FontWeight.Medium)
+              .fontSize(Typography.bodyLargeSize())
+              .fontWeight(Typography.emphasisWeight())
               .fontColor('#1F2A44')
               .width('100%')
 
