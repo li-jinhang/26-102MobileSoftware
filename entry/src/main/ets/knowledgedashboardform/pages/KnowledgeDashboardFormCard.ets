@@ -18,7 +18,7 @@ struct KnowledgeDashboardFormCard {
   build() {
     Column({ space: 10 }) {
       Row() {
-        Text('智协库')
+        Text('白泽')
           .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .fontColor('#FFFFFF')
