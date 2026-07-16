@@ -7,6 +7,12 @@ import {
   OCR_DEMO_TEXT
 } from '../../../main/ets/common/services/OcrService';
 import { getMockArticles } from '../../../main/ets/mock/MockData';
+import {
+  buildOpenWorkflowComposerStateUseCase,
+  buildStartWorkflowStateUseCase,
+  WorkflowFormState
+} from '../../../main/ets/app/usecases/WorkflowFormStateUseCases';
+import { AssistantFormDraft } from '../../../main/ets/models/AppModels';
 
 export default function abilityTest() {
   describe('ActsAbilityTest', () => {
@@ -63,6 +69,36 @@ export default function abilityTest() {
       expect(keywords.includes('报销')).assertTrue();
       expect(keywords.includes('发票')).assertTrue();
       expect(articleIds.includes('k2')).assertTrue();
+    })
+
+    it('prefillWorkflowFromAssistantDraft', 0, () => {
+      const draft: AssistantFormDraft = {
+        title: '病假申请',
+        extra: '病假',
+        date: '2026-07-18 09:00-18:00',
+        amount: '',
+        reason: '身体不适，需要就医',
+        attachment: ''
+      };
+      const state: WorkflowFormState = buildStartWorkflowStateUseCase('wf1', draft);
+      expect(state.workflowTitleInput).assertEqual('病假申请');
+      expect(state.workflowExtraInput).assertEqual('病假');
+      expect(state.workflowReasonInput).assertEqual('身体不适，需要就医');
+      expect(state.workflowDateInput).assertEqual('2026-07-18 09:00');
+      expect(state.workflowEndDateInput).assertEqual('2026-07-18 18:00');
+      expect(state.workflowAttachmentInput).assertEqual('');
+    })
+
+    it('openWorkflowStartsEmpty', 0, () => {
+      const state: WorkflowFormState = buildOpenWorkflowComposerStateUseCase('wf2');
+      expect(state.workflowTitleInput).assertEqual('');
+      expect(state.workflowExtraInput).assertEqual('');
+      expect(state.workflowDateInput).assertEqual('');
+      expect(state.workflowEndDateInput).assertEqual('');
+      expect(state.workflowAmountInput).assertEqual('');
+      expect(state.workflowReasonInput).assertEqual('');
+      expect(state.workflowAttachmentInput).assertEqual('');
+      expect(state.approvalComment).assertEqual('');
     })
   })
 }

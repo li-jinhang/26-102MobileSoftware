@@ -2,7 +2,6 @@ import {
   AttendanceRecord,
   AttendanceTodaySummary,
   ApprovalRecord,
-  AssistantReply,
   AuditLog,
   KnowledgeArticle,
   KnowledgeCategory,
@@ -857,7 +856,13 @@ export function buildWorkflowInstance(
   };
 }
 
-export function askAssistant(question: string): AssistantReply {
+export interface MockAssistantReply {
+  answer: string;
+  relatedKnowledgeIds: string[];
+  recommendedWorkflowId: string;
+}
+
+export function askAssistant(question: string): MockAssistantReply {
   const keyword: string = question.trim();
 
   if (keyword.includes('报销') || keyword.includes('打车') || keyword.includes('发票')) {

@@ -15,6 +15,7 @@ import {
 import {
   AttendanceRecord,
   AttendanceTodaySummary,
+  AssistantAnalyzeInput,
   AssistantReply,
   AuditLog,
   KnowledgeCorrection,
@@ -210,8 +211,20 @@ class MockMailRepository implements MailRepository {
 }
 
 class MockAssistantRepository implements AssistantRepository {
-  async ask(question: string): Promise<AssistantReply> {
-    return askAssistant(question);
+  async analyze(input: AssistantAnalyzeInput): Promise<AssistantReply> {
+    const reply = askAssistant(input.text);
+    return {
+      answer: reply.answer,
+      recognizedText: '',
+      intent: 'unknown',
+      relatedKnowledgeIds: reply.relatedKnowledgeIds,
+      recommendedWorkflowId: reply.recommendedWorkflowId,
+      confidence: 0,
+      formDraft: {
+        title: '', extra: '', date: '', amount: '', reason: '', attachment: ''
+      },
+      missingFields: []
+    };
   }
 }
 

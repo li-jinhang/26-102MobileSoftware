@@ -7,6 +7,7 @@ import {
   AttendanceTodaySummary,
   ApprovalRecord,
   ApprovalDecision,
+  AssistantAnalyzeInput,
   AssistantReply,
   AuditLog,
   KnowledgeCorrection,
@@ -173,10 +174,6 @@ interface CorrectionRequestBody {
 
 interface CommentRequestBody {
   comment: string;
-}
-
-interface AskAssistantRequestBody {
-  question: string;
 }
 
 interface EmptyRequestBody {
@@ -566,9 +563,8 @@ class HttpMailRepository implements MailRepository {
 }
 
 class HttpAssistantRepository implements AssistantRepository {
-  async ask(question: string): Promise<AssistantReply> {
-    const body: AskAssistantRequestBody = { question };
-    return apiPost<AssistantReply>('/assistant/ask', JSON.stringify(body));
+  async analyze(input: AssistantAnalyzeInput): Promise<AssistantReply> {
+    return apiPost<AssistantReply>('/assistant/analyze', JSON.stringify(input), true, 60000);
   }
 }
 

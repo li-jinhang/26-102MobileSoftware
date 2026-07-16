@@ -22,6 +22,7 @@ interface ApiRequestOptions {
   body?: string;
   queryParams?: ApiQueryParam[];
   withAuth?: boolean;
+  readTimeout?: number;
 }
 
 interface ApiHttpRequestOptions {
@@ -71,7 +72,7 @@ async function requestJson<T>(
       method,
       header: buildHeaders(options?.withAuth !== false),
       connectTimeout: 15000,
-      readTimeout: 15000,
+      readTimeout: options?.readTimeout === undefined ? 15000 : options.readTimeout,
       expectDataType: http.HttpDataType.STRING,
       extraData: options?.body === undefined ? '' : options.body
     };
@@ -99,9 +100,10 @@ export async function apiGet<T>(
 export async function apiPost<T>(
   path: string,
   body?: string,
-  withAuth: boolean = true
+  withAuth: boolean = true,
+  readTimeout: number = 15000
 ): Promise<T> {
-  const options: ApiRequestOptions = { body, withAuth };
+  const options: ApiRequestOptions = { body, withAuth, readTimeout };
   return requestJson<T>(http.RequestMethod.POST, path, options);
 }
 

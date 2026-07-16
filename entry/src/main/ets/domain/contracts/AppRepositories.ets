@@ -1,6 +1,7 @@
 import {
   AttendanceRecord,
   AttendanceTodaySummary,
+  AssistantAnalyzeInput,
   AssistantReply,
   AuditLog,
   KnowledgeCorrection,
@@ -87,7 +88,7 @@ export interface MailRepository {
 }
 
 export interface AssistantRepository {
-  ask(question: string): Promise<AssistantReply>;
+  analyze(input: AssistantAnalyzeInput): Promise<AssistantReply>;
 }
 
 export interface AuditRepository {

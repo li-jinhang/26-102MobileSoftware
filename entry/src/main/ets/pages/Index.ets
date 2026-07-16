@@ -64,26 +64,24 @@ import {
   saveDashboardSummary,
   saveReadingSettings
 } from '../common/services/ExperienceStateService';
+import { selectAssistantImage } from '../common/services/AssistantMediaService';
 import { SectionBlock } from '../common/components/SectionBlock';
 import { AttendancePage } from '../features/attendance/AttendancePage';
 import { AssistantPage } from '../features/assistant/AssistantPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { KnowledgeDetailPage } from '../features/knowledge/KnowledgeDetailPage';
 import { KnowledgePage } from '../features/knowledge/KnowledgePage';
-import { OcrResultPage } from '../features/knowledge/OcrResultPage';
 import { MailComposerPage } from '../features/mail/MailComposerPage';
 import { MailDetailPage } from '../features/mail/MailDetailPage';
 import { MailPage } from '../features/mail/MailPage';
-import {
-  OcrResult,
-  recognizeBundledDemoImage,
-  selectAndRecognizeImage
-} from '../common/services/OcrService';
 import { MessagesPage } from '../features/messages/MessagesPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 import {
+  AssistantAnalyzeInput,
+  AssistantFormDraft,
   AssistantHistory,
   AssistantReply,
+  AssistantSelectedImage,
   ApprovalRecord,
   AuditLog,
   AttendanceRecord,
@@ -124,7 +122,6 @@ struct Index {
   @State auditLogs: AuditLog[] = [];
   @State activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' = 'none';
   @State detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' = 'none';
-  @State ocrResult: OcrResult | null = null;
   @State attendanceSummary: AttendanceTodaySummary = {
     date: '',
     checkedIn: false,
@@ -143,6 +140,8 @@ struct Index {
   @State assistantHistory: AssistantHistory[] = [];
   @State assistantQuestion: string = '';
   @State assistantReply: AssistantReply | null = null;
+  @State assistantSelectedImage: AssistantSelectedImage | null = null;
+  @State assistantLoading: boolean = false;
   @State readingFontScale: ReadingFontScale = 'standard';
   @State readingFontWeight: ReadingFontWeight = 'standard';
   @State activeWorkflowModule: 'overview' | 'apply' | 'mine' = 'overview';
@@ -200,12 +199,13 @@ struct Index {
   }
   @State selectedTemplateId: string = 'wf1';
   @State workflowTitleInput: string = '';
-  @State workflowExtraInput: string = '年假';
-  @State workflowDateInput: string = '2026-07-18 09:00-18:00';
+  @State workflowExtraInput: string = '';
+  @State workflowDateInput: string = '';
+  @State workflowEndDateInput: string = '';
   @State workflowAmountInput: string = '';
   @State workflowReasonInput: string = '';
   @State workflowAttachmentInput: string = '';
-  @State approvalComment: string = '材料齐全，建议通过。';
+  @State approvalComment: string = '';
   @State selectedWorkflowId: string = '';
 
   build() {
@@ -373,18 +373,6 @@ struct Index {
               this.startWorkflow(templateId);
             }
           })
-        } else if (this.activeSubPage === 'ocrResult' && this.ocrResult !== null) {
-          OcrResultPage({
-            result: this.ocrResult,
-            articles: this.getPublishedArticles(),
-            onBack: () => {
-              this.activeSubPage = 'none';
-              this.activeTab = 1;
-            },
-            onOpenArticle: (articleId: string) => {
-              this.openArticle(articleId);
-            }
-          })
         } else if (this.activeSubPage === 'attendance') {
           AttendancePage({
             todaySummary: this.attendanceSummary,
@@ -448,14 +436,25 @@ struct Index {
             history: $assistantHistory,
             question: $assistantQuestion,
             reply: $assistantReply,
+            selectedImage: this.assistantSelectedImage,
+            loading: this.assistantLoading,
             onBack: () => {
               this.activeSubPage = 'none';
             },
             onOpenArticle: (articleId: string) => {
               this.openArticle(articleId);
             },
-            onStartWorkflow: (templateId: string) => {
-              this.startWorkflow(templateId);
+            onSelectImage: () => {
+              void this.handleAssistantImageSelect();
+            },
+            onClearImage: () => {
+              this.assistantSelectedImage = null;
+            },
+            onOpenWorkflowWithoutDraft: (templateId: string) => {
+              this.openWorkflowComposer(templateId);
+            },
+            onOpenWorkflowWithDraft: (templateId: string, draft: AssistantFormDraft) => {
+              this.startWorkflow(templateId, draft);
             },
             onAsk: () => {
               void this.handleAssistantAsk();
@@ -535,12 +534,6 @@ struct Index {
                   favoriteKnowledgeIds: this.favoriteKnowledgeIds,
                   onOpenArticle: (articleId: string) => {
                     this.openArticle(articleId);
-                  },
-                  onSelectOcrImage: () => {
-                    void this.startAlbumOcr();
-                  },
-                  onUseOcrDemo: () => {
-                    void this.startDemoOcr();
                   }
                 })
               } else if (this.activeTab === 2) {
@@ -958,6 +951,99 @@ struct Index {
     .backgroundColor('#660B1220')
   }
 
+  private padDateTimePart(value: number): string {
+    return value < 10 ? `0${value}` : `${value}`;
+  }
+
+  private parseWorkflowDateTime(value: string): Date {
+    const parsed: Date = new Date(value.trim().replace(' ', 'T'));
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
+
+  private workflowDateTimeMillis(value: string): number {
+    if (value.trim().length === 0) {
+      return -1;
+    }
+    const parsed: Date = new Date(value.trim().replace(' ', 'T'));
+    return Number.isNaN(parsed.getTime()) ? -1 : parsed.getTime();
+  }
+
+  private formatWorkflowDateTime(value: Date): string {
+    return `${value.getFullYear()}-${this.padDateTimePart(value.getMonth() + 1)}-${this.padDateTimePart(value.getDate())} ` +
+      `${this.padDateTimePart(value.getHours())}:${this.padDateTimePart(value.getMinutes())}`;
+  }
+
+  private selectWorkflowDateTime(isEnd: boolean): void {
+    if (isEnd && this.workflowDateInput.length === 0) {
+      this.showMessage('请先选择开始时间。');
+      return;
+    }
+    const currentValue: string = isEnd ? this.workflowEndDateInput : this.workflowDateInput;
+    const selected: Date = this.parseWorkflowDateTime(currentValue);
+    this.getUIContext().showDatePickerDialog({
+      selected,
+      onAccept: (dateResult: DatePickerResult) => {
+        const selectedDate: Date = new Date(selected.getTime());
+        const year: number = dateResult.year === undefined ? selected.getFullYear() : dateResult.year;
+        const month: number = dateResult.month === undefined ? selected.getMonth() : dateResult.month;
+        const day: number = dateResult.day === undefined ? selected.getDate() : dateResult.day;
+        selectedDate.setFullYear(year, month, day);
+        this.getUIContext().showTimePickerDialog({
+          selected: selectedDate,
+          useMilitaryTime: true,
+          onAccept: (timeResult: TimePickerResult) => {
+            selectedDate.setHours(timeResult.hour, timeResult.minute, 0, 0);
+            const formatted: string = this.formatWorkflowDateTime(selectedDate);
+            if (isEnd) {
+              const startMillis: number = this.workflowDateTimeMillis(this.workflowDateInput);
+              if (startMillis >= 0 && selectedDate.getTime() <= startMillis) {
+                this.showMessage('结束时间必须晚于开始时间。');
+                return;
+              }
+              this.workflowEndDateInput = formatted;
+              return;
+            }
+            this.workflowDateInput = formatted;
+            const endMillis: number = this.workflowDateTimeMillis(this.workflowEndDateInput);
+            if (endMillis >= 0 && endMillis <= selectedDate.getTime()) {
+              this.workflowEndDateInput = '';
+            }
+          }
+        });
+      }
+    });
+  }
+
+  @Builder
+  private WorkflowDateTimeSelector(label: string, value: string, isEnd: boolean) {
+    Column({ space: 6 }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor('#667085')
+        .width('100%')
+      Row() {
+        Text(value.length > 0 ? value : '请选择日期和时间')
+          .fontSize(14)
+          .fontColor(value.length > 0 ? '#1F2A44' : '#98A2B3')
+          .maxLines(1)
+          .layoutWeight(1)
+        Text('›')
+          .fontSize(22)
+          .fontColor('#667085')
+      }
+      .width('100%')
+      .height(46)
+      .padding({ left: 14, right: 14 })
+      .backgroundColor('#F8FAFC')
+      .borderRadius(14)
+      .onClick(() => {
+        this.selectWorkflowDateTime(isEnd);
+      })
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+  }
+
   @Builder
   private WorkflowComposerFormFields() {
     Column({ space: 12 }) {
@@ -980,14 +1066,8 @@ struct Index {
             this.workflowExtraInput = value;
           })
 
-        TextInput({ placeholder: '请假时间，例如：7 月 18 日 09:00-18:00', text: this.workflowDateInput })
-          .height(46)
-          .borderRadius(14)
-          .backgroundColor('#F8FAFC')
-          .padding({ left: 14, right: 14 })
-          .onChange((value: string) => {
-            this.workflowDateInput = value;
-          })
+        this.WorkflowDateTimeSelector('开始时间', this.workflowDateInput, false)
+        this.WorkflowDateTimeSelector('结束时间', this.workflowEndDateInput, true)
       } else if (this.selectedTemplateId === 'wf2') {
         TextInput({ placeholder: '费用类型，例如：差旅 / 招待 / 打车', text: this.workflowExtraInput })
           .height(46)
@@ -1289,34 +1369,6 @@ struct Index {
     this.showMessage(result.message);
   }
 
-  private openOcrResult(result: OcrResult): void {
-    this.ocrResult = result;
-    this.activeSubPage = 'ocrResult';
-  }
-
-  private async startAlbumOcr(): Promise<void> {
-    this.showMessage('请选择一张包含文字的图片。');
-    const result: OcrResult | null = await selectAndRecognizeImage(this.getPublishedArticles());
-    if (result === null) {
-      return;
-    }
-    this.openOcrResult(result);
-  }
-
-  private async startDemoOcr(): Promise<void> {
-    if (this.hostContext === null) {
-      this.showMessage('应用资源尚未准备完成，请稍后重试。');
-      return;
-    }
-    this.showMessage('正在识别内置报销凭证...');
-    const result: OcrResult = await recognizeBundledDemoImage(
-      this.hostContext,
-      $r('app.media.ocr_demo_receipt').id,
-      this.getPublishedArticles()
-    );
-    this.openOcrResult(result);
-  }
-
   private async logout(): Promise<void> {
     try {
       await logoutCurrentAccount();
@@ -1357,9 +1409,10 @@ struct Index {
     this.assistantHistory = result.assistantHistory;
     this.assistantQuestion = result.assistantQuestion;
     this.assistantReply = result.assistantReply;
+    this.assistantSelectedImage = null;
+    this.assistantLoading = false;
     this.readingFontScale = result.readingFontScale;
     this.readingFontWeight = 'standard';
-    this.ocrResult = null;
     this.activeWorkflowModule = 'overview';
     this.workflowPanelVisible = false;
     this.workflowComposerVisible = false;
@@ -1386,7 +1439,8 @@ struct Index {
       this.assistantHistory = result.assistantHistory;
       this.assistantQuestion = result.assistantQuestion;
       this.assistantReply = result.assistantReply;
-      this.ocrResult = null;
+      this.assistantSelectedImage = null;
+      this.assistantLoading = false;
       this.activeWorkflowModule = 'overview';
       this.workflowPanelVisible = false;
       this.workflowComposerVisible = false;
@@ -1414,6 +1468,7 @@ struct Index {
     this.workflowTitleInput = state.workflowTitleInput;
     this.workflowExtraInput = state.workflowExtraInput;
     this.workflowDateInput = state.workflowDateInput;
+    this.workflowEndDateInput = state.workflowEndDateInput;
     this.workflowAmountInput = state.workflowAmountInput;
     this.workflowReasonInput = state.workflowReasonInput;
     this.workflowAttachmentInput = state.workflowAttachmentInput;
@@ -1426,8 +1481,8 @@ struct Index {
     this.workflowComposerVisible = true;
   }
 
-  private startWorkflow(templateId: string): void {
-    this.applyWorkflowFormState(buildStartWorkflowStateUseCase(templateId));
+  private startWorkflow(templateId: string, draft?: AssistantFormDraft): void {
+    this.applyWorkflowFormState(buildStartWorkflowStateUseCase(templateId, draft));
     this.activeWorkflowModule = 'apply';
     this.workflowComposerVisible = true;
   }
@@ -1438,6 +1493,20 @@ struct Index {
     }
 
     try {
+      let dateInput: string = this.workflowDateInput;
+      if (this.selectedTemplateId === 'wf1') {
+        if (this.workflowDateInput.length === 0 || this.workflowEndDateInput.length === 0) {
+          this.showMessage('请选择请假开始时间和结束时间。');
+          return;
+        }
+        const startMillis: number = this.workflowDateTimeMillis(this.workflowDateInput);
+        const endMillis: number = this.workflowDateTimeMillis(this.workflowEndDateInput);
+        if (startMillis < 0 || endMillis <= startMillis) {
+          this.showMessage('结束时间必须晚于开始时间。');
+          return;
+        }
+        dateInput = `${this.workflowDateInput} 至 ${this.workflowEndDateInput}`;
+      }
       const result = await createWorkflowUseCase({
         template: this.getSelectedTemplate(),
         user: this.getCurrentUser(),
@@ -1445,7 +1514,7 @@ struct Index {
         notifications: this.notifications,
         titleInput: this.workflowTitleInput,
         extraInput: this.workflowExtraInput,
-        dateInput: this.workflowDateInput,
+        dateInput,
         amountInput: this.workflowAmountInput,
         reasonInput: this.workflowReasonInput,
         attachmentInput: this.workflowAttachmentInput
@@ -1558,9 +1627,31 @@ struct Index {
     }
   }
 
-  private async handleAssistantAsk(): Promise<void> {
+  private async handleAssistantImageSelect(): Promise<void> {
     try {
-      const result = await askAssistantUseCase(this.assistantQuestion, this.assistantHistory);
+      const selected: AssistantSelectedImage | null = await selectAssistantImage();
+      if (selected !== null) {
+        this.assistantSelectedImage = selected;
+        this.assistantReply = null;
+      }
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '图片选择失败。';
+      this.showMessage(message);
+    }
+  }
+
+  private async handleAssistantAsk(): Promise<void> {
+    if (this.assistantLoading) {
+      return;
+    }
+    this.assistantLoading = true;
+    try {
+      const input: AssistantAnalyzeInput = {
+        text: this.assistantQuestion,
+        imageBase64: this.assistantSelectedImage === null ? '' : this.assistantSelectedImage.imageBase64,
+        imageMimeType: this.assistantSelectedImage === null ? '' : this.assistantSelectedImage.imageMimeType
+      };
+      const result = await askAssistantUseCase(input, this.assistantHistory);
       if (!result.success) {
         this.showMessage(result.message);
         return;
@@ -1570,6 +1661,8 @@ struct Index {
     } catch (error) {
       const message: string = error instanceof Error ? error.message : '助手暂时不可用。';
       this.showMessage(message);
+    } finally {
+      this.assistantLoading = false;
     }
   }
 

@@ -17,25 +17,19 @@ export struct KnowledgePage {
   favoriteKnowledgeIds: string[];
   onOpenArticle: (articleId: string) => void = () => {
   };
-  onSelectOcrImage: () => void = () => {
-  };
-  onUseOcrDemo: () => void = () => {
-  };
   @State selectedCategoryId: string = 'all';
-  @State searchKeyword: string = '';
 
   private getResults(): KnowledgeArticle[] {
-    return searchKnowledge(this.articles, this.selectedCategoryId, this.searchKeyword);
+    return searchKnowledge(this.articles, this.selectedCategoryId, '');
   }
 
   private clearFilters(): void {
     this.selectedCategoryId = 'all';
-    this.searchKeyword = '';
   }
 
   build() {
     Column({ space: 14 }) {
-      SectionBlock({ title: '知识检索', subtitle: '按分类或关键词查找已发布的公司制度与操作指南。' }) {
+      SectionBlock({ title: '知识分类', subtitle: '按分类浏览已发布的公司制度与操作指南。' }) {
         Column({ space: 12 }) {
           TextInput({ placeholder: '搜索制度、流程、标签', text: this.searchKeyword })
             .height(48)

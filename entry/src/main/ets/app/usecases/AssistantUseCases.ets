@@ -1,4 +1,4 @@
-import { AssistantHistory, AssistantReply } from '../../models/AppModels';
+import { AssistantAnalyzeInput, AssistantHistory, AssistantReply } from '../../models/AppModels';
 import { repositories } from '../repositories/RepositoryProvider';
 
 export interface AssistantAskResult {
@@ -9,11 +9,11 @@ export interface AssistantAskResult {
 }
 
 export async function askAssistantUseCase(
-  question: string,
+  input: AssistantAnalyzeInput,
   history: AssistantHistory[]
 ): Promise<AssistantAskResult> {
-  const normalized: string = question.trim();
-  if (normalized.length === 0) {
+  const normalized: string = input.text.trim();
+  if (normalized.length === 0 && input.imageBase64.length === 0) {
     return {
       success: false,
       reply: null,
@@ -22,14 +22,22 @@ export async function askAssistantUseCase(
     };
   }
 
-  const reply: AssistantReply = await repositories.assistantRepository.ask(normalized);
+  const request: AssistantAnalyzeInput = {
+    text: normalized,
+    imageBase64: input.imageBase64,
+    imageMimeType: input.imageMimeType
+  };
+  const reply: AssistantReply = await repositories.assistantRepository.analyze(request);
+  const historyQuestion: string = normalized.length > 0
+    ? normalized
+    : (reply.recognizedText.length > 0 ? `图片查询：${reply.recognizedText.slice(0, 60)}` : '图片查询');
   return {
     success: true,
     reply,
     history: [
       {
         id: `${Date.now()}`,
-        question: normalized,
+        question: historyQuestion,
         answer: reply.answer,
         time: '刚刚'
       },
