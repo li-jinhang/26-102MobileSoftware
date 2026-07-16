@@ -9,6 +9,8 @@ export type AttendanceRecordStatus = 'normal' | 'late' | 'earlyLeave' | 'offsite
 export type MailFolder = 'inbox' | 'sent' | 'draft' | 'trash';
 export type MailImportance = 'normal' | 'important' | 'urgent';
 export type EmploymentStatus = 'active' | 'inactive';
+export type CollaborationKind = 'meeting' | 'task' | 'group' | 'chain';
+export type CollaborationState = 'action' | 'waiting' | 'active';
 
 export interface User {
   id: string;
@@ -54,6 +56,41 @@ export interface OrganizationProfile {
   manager: EmployeeDirectoryItem | null;
   directReports: EmployeeDirectoryItem[];
   departmentMembers: EmployeeDirectoryItem[];
+}
+
+export interface CollaborationItem {
+  id: string;
+  kind: CollaborationKind;
+  title: string;
+  summary: string;
+  ownerName: string;
+  ownerDepartment: string;
+  timeText: string;
+  placeText: string;
+  statusText: string;
+  state: CollaborationState;
+  needsAction: boolean;
+}
+
+export interface CollaborationMessage {
+  id: string;
+  threadId: string;
+  senderName: string;
+  senderRoleLabel: string;
+  content: string;
+  timeText: string;
+  direction: 'in' | 'out';
+}
+
+export interface CollaborationBoard {
+  actionCount: number;
+  waitingCount: number;
+  meetingCount: number;
+  groupCount: number;
+  meetingItems: CollaborationItem[];
+  taskItems: CollaborationItem[];
+  groupItems: CollaborationItem[];
+  chainItems: CollaborationItem[];
 }
 
 export interface DepartmentTreeItem extends Department {

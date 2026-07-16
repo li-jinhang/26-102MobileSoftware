@@ -19,6 +19,14 @@ export struct ProfilePage {
   onOpenOrganization: () => void = () => {};
   onLogout: () => void = () => {};
 
+  private isHrManager(): boolean {
+    return this.user.departmentId === 'd-hr' || this.user.account === 'hr01';
+  }
+
+  private isKnowledgeManager(): boolean {
+    return this.user.role === 'knowledgeAdmin' || this.user.role === 'systemAdmin';
+  }
+
   @Builder
   private SettingRow(mark: string, title: string, value: string, onClick: () => void) {
     Row({ space: 12 }) {
@@ -49,6 +57,24 @@ export struct ProfilePage {
     .onClick(() => {
       onClick();
     })
+  }
+
+  @Builder
+  private ManagementRow(label: string, detail: string, color: string, background: string) {
+    Row({ space: 8 }) {
+      Text(label)
+        .fontSize(Typography.captionSize())
+        .fontColor(color)
+        .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+        .backgroundColor(background)
+        .borderRadius(AppTheme.radiusSmall())
+      Text(detail)
+        .fontSize(Typography.captionSize())
+        .fontColor(AppTheme.textSecondary())
+        .layoutWeight(1)
+        .maxLines(1)
+    }
+    .width('100%')
   }
 
   build() {
@@ -85,7 +111,7 @@ export struct ProfilePage {
 
       SectionBlock({ title: '工作与协作' }) {
         Column() {
-          this.SettingRow('⌘', '我的组织', this.user.department, () => this.onOpenOrganization())
+          this.SettingRow('组', '我的组织', this.user.department, () => this.onOpenOrganization())
           this.SettingRow('✓', '签到签退', this.attendanceStatus, () => this.onOpenAttendance())
           this.SettingRow('✉', '内部邮件', `${this.mailUnreadCount} 封未读`, () => this.onOpenMail())
           this.SettingRow('●', '消息中心', `${this.unreadCount} 条未读`, () => this.onOpenMessages())
@@ -106,6 +132,21 @@ export struct ProfilePage {
           }, (permission: string) => permission)
         }
         .width('100%')
+      }
+
+      if (this.isHrManager() || this.isKnowledgeManager()) {
+        SectionBlock({ title: '管理权限', subtitle: '按岗位开放员工与知识维护能力' }) {
+          Column({ space: 10 }) {
+            if (this.isHrManager()) {
+              this.ManagementRow('员工管理', '新增 / 删除 / 调整在职状态', '#175CD3', '#EAF1FF')
+            }
+
+            if (this.isKnowledgeManager()) {
+              this.ManagementRow('知识维护', '新增 / 编辑 / 删除 / 下架', '#0E9384', '#E6F7F5')
+            }
+          }
+          .width('100%')
+        }
       }
 
       SectionBlock({ title: '收藏知识', subtitle: `${this.favoriteArticles.length} 条常用内容` }) {

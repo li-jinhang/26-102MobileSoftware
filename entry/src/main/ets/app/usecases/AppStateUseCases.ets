@@ -191,6 +191,6 @@ export function buildWorkflowMessageNavigationStateUseCase(
     activeSubPage: 'none',
     detailReturnSubPage: 'none',
     activeTab: 2,
-    message: '已进入流程页面。'
+    message: '已进入协作页面。'
   };
 }

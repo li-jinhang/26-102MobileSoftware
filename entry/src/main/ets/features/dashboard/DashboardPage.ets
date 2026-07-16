@@ -15,6 +15,7 @@ export struct DashboardPage {
   @Require @Prop notifications: NotificationItem[];
   @Require @Prop templates: WorkflowTemplate[];
   @Prop todoCount: number = 0;
+  @Prop waitingCount: number = 0;
   @Prop attendanceStatus: string = '未加载';
   @Prop mailUnreadCount: number = 0;
   onOpenArticle: (articleId: string) => void = () => {};
@@ -25,10 +26,12 @@ export struct DashboardPage {
   onOpenAttendance: () => void = () => {};
   onOpenMail: () => void = () => {};
   onOpenOrganization: () => void = () => {};
+  onOpenCollaboration: () => void = () => {};
+  onOpenWaiting: () => void = () => {};
   onStartWorkflow: (templateId: string) => void = () => {};
 
   private getUnreadCount(): number {
-    return this.notifications.filter((item: NotificationItem) => !item.read).length;
+    return this.notifications.filter((item: NotificationItem) => !item.read).length + this.mailUnreadCount;
   }
 
   @Builder
@@ -85,6 +88,7 @@ export struct DashboardPage {
     Column({ space: 12 }) {
       EdgeLightPanel({
         radiusValue: AppTheme.radiusMedium(),
+        emphasis: true,
         todoCount: this.todoCount,
         unreadCount: this.getUnreadCount()
       }) {
@@ -114,7 +118,7 @@ export struct DashboardPage {
           Row() {
             this.StatItem('待处理', `${this.todoCount}`, AppTheme.primary(), () => this.onOpenTodo())
             Divider().vertical(true).height(34).color(AppTheme.divider())
-            this.StatItem('知识', `${this.articles.length}`, AppTheme.success(), () => this.onOpenKnowledge())
+            this.StatItem('等待中', `${this.waitingCount}`, AppTheme.warning(), () => this.onOpenWaiting())
             Divider().vertical(true).height(34).color(AppTheme.divider())
             this.StatItem('未读', `${this.getUnreadCount()}`, AppTheme.warning(), () => this.onOpenMessages())
             Divider().vertical(true).height(34).color(AppTheme.divider())
@@ -159,8 +163,8 @@ export struct DashboardPage {
           Row({ space: 8 }) {
             this.QuickEntry('✓', '签到签退', this.attendanceStatus, () => this.onOpenAttendance())
             this.QuickEntry('✉', '内部邮件', `${this.mailUnreadCount} 封未读`, () => this.onOpenMail())
-            this.QuickEntry('⌘', '我的组织', this.user.department, () => this.onOpenOrganization())
-            this.QuickEntry('▤', '知识库', `${this.articles.length} 条`, () => this.onOpenKnowledge())
+            this.QuickEntry('协', '协作', '会议 / 对接 / 工作组', () => this.onOpenCollaboration())
+            this.QuickEntry('组', '我的组织', this.user.department, () => this.onOpenOrganization())
           }
           .width('100%')
 
@@ -169,7 +173,7 @@ export struct DashboardPage {
             Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
               ForEach(this.templates.slice(0, 4), (item: WorkflowTemplate) => {
                 Row({ space: 8 }) {
-                  Text('＋')
+                  Text('▶')
                     .fontSize(16)
                     .fontColor(AppTheme.primary())
                   Text(item.name)

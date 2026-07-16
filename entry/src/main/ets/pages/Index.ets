@@ -5,6 +5,7 @@ import {
   submitAttendanceCheckOutUseCase
 } from '../app/usecases/AttendanceUseCases';
 import { askAssistantUseCase } from '../app/usecases/AssistantUseCases';
+import { buildCollaborationBoardUseCase } from '../app/usecases/CollaborationUseCases';
 import { loadAppBootstrapData, AppBootstrapData } from '../app/usecases/AppBootstrapUseCases';
 import { loadMyOrganizationUseCase } from '../app/usecases/OrganizationUseCases';
 import { loginWithAccount, logoutCurrentAccount } from '../app/usecases/AuthUseCases';
@@ -22,7 +23,6 @@ import {
 import {
   getActiveWorkflowCountUseCase,
   getArticleByIdUseCase,
-  getDashboardTodoCountUseCase,
   getFavoriteArticlesUseCase,
   getHighRiskWorkflowCountUseCase,
   getMyWorkflowsUseCase,
@@ -71,6 +71,7 @@ import { AppTheme } from '../common/theme/AppTheme';
 import { AttendancePage } from '../features/attendance/AttendancePage';
 import { AssistantPage } from '../features/assistant/AssistantPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { CollaborationPage } from '../features/collaboration/CollaborationPage';
 import { KnowledgeDetailPage } from '../features/knowledge/KnowledgeDetailPage';
 import { KnowledgePage } from '../features/knowledge/KnowledgePage';
 import { MailComposerPage } from '../features/mail/MailComposerPage';
@@ -89,6 +90,7 @@ import {
   AuditLog,
   AttendanceRecord,
   AttendanceTodaySummary,
+  CollaborationBoard,
   KnowledgeArticle,
   KnowledgeCategory,
   KnowledgeCorrection,
@@ -113,8 +115,8 @@ interface DemoAccount {
 @Component
 struct Index {
   @StorageLink('launchPage') launchPage: string = '';
-  private readonly tabLabels: string[] = ['工作台', '知识库', '流程', '我的'];
-  private readonly tabMarks: string[] = ['工', '知', '流', '我'];
+  private readonly tabLabels: string[] = ['工作台', '知识库', '协作', '我的'];
+  private readonly tabMarks: string[] = ['工', '知', '协', '我'];
   private readonly demoAccounts: DemoAccount[] = [
     { name: '张晓宁', account: 'employee01', department: '产品研发部', jobTitle: '产品经理' },
     { name: '李清越', account: 'manager01', department: '产品研发部', jobTitle: '研发部负责人' },
@@ -179,6 +181,7 @@ struct Index {
   @State assistantLoading: boolean = false;
   @State readingFontScale: ReadingFontScale = 'standard';
   @State readingFontWeight: ReadingFontWeight = 'standard';
+  @State collaborationFocus: 'all' | 'action' | 'waiting' = 'all';
   @State activeWorkflowModule: 'overview' | 'apply' | 'mine' = 'overview';
   @State workflowPanelVisible: boolean = false;
   @State workflowComposerVisible: boolean = false;
@@ -628,6 +631,7 @@ struct Index {
                   notifications: this.getVisibleMessages(),
                   templates: this.templates,
                   todoCount: this.getDashboardTodoCount(),
+                  waitingCount: this.getCollaborationWaitingCount(),
                   attendanceStatus: this.getAttendanceStatusSummary(),
                   mailUnreadCount: this.getUnreadMailCount(),
                   onOpenArticle: (articleId: string) => {
@@ -652,10 +656,20 @@ struct Index {
                   onOpenOrganization: () => {
                     void this.openOrganizationPage();
                   },
+                  onOpenCollaboration: () => {
+                    this.activeSubPage = 'none';
+                    this.activeTab = 2;
+                    this.collaborationFocus = 'all';
+                  },
+                  onOpenWaiting: () => {
+                    this.activeSubPage = 'none';
+                    this.activeTab = 2;
+                    this.collaborationFocus = 'waiting';
+                  },
                   onOpenTodo: () => {
                     this.activeSubPage = 'none';
                     this.activeTab = 2;
-                    this.openWorkflowModule('mine');
+                    this.collaborationFocus = 'action';
                   },
                   onStartWorkflow: (templateId: string) => {
                     this.startWorkflow(templateId);
@@ -671,7 +685,15 @@ struct Index {
                   }
                 })
               } else if (this.activeTab === 2) {
-                this.WorkflowTab();
+                CollaborationPage({
+                  user: this.getCurrentUser(),
+                  profile: this.organizationProfile,
+                  workflowInstances: this.workflowInstances,
+                  focus: this.collaborationFocus,
+                  onOpenOrganization: () => {
+                    void this.openOrganizationPage();
+                  }
+                })
               } else {
                 ProfilePage({
                   user: this.getCurrentUser(),
@@ -1320,6 +1342,9 @@ struct Index {
         .borderRadius(AppTheme.radiusSmall())
         .onClick(() => {
           this.activeTab = index;
+          if (index === 2) {
+            this.collaborationFocus = 'all';
+          }
         })
       }, (item: string) => item)
     }
@@ -1507,7 +1532,7 @@ struct Index {
   }
 
   private getUnreadMessageCount(): number {
-    return getUnreadMessageCountUseCase(this.currentUser, this.notifications);
+    return getUnreadMessageCountUseCase(this.currentUser, this.notifications) + this.getUnreadMailCount();
   }
 
   private openWorkflowFromMessage(instanceId: string): void {
@@ -1565,6 +1590,7 @@ struct Index {
     this.assistantLoading = false;
     this.readingFontScale = result.readingFontScale;
     this.readingFontWeight = 'standard';
+    this.collaborationFocus = 'all';
     this.activeWorkflowModule = 'overview';
     this.workflowPanelVisible = false;
     this.workflowComposerVisible = false;
@@ -1593,12 +1619,14 @@ struct Index {
       this.assistantReply = result.assistantReply;
       this.assistantSelectedImage = null;
       this.assistantLoading = false;
+      this.collaborationFocus = 'all';
       this.activeWorkflowModule = 'overview';
       this.workflowPanelVisible = false;
       this.workflowComposerVisible = false;
       this.applyBootstrapData(bootstrapData);
       await this.loadAttendancePreview();
       await this.loadMailPreview();
+      this.organizationProfile = await loadMyOrganizationUseCase();
       if (this.selectedArticleId.length === 0 && this.articles.length > 0) {
         this.selectedArticleId = this.articles[0].id;
       }
@@ -1979,7 +2007,15 @@ struct Index {
   }
 
   private getDashboardTodoCount(): number {
-    return getDashboardTodoCountUseCase(this.currentUser, this.workflowInstances);
+    return this.getCollaborationBoard().actionCount;
+  }
+
+  private getCollaborationWaitingCount(): number {
+    return this.getCollaborationBoard().waitingCount;
+  }
+
+  private getCollaborationBoard(): CollaborationBoard {
+    return buildCollaborationBoardUseCase(this.currentUser, this.organizationProfile, this.workflowInstances);
   }
 
   private getActiveWorkflowCount(): number {
