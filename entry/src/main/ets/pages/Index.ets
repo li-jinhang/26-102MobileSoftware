@@ -550,6 +550,7 @@ struct Index {
           })
         } else if (this.activeSubPage === 'mailComposer') {
           MailComposerPage({
+            profile: this.organizationProfile,
             onBack: () => {
               this.activeSubPage = 'mail';
             },
@@ -689,10 +690,7 @@ struct Index {
                   user: this.getCurrentUser(),
                   profile: this.organizationProfile,
                   workflowInstances: this.workflowInstances,
-                  focus: this.collaborationFocus,
-                  onOpenOrganization: () => {
-                    void this.openOrganizationPage();
-                  }
+                  focus: this.collaborationFocus
                 })
               } else {
                 ProfilePage({
