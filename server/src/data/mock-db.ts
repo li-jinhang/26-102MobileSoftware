@@ -195,6 +195,27 @@ export interface MailMessage {
   relatedKnowledgeId: string;
 }
 
+export interface CollaborationMessage {
+  id: string;
+  threadId: string;
+  senderId: string;
+  senderName: string;
+  senderRoleLabel: string;
+  receiverIds: string[];
+  content: string;
+  timeText: string;
+}
+
+export interface CollaborationMessageView {
+  id: string;
+  threadId: string;
+  senderName: string;
+  senderRoleLabel: string;
+  content: string;
+  timeText: string;
+  direction: 'in' | 'out';
+}
+
 const users: UserProfile[] = [
   {
     id: 'u1',
@@ -1066,6 +1087,8 @@ let mails: MailMessage[] = [
   }
 ];
 
+const collaborationMessages: CollaborationMessage[] = [];
+
 function cloneStringArray(items: string[]): string[] {
   return items.map((item: string) => item);
 }
@@ -1253,6 +1276,31 @@ function cloneMail(item: MailMessage): MailMessage {
     read: item.read,
     relatedWorkflowId: item.relatedWorkflowId,
     relatedKnowledgeId: item.relatedKnowledgeId
+  };
+}
+
+function cloneCollaborationMessage(item: CollaborationMessage): CollaborationMessage {
+  return {
+    id: item.id,
+    threadId: item.threadId,
+    senderId: item.senderId,
+    senderName: item.senderName,
+    senderRoleLabel: item.senderRoleLabel,
+    receiverIds: cloneStringArray(item.receiverIds),
+    content: item.content,
+    timeText: item.timeText
+  };
+}
+
+function toCollaborationMessageView(item: CollaborationMessage, currentUserId: string): CollaborationMessageView {
+  return {
+    id: item.id,
+    threadId: item.threadId,
+    senderName: item.senderName,
+    senderRoleLabel: item.senderRoleLabel,
+    content: item.content,
+    timeText: item.timeText,
+    direction: item.senderId === currentUserId ? 'out' : 'in'
   };
 }
 
@@ -1694,6 +1742,55 @@ export function getInbox(token: string): MailMessage[] {
   return mails
     .filter((item: MailMessage) => item.folder === 'inbox' && item.recipients.some((recipient: MailRecipient) => recipient.userId === user.id))
     .map((item: MailMessage) => cloneMail(item));
+}
+
+export function getCollaborationMessages(token: string, threadId: string): CollaborationMessageView[] {
+  const user: UserProfile = getUserByToken(token);
+  if (threadId.trim().length === 0) {
+    throw new Error('会话标识不能为空');
+  }
+  return collaborationMessages
+    .filter((item: CollaborationMessage) => {
+      return item.threadId === threadId && (item.senderId === user.id || item.receiverIds.includes(user.id));
+    })
+    .map((item: CollaborationMessage) => toCollaborationMessageView(cloneCollaborationMessage(item), user.id));
+}
+
+export function sendCollaborationMessage(token: string, threadId: string, payload: {
+  receiverIds: string[];
+  content: string;
+}): CollaborationMessageView {
+  const sender: UserProfile = getUserByToken(token);
+  const receiverIds: string[] = payload.receiverIds
+    .filter((receiverId: string, index: number) => receiverId !== sender.id && payload.receiverIds.indexOf(receiverId) === index);
+  if (threadId.trim().length === 0) {
+    throw new Error('会话标识不能为空');
+  }
+  if (payload.content.trim().length === 0) {
+    throw new Error('消息内容不能为空');
+  }
+  if (receiverIds.length === 0) {
+    throw new Error('请至少选择一位接收成员');
+  }
+  receiverIds.forEach((receiverId: string) => {
+    const receiver: UserProfile | undefined = users.find((item: UserProfile) => item.id === receiverId);
+    if (receiver === undefined || receiver.employmentStatus !== 'active') {
+      throw new Error(`接收成员不存在或已停用: ${receiverId}`);
+    }
+  });
+
+  const message: CollaborationMessage = {
+    id: `collaboration-${Date.now()}`,
+    threadId,
+    senderId: sender.id,
+    senderName: sender.name,
+    senderRoleLabel: sender.roleLabel,
+    receiverIds,
+    content: payload.content.trim(),
+    timeText: new Date().toISOString().slice(0, 16).replace('T', ' ')
+  };
+  collaborationMessages.push(message);
+  return toCollaborationMessageView(message, sender.id);
 }
 
 export function getSent(token: string): MailMessage[] {

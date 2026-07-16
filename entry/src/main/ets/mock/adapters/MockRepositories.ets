@@ -26,6 +26,8 @@ import {
   DepartmentTreeItem,
   EmployeeDirectoryItem,
   OrganizationProfile,
+  CollaborationMessage,
+  CollaborationMessageSendPayload,
   User,
   WorkflowInstance,
   WorkflowTemplate
@@ -42,6 +44,7 @@ import {
   MailSendPayload,
   NotificationRepository,
   OrganizationRepository,
+  CollaborationRepository,
   WorkflowCreatePayload,
   WorkflowRepository
 } from '../../domain/contracts/AppRepositories';
@@ -255,6 +258,28 @@ class MockOrganizationRepository implements OrganizationRepository {
   }
 }
 
+class MockCollaborationRepository implements CollaborationRepository {
+  private messages: CollaborationMessage[] = [];
+
+  async getThreadMessages(threadId: string): Promise<CollaborationMessage[]> {
+    return this.messages.filter((item: CollaborationMessage) => item.threadId === threadId);
+  }
+
+  async sendMessage(input: CollaborationMessageSendPayload): Promise<CollaborationMessage> {
+    const message: CollaborationMessage = {
+      id: `message-${Date.now()}`,
+      threadId: input.threadId,
+      senderName: '张晓宁',
+      senderRoleLabel: '普通员工',
+      content: input.content,
+      timeText: '刚刚',
+      direction: 'out'
+    };
+    this.messages = this.messages.concat([message]);
+    return message;
+  }
+}
+
 class MockAssistantRepository implements AssistantRepository {
   async analyze(input: AssistantAnalyzeInput): Promise<AssistantReply> {
     const reply = askAssistant(input.text);
@@ -287,5 +312,6 @@ export const mockNotificationRepository: NotificationRepository = new MockNotifi
 export const mockAttendanceRepository: AttendanceRepository = new MockAttendanceRepository();
 export const mockMailRepository: MailRepository = new MockMailRepository();
 export const mockOrganizationRepository: OrganizationRepository = new MockOrganizationRepository();
+export const mockCollaborationRepository: CollaborationRepository = new MockCollaborationRepository();
 export const mockAssistantRepository: AssistantRepository = new MockAssistantRepository();
 export const mockAuditRepository: AuditRepository = new MockAuditRepository();

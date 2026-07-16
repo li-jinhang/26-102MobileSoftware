@@ -1,4 +1,8 @@
 import { buildCollaborationBoardUseCase } from '../../app/usecases/CollaborationUseCases';
+import {
+  loadCollaborationMessagesUseCase,
+  sendCollaborationMessageUseCase
+} from '../../app/usecases/CollaborationMessageUseCases';
 import { EmptyState } from '../../common/components/EmptyState';
 import { SectionBlock } from '../../common/components/SectionBlock';
 import { AppTheme } from '../../common/theme/AppTheme';
@@ -8,6 +12,7 @@ import {
   CollaborationItem,
   CollaborationKind,
   CollaborationMessage,
+  EmployeeDirectoryItem,
   OrganizationProfile,
   User,
   WorkflowInstance
@@ -30,6 +35,8 @@ export struct CollaborationPage {
   @State activeThreadKind: CollaborationKind = 'task';
   @State conversationVisible: boolean = false;
   @State conversationInput: string = '';
+  @State conversationLoading: boolean = false;
+  @State activeReceiverIds: string[] = [];
   @State meetingDialogVisible: boolean = false;
   @State taskDialogVisible: boolean = false;
   @State meetingParticipantIdsInput: string = '';
@@ -117,6 +124,22 @@ export struct CollaborationPage {
     return this.conversationMessages.filter((item: CollaborationMessage) => item.threadId === this.activeThreadId);
   }
 
+  private getItemMembers(item: CollaborationItem): EmployeeDirectoryItem[] {
+    return item.members;
+  }
+
+  private getItemMemberSummary(item: CollaborationItem): string {
+    const names: string[] = [];
+    this.getItemMembers(item).forEach((member: EmployeeDirectoryItem) => {
+      names.push(member.name);
+    });
+    return names.join('、');
+  }
+
+  private getReceiverIds(item: CollaborationItem): string[] {
+    return item.participantIds.filter((id: string) => id !== this.user.id);
+  }
+
   private getConversationPlaceholder(): string {
     if (this.activeThreadKind === 'chain') {
       return '输入工作汇报内容';
@@ -184,36 +207,49 @@ export struct CollaborationPage {
     }
   }
 
-  private openConversation(item: CollaborationItem): void {
+  private async openConversation(item: CollaborationItem): Promise<void> {
     this.activeThreadId = this.getThreadId(item);
     this.activeThreadTitle = item.title;
     this.activeThreadSummary = `${item.ownerName} · ${item.ownerDepartment}`;
     this.activeThreadKind = item.kind;
+    this.activeReceiverIds = this.getReceiverIds(item);
     this.conversationInput = '';
     this.conversationVisible = true;
+    this.conversationLoading = true;
+    try {
+      this.conversationMessages = await loadCollaborationMessagesUseCase(this.activeThreadId);
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '会话消息加载失败。';
+      this.showMessage(message);
+    } finally {
+      this.conversationLoading = false;
+    }
   }
 
-  private sendConversationMessage(): void {
+  private async sendConversationMessage(): Promise<void> {
     const content: string = this.conversationInput.trim();
     if (content.length === 0 || this.activeThreadId.length === 0) {
       this.showMessage('请先输入要发送的文本。');
       return;
     }
 
-    const message: CollaborationMessage = {
-      id: this.createId('msg'),
-      threadId: this.activeThreadId,
-      senderName: this.user.name,
-      senderRoleLabel: this.user.roleLabel,
-      content,
-      timeText: this.formatCurrentTime(),
-      direction: 'out'
-    };
-    const nextMessages: CollaborationMessage[] = this.conversationMessages.slice();
-    nextMessages.push(message);
-    this.conversationMessages = nextMessages;
-    this.conversationInput = '';
-    this.showMessage('已发送文本消息。');
+    if (this.activeReceiverIds.length === 0) {
+      this.showMessage('当前协作事项没有可投递成员，请选择工作组成员或填写成员姓名、账号。');
+      return;
+    }
+    try {
+      const message: CollaborationMessage = await sendCollaborationMessageUseCase(
+        this.activeThreadId,
+        this.activeReceiverIds,
+        content
+      );
+      this.conversationMessages = this.conversationMessages.concat([message]);
+      this.conversationInput = '';
+      this.showMessage('消息已发送到接收成员账户。');
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '消息发送失败。';
+      this.showMessage(message);
+    }
   }
 
   private openMeetingDialog(): void {
@@ -234,6 +270,9 @@ export struct CollaborationPage {
     const timeText: string = this.meetingTimeInput.trim();
     const placeText: string = this.meetingPlaceInput.trim();
     const summary: string = this.meetingSummaryInput.trim();
+    const participants: EmployeeDirectoryItem[] = this.profile === null ? [] : this.profile.departmentMembers.filter(
+      (item: EmployeeDirectoryItem) => employeeIds.includes(item.id)
+    );
     if (title.length === 0 || timeText.length === 0 || placeText.length === 0 || employeeIds.length === 0) {
       this.showMessage('请填写参会员工 ID、会议标题、时间和地点。');
       return;
@@ -250,7 +289,9 @@ export struct CollaborationPage {
       placeText,
       statusText: '待确认',
       state: 'active',
-      needsAction: false
+      needsAction: false,
+      participantIds: employeeIds,
+      members: participants
     };
     const nextItems: CollaborationItem[] = this.customMeetings.slice();
     nextItems.unshift(item);
@@ -273,6 +314,9 @@ export struct CollaborationPage {
     const target: string = this.taskTargetInput.trim();
     const timeText: string = this.taskTimeInput.trim();
     const summary: string = this.taskSummaryInput.trim();
+    const targetMembers: EmployeeDirectoryItem[] = this.profile === null ? [] : this.profile.departmentMembers.filter(
+      (item: EmployeeDirectoryItem) => item.id === target || item.account === target || item.name === target
+    );
     if (title.length === 0 || target.length === 0 || timeText.length === 0) {
       this.showMessage('请填写对接标题、对象和时间。');
       return;
@@ -289,7 +333,9 @@ export struct CollaborationPage {
       placeText: '工作对接',
       statusText: '等待回复',
       state: 'waiting',
-      needsAction: false
+      needsAction: false,
+      participantIds: targetMembers.map((item: EmployeeDirectoryItem) => item.id),
+      members: targetMembers
     };
     const nextItems: CollaborationItem[] = this.customTasks.slice();
     nextItems.unshift(item);
@@ -406,6 +452,49 @@ export struct CollaborationPage {
       }
       .width('100%')
 
+      if (item.kind === 'group') {
+        Column({ space: 6 }) {
+          Text(`成员 (${this.getItemMembers(item).length})`)
+            .fontSize(Typography.metaSize())
+            .fontWeight(FontWeight.Medium)
+            .fontColor(AppTheme.textPrimary())
+            .width('100%')
+          Text(this.getItemMemberSummary(item))
+            .fontSize(Typography.captionSize())
+            .fontColor(AppTheme.textSecondary())
+            .lineHeight(Typography.summaryLineHeight())
+            .width('100%')
+            .maxLines(3)
+          ForEach(this.getItemMembers(item), (member: EmployeeDirectoryItem) => {
+            Row({ space: 8 }) {
+              Text(member.name.slice(0, 1))
+                .fontSize(Typography.captionSize())
+                .fontColor(AppTheme.primary())
+                .width(24)
+                .height(24)
+                .textAlign(TextAlign.Center)
+                .padding({ top: 4 })
+                .backgroundColor(AppTheme.primarySoft())
+                .borderRadius(12)
+              Text(member.name)
+                .fontSize(Typography.metaSize())
+                .fontColor(AppTheme.textPrimary())
+                .layoutWeight(1)
+                .maxLines(1)
+              Text(member.id === this.user.id ? '本人' : member.jobTitle)
+                .fontSize(Typography.captionSize())
+                .fontColor(AppTheme.textSecondary())
+                .maxLines(1)
+            }
+            .width('100%')
+          }, (member: EmployeeDirectoryItem) => member.id)
+        }
+        .width('100%')
+        .padding(10)
+        .backgroundColor(AppTheme.surfaceMuted())
+        .borderRadius(AppTheme.radiusSmall())
+      }
+
     }
     .width('100%')
     .padding(14)
@@ -414,7 +503,7 @@ export struct CollaborationPage {
     .border({ width: 1, color: AppTheme.divider() })
     .onClick(() => {
       if (item.kind !== 'meeting') {
-        this.openConversation(item);
+        void this.openConversation(item);
       }
     })
   }
@@ -451,7 +540,14 @@ export struct CollaborationPage {
         .width('100%')
 
         Scroll() {
-          if (this.getConversationItems().length === 0) {
+          if (this.conversationLoading) {
+            Text('正在加载会话…')
+              .fontSize(Typography.captionSize())
+              .fontColor(AppTheme.textSecondary())
+              .width('100%')
+              .textAlign(TextAlign.Center)
+              .padding({ top: 24 })
+          } else if (this.getConversationItems().length === 0) {
             EmptyState({
               title: '暂无文本消息',
               description: '先输入一段内容，就会在这里开始会话。'
@@ -485,7 +581,7 @@ export struct CollaborationPage {
             .backgroundColor(AppTheme.primary())
             .borderRadius(AppTheme.radiusSmall())
             .onClick(() => {
-              this.sendConversationMessage();
+              void this.sendConversationMessage();
             })
         }
         .width('100%')

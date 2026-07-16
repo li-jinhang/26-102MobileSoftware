@@ -14,22 +14,49 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AssistantController = void 0;
 const common_1 = require("@nestjs/common");
+const auth_token_1 = require("../../common/auth-token");
 const api_response_1 = require("../../common/api-response");
-const mock_db_1 = require("../../data/mock-db");
+const assistant_service_1 = require("./assistant.service");
+const MAX_IMAGE_BASE64_LENGTH = 8000000;
+const IMAGE_MIME_TYPES = ['', 'image/jpeg', 'image/png'];
+function normalizeAnalyzeRequest(body) {
+    const text = typeof body.text === 'string' ? body.text : '';
+    const imageBase64 = typeof body.imageBase64 === 'string' ? body.imageBase64 : '';
+    const imageMimeType = typeof body.imageMimeType === 'string' ? body.imageMimeType : '';
+    if (text.trim().length === 0 && imageBase64.length === 0) {
+        throw new common_1.BadRequestException('请至少输入文字或选择一张图片。');
+    }
+    if (imageBase64.length > MAX_IMAGE_BASE64_LENGTH) {
+        throw new common_1.PayloadTooLargeException('图片过大，请选择较小的图片。');
+    }
+    if (imageBase64.length > 0 && !IMAGE_MIME_TYPES.includes(imageMimeType)) {
+        throw new common_1.BadRequestException('仅支持 JPEG 或 PNG 图片。');
+    }
+    if (imageBase64.length > 0 && (imageBase64.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(imageBase64))) {
+        throw new common_1.BadRequestException('图片数据格式无效。');
+    }
+    return { text, imageBase64, imageMimeType };
+}
 let AssistantController = class AssistantController {
-    ask(body) {
-        return (0, api_response_1.ok)((0, mock_db_1.askAssistant)(body.question));
+    constructor(assistantService) {
+        this.assistantService = assistantService;
+    }
+    async analyze(authorization, body) {
+        const token = (0, auth_token_1.getBearerToken)(authorization);
+        return (0, api_response_1.ok)(await this.assistantService.analyze(token, normalizeAnalyzeRequest(body)));
     }
 };
 exports.AssistantController = AssistantController;
 __decorate([
-    (0, common_1.Post)('ask'),
-    __param(0, (0, common_1.Body)()),
+    (0, common_1.Post)('analyze'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
-], AssistantController.prototype, "ask", null);
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AssistantController.prototype, "analyze", null);
 exports.AssistantController = AssistantController = __decorate([
-    (0, common_1.Controller)('assistant')
+    (0, common_1.Controller)('assistant'),
+    __metadata("design:paramtypes", [assistant_service_1.AssistantService])
 ], AssistantController);
 //# sourceMappingURL=assistant.controller.js.map

@@ -39,7 +39,9 @@ function buildMeetingItems(currentUser: User, profile: OrganizationProfile | nul
       placeText: 'A 栋 3 层协作室',
       statusText: '待确认',
       state: 'action',
-      needsAction: true
+      needsAction: true,
+      participantIds: profile === null ? [] : profile.departmentMembers.map((item: EmployeeDirectoryItem) => item.id),
+      members: profile === null ? [] : profile.departmentMembers
     },
     {
       id: 'meet-2',
@@ -52,7 +54,9 @@ function buildMeetingItems(currentUser: User, profile: OrganizationProfile | nul
       placeText: '线上会议',
       statusText: '已排期',
       state: 'active',
-      needsAction: false
+      needsAction: false,
+      participantIds: [],
+      members: []
     }
   ];
 }
@@ -62,6 +66,8 @@ function buildTaskItems(currentUser: User, profile: OrganizationProfile | null, 
   const reportCount: number = profile === null ? 0 : profile.directReports.length;
   const actionWorkflowCount: number = countActionWorkflows(currentUser, workflowInstances);
   const waitingWorkflowCount: number = countMyPendingWorkflows(currentUser, workflowInstances);
+  const managerParticipants: EmployeeDirectoryItem[] = profile === null || profile.manager === null ? [] : [profile.manager];
+  const reportParticipants: EmployeeDirectoryItem[] = profile === null ? [] : profile.directReports;
   return [
     {
       id: 'task-1',
@@ -74,7 +80,9 @@ function buildTaskItems(currentUser: User, profile: OrganizationProfile | null, 
       placeText: '消息中心',
       statusText: actionWorkflowCount > 0 ? `待处理 ${actionWorkflowCount} 项` : '待回复',
       state: 'action',
-      needsAction: true
+      needsAction: true,
+      participantIds: managerParticipants.map((item: EmployeeDirectoryItem) => item.id),
+      members: managerParticipants
     },
     {
       id: 'task-2',
@@ -87,13 +95,16 @@ function buildTaskItems(currentUser: User, profile: OrganizationProfile | null, 
       placeText: '工作台',
       statusText: waitingWorkflowCount > 0 ? `等待中 ${waitingWorkflowCount} 项` : '等待中',
       state: 'waiting',
-      needsAction: false
+      needsAction: false,
+      participantIds: reportParticipants.map((item: EmployeeDirectoryItem) => item.id),
+      members: reportParticipants
     }
   ];
 }
 
 function buildGroupItems(currentUser: User, profile: OrganizationProfile | null): CollaborationItem[] {
   const membersText: string = profile === null ? '0 人' : `${profile.departmentMembers.length} 人`;
+  const members: EmployeeDirectoryItem[] = profile === null ? [] : profile.departmentMembers;
   return [
     {
       id: 'group-1',
@@ -106,25 +117,14 @@ function buildGroupItems(currentUser: User, profile: OrganizationProfile | null)
       placeText: '协作页',
       statusText: '活跃',
       state: 'active',
-      needsAction: false
-    },
-    {
-      id: 'group-2',
-      kind: 'group',
-      title: '跨部门对接群',
-      summary: '用于临时拉通支持团队、共享进度和快速确认依赖。',
-      ownerName: currentUser.name,
-      ownerDepartment: currentUser.department,
-      timeText: '临时创建',
-      placeText: '协作页',
-      statusText: '待启用',
-      state: 'active',
-      needsAction: false
+      needsAction: false,
+      participantIds: members.map((item: EmployeeDirectoryItem) => item.id),
+      members
     }
   ];
 }
 
-function buildChainItems(profile: OrganizationProfile | null): CollaborationItem[] {
+function buildChainItems(currentUser: User, profile: OrganizationProfile | null): CollaborationItem[] {
   if (profile === null) {
     return [];
   }
@@ -132,7 +132,7 @@ function buildChainItems(profile: OrganizationProfile | null): CollaborationItem
   const items: CollaborationItem[] = [];
   if (profile.manager !== null) {
     const managerItem: CollaborationItem = {
-      id: 'chain-manager',
+      id: `chain-${[currentUser.id, profile.manager.id].sort().join('-')}`,
       kind: 'chain',
       title: '直属上级',
       summary: `${profile.manager.name} · ${profile.manager.jobTitle}`,
@@ -142,14 +142,16 @@ function buildChainItems(profile: OrganizationProfile | null): CollaborationItem
       placeText: '组织关系',
       statusText: '可直联',
       state: 'active',
-      needsAction: false
+      needsAction: false,
+      participantIds: [profile.manager.id],
+      members: [profile.manager]
     };
     items.push(managerItem);
   }
 
   profile.directReports.forEach((item: EmployeeDirectoryItem, index: number) => {
     const chainItem: CollaborationItem = {
-      id: `chain-report-${index}`,
+      id: `chain-${[currentUser.id, item.id].sort().join('-')}`,
       kind: 'chain',
       title: item.name,
       summary: `${item.jobTitle} · ${item.departmentName}`,
@@ -159,7 +161,9 @@ function buildChainItems(profile: OrganizationProfile | null): CollaborationItem
       placeText: '直接下属',
       statusText: '可对接',
       state: 'active',
-      needsAction: false
+      needsAction: false,
+      participantIds: [item.id],
+      members: [item]
     };
     items.push(chainItem);
   });
@@ -188,7 +192,7 @@ export function buildCollaborationBoardUseCase(
   const meetingItems: CollaborationItem[] = buildMeetingItems(currentUser, profile);
   const taskItems: CollaborationItem[] = buildTaskItems(currentUser, profile, workflowInstances);
   const groupItems: CollaborationItem[] = buildGroupItems(currentUser, profile);
-  const chainItems: CollaborationItem[] = buildChainItems(profile);
+  const chainItems: CollaborationItem[] = buildChainItems(currentUser, profile);
 
   const actionWorkflowCount: number = countActionWorkflows(currentUser, workflowInstances);
   const waitingWorkflowCount: number = countMyPendingWorkflows(currentUser, workflowInstances);

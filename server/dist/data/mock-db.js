@@ -26,6 +26,8 @@ exports.getAttendanceRecords = getAttendanceRecords;
 exports.checkIn = checkIn;
 exports.checkOut = checkOut;
 exports.getInbox = getInbox;
+exports.getCollaborationMessages = getCollaborationMessages;
+exports.sendCollaborationMessage = sendCollaborationMessage;
 exports.getSent = getSent;
 exports.getMail = getMail;
 exports.sendMail = sendMail;
@@ -892,6 +894,7 @@ let mails = [
         relatedKnowledgeId: 'k4'
     }
 ];
+const collaborationMessages = [];
 function cloneStringArray(items) {
     return items.map((item) => item);
 }
@@ -1066,6 +1069,29 @@ function cloneMail(item) {
         read: item.read,
         relatedWorkflowId: item.relatedWorkflowId,
         relatedKnowledgeId: item.relatedKnowledgeId
+    };
+}
+function cloneCollaborationMessage(item) {
+    return {
+        id: item.id,
+        threadId: item.threadId,
+        senderId: item.senderId,
+        senderName: item.senderName,
+        senderRoleLabel: item.senderRoleLabel,
+        receiverIds: cloneStringArray(item.receiverIds),
+        content: item.content,
+        timeText: item.timeText
+    };
+}
+function toCollaborationMessageView(item, currentUserId) {
+    return {
+        id: item.id,
+        threadId: item.threadId,
+        senderName: item.senderName,
+        senderRoleLabel: item.senderRoleLabel,
+        content: item.content,
+        timeText: item.timeText,
+        direction: item.senderId === currentUserId ? 'out' : 'in'
     };
 }
 function getTokenAccount(token) {
@@ -1463,6 +1489,49 @@ function getInbox(token) {
     return mails
         .filter((item) => item.folder === 'inbox' && item.recipients.some((recipient) => recipient.userId === user.id))
         .map((item) => cloneMail(item));
+}
+function getCollaborationMessages(token, threadId) {
+    const user = getUserByToken(token);
+    if (threadId.trim().length === 0) {
+        throw new Error('会话标识不能为空');
+    }
+    return collaborationMessages
+        .filter((item) => {
+        return item.threadId === threadId && (item.senderId === user.id || item.receiverIds.includes(user.id));
+    })
+        .map((item) => toCollaborationMessageView(cloneCollaborationMessage(item), user.id));
+}
+function sendCollaborationMessage(token, threadId, payload) {
+    const sender = getUserByToken(token);
+    const receiverIds = payload.receiverIds
+        .filter((receiverId, index) => receiverId !== sender.id && payload.receiverIds.indexOf(receiverId) === index);
+    if (threadId.trim().length === 0) {
+        throw new Error('会话标识不能为空');
+    }
+    if (payload.content.trim().length === 0) {
+        throw new Error('消息内容不能为空');
+    }
+    if (receiverIds.length === 0) {
+        throw new Error('请至少选择一位接收成员');
+    }
+    receiverIds.forEach((receiverId) => {
+        const receiver = users.find((item) => item.id === receiverId);
+        if (receiver === undefined || receiver.employmentStatus !== 'active') {
+            throw new Error(`接收成员不存在或已停用: ${receiverId}`);
+        }
+    });
+    const message = {
+        id: `collaboration-${Date.now()}`,
+        threadId,
+        senderId: sender.id,
+        senderName: sender.name,
+        senderRoleLabel: sender.roleLabel,
+        receiverIds,
+        content: payload.content.trim(),
+        timeText: new Date().toISOString().slice(0, 16).replace('T', ' ')
+    };
+    collaborationMessages.push(message);
+    return toCollaborationMessageView(message, sender.id);
 }
 function getSent(token) {
     const user = getUserByToken(token);

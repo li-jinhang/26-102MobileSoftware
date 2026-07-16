@@ -9,7 +9,7 @@ export struct EdgeLightPanel {
 
   aboutToAppear(): void {
     animateTo({
-      duration: 1600,
+      duration: 700,
       iterations: -1,
       playMode: PlayMode.Alternate,
       curve: Curve.EaseInOut

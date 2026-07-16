@@ -9,7 +9,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const assistant_controller_1 = require("./modules/assistant/assistant.controller");
+const assistant_service_1 = require("./modules/assistant/assistant.service");
 const attendance_controller_1 = require("./modules/attendance/attendance.controller");
+const collaboration_controller_1 = require("./modules/collaboration/collaboration.controller");
 const auth_controller_1 = require("./modules/auth/auth.controller");
 const knowledge_controller_1 = require("./modules/knowledge/knowledge.controller");
 const mail_controller_1 = require("./modules/mail/mail.controller");
@@ -29,8 +31,10 @@ exports.AppModule = AppModule = __decorate([
             organization_controller_1.OrganizationController,
             assistant_controller_1.AssistantController,
             attendance_controller_1.AttendanceController,
-            mail_controller_1.MailController
-        ]
+            mail_controller_1.MailController,
+            collaboration_controller_1.CollaborationController
+        ],
+        providers: [assistant_service_1.AssistantService]
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

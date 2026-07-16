@@ -12,6 +12,8 @@ import {
   DepartmentTreeItem,
   EmployeeDirectoryItem,
   OrganizationProfile,
+  CollaborationMessage,
+  CollaborationMessageSendPayload,
   User,
   WorkflowInstance,
   WorkflowTemplate
@@ -94,6 +96,11 @@ export interface OrganizationRepository {
   getMyOrganization(): Promise<OrganizationProfile>;
   getDepartmentTree(): Promise<DepartmentTreeItem[]>;
   searchUsers(scope: 'department' | 'team' | 'all', keyword?: string, departmentId?: string): Promise<EmployeeDirectoryItem[]>;
+}
+
+export interface CollaborationRepository {
+  getThreadMessages(threadId: string): Promise<CollaborationMessage[]>;
+  sendMessage(input: CollaborationMessageSendPayload): Promise<CollaborationMessage>;
 }
 
 export interface AssistantRepository {

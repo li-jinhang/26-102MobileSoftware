@@ -7,7 +7,8 @@ import {
   MailRepository,
   NotificationRepository,
   OrganizationRepository,
-  WorkflowRepository
+  WorkflowRepository,
+  CollaborationRepository
 } from '../../domain/contracts/AppRepositories';
 import {
   httpAttendanceRepository,
@@ -18,7 +19,8 @@ import {
   httpMailRepository,
   httpNotificationRepository,
   httpOrganizationRepository,
-  httpWorkflowRepository
+  httpWorkflowRepository,
+  httpCollaborationRepository
 } from '../../http/adapters/HttpRepositories';
 
 export interface RepositoryBundle {
@@ -31,6 +33,7 @@ export interface RepositoryBundle {
   mailRepository: MailRepository;
   assistantRepository: AssistantRepository;
   auditRepository: AuditRepository;
+  collaborationRepository: CollaborationRepository;
 }
 
 export const repositories: RepositoryBundle = {
@@ -42,5 +45,6 @@ export const repositories: RepositoryBundle = {
   attendanceRepository: httpAttendanceRepository,
   mailRepository: httpMailRepository,
   assistantRepository: httpAssistantRepository,
-  auditRepository: httpAuditRepository
+  auditRepository: httpAuditRepository,
+  collaborationRepository: httpCollaborationRepository
 };

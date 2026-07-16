@@ -22,6 +22,8 @@ import {
   DepartmentTreeItem,
   EmployeeDirectoryItem,
   OrganizationProfile,
+  CollaborationMessage,
+  CollaborationMessageSendPayload,
   User,
   UserRole,
   WorkflowInstance,
@@ -40,6 +42,7 @@ import {
   MailSendPayload,
   NotificationRepository,
   OrganizationRepository,
+  CollaborationRepository,
   WorkflowCreatePayload,
   WorkflowRepository
 } from '../../domain/contracts/AppRepositories';
@@ -253,6 +256,11 @@ function mapUser(source: BackendUserProfile): User {
     jobTitle: source.jobTitle ?? source.roleLabel,
     employmentStatus: source.employmentStatus ?? 'active'
   };
+}
+
+interface CollaborationMessageRequestBody {
+  receiverIds: string[];
+  content: string;
 }
 
 interface AssistantReplyWithOptionalAction {
@@ -649,6 +657,24 @@ class HttpOrganizationRepository implements OrganizationRepository {
   }
 }
 
+class HttpCollaborationRepository implements CollaborationRepository {
+  async getThreadMessages(threadId: string): Promise<CollaborationMessage[]> {
+    const queryParams: ApiQueryParam[] = [{ key: 'threadId', value: threadId }];
+    return apiGet<CollaborationMessage[]>('/collaboration/messages', queryParams);
+  }
+
+  async sendMessage(input: CollaborationMessageSendPayload): Promise<CollaborationMessage> {
+    const body: CollaborationMessageRequestBody = {
+      receiverIds: input.receiverIds,
+      content: input.content
+    };
+    return apiPost<CollaborationMessage>(
+      `/collaboration/threads/${encodeURIComponent(input.threadId)}/messages`,
+      JSON.stringify(body)
+    );
+  }
+}
+
 class HttpAssistantRepository implements AssistantRepository {
   async analyze(input: AssistantAnalyzeInput): Promise<AssistantReply> {
     const reply: AssistantReply = await apiPost<AssistantReply>('/assistant/analyze', JSON.stringify(input), true, 60000);
@@ -669,5 +695,6 @@ export const httpNotificationRepository: NotificationRepository = new HttpNotifi
 export const httpAttendanceRepository: AttendanceRepository = new HttpAttendanceRepository();
 export const httpMailRepository: MailRepository = new HttpMailRepository();
 export const httpOrganizationRepository: OrganizationRepository = new HttpOrganizationRepository();
+export const httpCollaborationRepository: CollaborationRepository = new HttpCollaborationRepository();
 export const httpAssistantRepository: AssistantRepository = new HttpAssistantRepository();
 export const httpAuditRepository: AuditRepository = new HttpAuditRepository();

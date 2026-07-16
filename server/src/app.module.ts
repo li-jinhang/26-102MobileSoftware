@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AssistantController } from './modules/assistant/assistant.controller';
 import { AssistantService } from './modules/assistant/assistant.service';
 import { AttendanceController } from './modules/attendance/attendance.controller';
+import { CollaborationController } from './modules/collaboration/collaboration.controller';
 import { AuthController } from './modules/auth/auth.controller';
 import { KnowledgeController } from './modules/knowledge/knowledge.controller';
 import { MailController } from './modules/mail/mail.controller';
@@ -18,7 +19,8 @@ import { WorkflowController } from './modules/workflow/workflow.controller';
     OrganizationController,
     AssistantController,
     AttendanceController,
-    MailController
+    MailController,
+    CollaborationController
   ],
   providers: [AssistantService]
 })

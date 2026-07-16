@@ -3,9 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const core_1 = require("@nestjs/core");
 const app_module_1 = require("./app.module");
 const api_exception_filter_1 = require("./common/api-exception.filter");
+const expressJson = require('express').json;
 async function bootstrap() {
     var _a;
-    const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    const app = await core_1.NestFactory.create(app_module_1.AppModule, { bodyParser: false });
+    app.use(expressJson({ limit: '12mb' }));
     app.setGlobalPrefix('api');
     app.enableCors();
     app.useGlobalFilters(new api_exception_filter_1.ApiExceptionFilter());

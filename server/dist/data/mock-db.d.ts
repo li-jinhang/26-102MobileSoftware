@@ -177,6 +177,25 @@ export interface MailMessage {
     relatedWorkflowId: string;
     relatedKnowledgeId: string;
 }
+export interface CollaborationMessage {
+    id: string;
+    threadId: string;
+    senderId: string;
+    senderName: string;
+    senderRoleLabel: string;
+    receiverIds: string[];
+    content: string;
+    timeText: string;
+}
+export interface CollaborationMessageView {
+    id: string;
+    threadId: string;
+    senderName: string;
+    senderRoleLabel: string;
+    content: string;
+    timeText: string;
+    direction: 'in' | 'out';
+}
 export declare function getUserByToken(token: string): UserProfile;
 export declare function authenticate(account: string, password: string): {
     token: string;
@@ -231,6 +250,11 @@ export declare function getAttendanceRecords(token: string): AttendanceRecord[];
 export declare function checkIn(token: string, location: string, note: string): AttendanceTodaySummary;
 export declare function checkOut(token: string, location: string, note: string): AttendanceTodaySummary;
 export declare function getInbox(token: string): MailMessage[];
+export declare function getCollaborationMessages(token: string, threadId: string): CollaborationMessageView[];
+export declare function sendCollaborationMessage(token: string, threadId: string, payload: {
+    receiverIds: string[];
+    content: string;
+}): CollaborationMessageView;
 export declare function getSent(token: string): MailMessage[];
 export declare function getMail(token: string, mailId: string): MailMessage;
 export declare function sendMail(token: string, payload: {

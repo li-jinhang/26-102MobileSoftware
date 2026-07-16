@@ -70,6 +70,8 @@ export interface CollaborationItem {
   statusText: string;
   state: CollaborationState;
   needsAction: boolean;
+  participantIds: string[];
+  members: EmployeeDirectoryItem[];
 }
 
 export interface CollaborationMessage {
@@ -80,6 +82,12 @@ export interface CollaborationMessage {
   content: string;
   timeText: string;
   direction: 'in' | 'out';
+}
+
+export interface CollaborationMessageSendPayload {
+  threadId: string;
+  receiverIds: string[];
+  content: string;
 }
 
 export interface CollaborationBoard {
