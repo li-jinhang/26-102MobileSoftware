@@ -268,7 +268,8 @@ class MockAssistantRepository implements AssistantRepository {
       formDraft: {
         title: '', extra: '', date: '', amount: '', reason: '', attachment: ''
       },
-      missingFields: []
+      missingFields: [],
+      action: { type: 'none', label: '', mailDraft: null }
     };
   }
 }

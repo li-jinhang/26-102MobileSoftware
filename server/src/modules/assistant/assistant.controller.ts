@@ -1,11 +1,23 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Headers, Post } from '@nestjs/common';
+import { getBearerToken } from '../../common/auth-token';
 import { ok } from '../../common/api-response';
-import { askAssistant } from '../../data/mock-db';
+import { AssistantService } from './assistant.service';
 
 @Controller('assistant')
 export class AssistantController {
-  @Post('ask')
-  ask(@Body() body: { question: string }) {
-    return ok(askAssistant(body.question));
+  constructor(private readonly assistantService: AssistantService) {
+  }
+
+  @Post('analyze')
+  async analyze(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() body: { text: string; imageBase64?: string; imageMimeType?: string }
+  ) {
+    const token: string = getBearerToken(authorization);
+    return ok(await this.assistantService.analyze(token, {
+      text: body.text ?? '',
+      imageBase64: body.imageBase64 ?? '',
+      imageMimeType: body.imageMimeType ?? ''
+    }));
   }
 }

@@ -19,6 +19,7 @@ export struct CollaborationPage {
   @Require @Prop profile: OrganizationProfile | null;
   @Require @Prop workflowInstances: WorkflowInstance[]; 
   @Prop focus: 'all' | 'action' | 'waiting' = 'all';
+  onCreateMeetingInvite: (employeeIds: string[], title: string, timeText: string, placeText: string, summary: string) => void = () => {};
 
   @State customMeetings: CollaborationItem[] = [];
   @State customTasks: CollaborationItem[] = [];
@@ -31,7 +32,7 @@ export struct CollaborationPage {
   @State conversationInput: string = '';
   @State meetingDialogVisible: boolean = false;
   @State taskDialogVisible: boolean = false;
-  @State meetingIdInput: string = '';
+  @State meetingParticipantIdsInput: string = '';
   @State meetingTitleInput: string = '';
   @State meetingTimeInput: string = '';
   @State meetingPlaceInput: string = '';
@@ -40,6 +41,8 @@ export struct CollaborationPage {
   @State taskTargetInput: string = '';
   @State taskTimeInput: string = '';
   @State taskSummaryInput: string = '';
+  @State collaborationModuleVisible: boolean = false;
+  @State activeCollaborationModule: CollaborationKind = 'meeting';
 
   private getBoard(): CollaborationBoard {
     return buildCollaborationBoardUseCase(this.user, this.profile, this.workflowInstances);
@@ -98,10 +101,6 @@ export struct CollaborationPage {
 
   private getThreadId(item: CollaborationItem): string {
     return `${item.kind}:${item.id}`;
-  }
-
-  private getThreadActionLabel(kind: CollaborationKind): string {
-    return kind === 'chain' ? '工作汇报' : '文本通讯';
   }
 
   private getStatusTone(item: CollaborationItem): string {
@@ -218,7 +217,7 @@ export struct CollaborationPage {
   }
 
   private openMeetingDialog(): void {
-    this.meetingIdInput = '';
+    this.meetingParticipantIdsInput = '';
     this.meetingTitleInput = '';
     this.meetingTimeInput = '';
     this.meetingPlaceInput = '';
@@ -227,25 +226,24 @@ export struct CollaborationPage {
   }
 
   private createMeeting(): void {
-    const meetingId: string = this.meetingIdInput.trim();
+    const employeeIds: string[] = this.meetingParticipantIdsInput
+      .split(',')
+      .map((item: string) => item.trim())
+      .filter((item: string) => item.length > 0);
     const title: string = this.meetingTitleInput.trim();
     const timeText: string = this.meetingTimeInput.trim();
     const placeText: string = this.meetingPlaceInput.trim();
     const summary: string = this.meetingSummaryInput.trim();
-    if (title.length === 0 || timeText.length === 0 || placeText.length === 0) {
-      this.showMessage('请填写会议标题、时间和地点。');
-      return;
-    }
-    if (meetingId.length > 0 && this.getCombinedMeetingItems().some((item: CollaborationItem) => item.id === meetingId)) {
-      this.showMessage('该会议 ID 已存在，请输入新的 ID。');
+    if (title.length === 0 || timeText.length === 0 || placeText.length === 0 || employeeIds.length === 0) {
+      this.showMessage('请填写参会员工 ID、会议标题、时间和地点。');
       return;
     }
 
     const item: CollaborationItem = {
-      id: meetingId.length > 0 ? meetingId : this.createId('meeting'),
+      id: this.createId('meeting'),
       kind: 'meeting',
       title,
-      summary: summary.length > 0 ? summary : '新建会议信息已添加。',
+      summary: summary.length > 0 ? summary : `已邀请 ${employeeIds.length} 位员工待确认。`,
       ownerName: this.user.name,
       ownerDepartment: this.user.department,
       timeText,
@@ -258,7 +256,8 @@ export struct CollaborationPage {
     nextItems.unshift(item);
     this.customMeetings = nextItems;
     this.meetingDialogVisible = false;
-    this.showMessage('已新建会议信息。');
+    this.onCreateMeetingInvite(employeeIds, title, timeText, placeText, summary);
+    this.showMessage('已新建会议并发送待确认通知。');
   }
 
   private openTaskDialog(): void {
@@ -314,17 +313,6 @@ export struct CollaborationPage {
     }
     .layoutWeight(1)
     .alignItems(HorizontalAlign.Center)
-  }
-
-  @Builder
-  private ActionButton(label: string, onClick: () => void) {
-    Button(label)
-      .height(32)
-      .fontSize(Typography.metaSize())
-      .fontColor(AppTheme.primary())
-      .backgroundColor(AppTheme.primarySoft())
-      .borderRadius(AppTheme.radiusSmall())
-      .onClick(() => onClick())
   }
 
   @Builder
@@ -418,20 +406,17 @@ export struct CollaborationPage {
       }
       .width('100%')
 
-      if (item.kind !== 'meeting') {
-        Row({ space: 8 }) {
-          this.ActionButton(this.getThreadActionLabel(item.kind), () => {
-            this.openConversation(item);
-          })
-        }
-        .width('100%')
-      }
     }
     .width('100%')
     .padding(14)
     .backgroundColor(AppTheme.surface())
     .borderRadius(AppTheme.radiusSmall())
     .border({ width: 1, color: AppTheme.divider() })
+    .onClick(() => {
+      if (item.kind !== 'meeting') {
+        this.openConversation(item);
+      }
+    })
   }
 
   @Builder
@@ -546,13 +531,13 @@ export struct CollaborationPage {
         }
 
         Column({ space: 10 }) {
-          TextInput({ placeholder: '会议 ID（可选，用于初始化本次会议）', text: this.meetingIdInput })
+          TextInput({ placeholder: '参会员工 ID，多个用英文逗号分隔', text: this.meetingParticipantIdsInput })
             .height(44)
             .borderRadius(AppTheme.radiusSmall())
             .backgroundColor(AppTheme.surfaceMuted())
             .padding({ left: 14, right: 14 })
             .onChange((value: string) => {
-              this.meetingIdInput = value;
+              this.meetingParticipantIdsInput = value;
             })
 
           TextInput({ placeholder: '会议标题', text: this.meetingTitleInput })
@@ -622,6 +607,117 @@ export struct CollaborationPage {
       .padding(18)
       .backgroundColor('#FFFFFF')
       .borderRadius(20)
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding(20)
+    .backgroundColor('#660B1220')
+  }
+
+  @Builder
+  private CollaborationModuleCard(kind: CollaborationKind, title: string, subtitle: string, count: number) {
+    Row({ space: 12 }) {
+      Column({ space: 4 }) {
+        Text(title)
+          .fontSize(Typography.sectionTitleSize())
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AppTheme.textPrimary())
+        Text(subtitle)
+          .fontSize(Typography.captionSize())
+          .fontColor(AppTheme.textSecondary())
+          .maxLines(1)
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+
+      Text(`${count}`)
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(AppTheme.primary())
+      Text('›')
+        .fontSize(22)
+        .fontColor(AppTheme.textTertiary())
+    }
+    .width('100%')
+    .padding(14)
+    .backgroundColor(AppTheme.surface())
+    .border({ width: 1, color: AppTheme.divider() })
+    .borderRadius(AppTheme.radiusSmall())
+    .onClick(() => {
+      this.activeCollaborationModule = kind;
+      this.collaborationModuleVisible = true;
+    })
+  }
+
+  private getActiveCollaborationItems(): CollaborationItem[] {
+    if (this.activeCollaborationModule === 'meeting') {
+      return this.getCombinedMeetingItems();
+    }
+    if (this.activeCollaborationModule === 'task') {
+      return this.getVisibleTaskItems();
+    }
+    if (this.activeCollaborationModule === 'group') {
+      return this.getCombinedGroupItems();
+    }
+    return this.getCombinedChainItems();
+  }
+
+  private getActiveCollaborationTitle(): string {
+    if (this.activeCollaborationModule === 'meeting') {
+      return '会议信息';
+    }
+    if (this.activeCollaborationModule === 'task') {
+      return '工作对接';
+    }
+    if (this.activeCollaborationModule === 'group') {
+      return '工作组';
+    }
+    return '工作汇报';
+  }
+
+  @Builder
+  private CollaborationModuleDialog() {
+    Column() {
+      Column({ space: 14 }) {
+        Row() {
+          Text(this.getActiveCollaborationTitle())
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(AppTheme.textPrimary())
+            .layoutWeight(1)
+          Button('关闭')
+            .height(34)
+            .fontSize(Typography.metaSize())
+            .fontColor(AppTheme.textSecondary())
+            .backgroundColor(AppTheme.surfaceMuted())
+            .borderRadius(AppTheme.radiusSmall())
+            .onClick(() => {
+              this.collaborationModuleVisible = false;
+            })
+        }
+        .width('100%')
+
+        Scroll() {
+          if (this.getActiveCollaborationItems().length === 0) {
+            EmptyState({ title: '暂无内容', description: '当前模块还没有可展示的协作事项。' })
+          } else {
+            Column({ space: 10 }) {
+              ForEach(this.getActiveCollaborationItems(), (item: CollaborationItem) => {
+                this.CollaborationCard(item);
+              }, (item: CollaborationItem) => item.id)
+            }
+            .width('100%')
+          }
+        }
+        .scrollBar(BarState.Off)
+        .layoutWeight(1)
+      }
+      .width('100%')
+      .height('82%')
+      .padding(18)
+      .backgroundColor(AppTheme.surface())
+      .borderRadius(AppTheme.radiusMedium())
     }
     .width('100%')
     .height('100%')
@@ -746,7 +842,7 @@ export struct CollaborationPage {
           }
 
           if (this.focus === 'all') {
-            SectionBlock({ title: '新建会议', subtitle: '创建带时间、地点和唯一会议 ID 的会议' }) {
+            SectionBlock({ title: '新建会议', subtitle: '填写参会员工 ID 后发送待确认会议通知' }) {
               Button('填写会议信息')
                 .width('100%')
                 .height(42)
@@ -772,62 +868,17 @@ export struct CollaborationPage {
           }
 
           if (this.focus === 'all') {
-            SectionBlock({ title: '会议信息', subtitle: '声明会议时间、地点和参与人' }) {
-              if (this.getVisibleMeetingItems().length === 0) {
-                EmptyState({ title: '暂无会议', description: '当前没有可展示的会议信息。' })
-              } else {
-                Column({ space: 10 }) {
-                  ForEach(this.getVisibleMeetingItems(), (item: CollaborationItem) => {
-                    this.CollaborationCard(item);
-                  }, (item: CollaborationItem) => item.id)
-                }
-                .width('100%')
-              }
-            }
+            this.CollaborationModuleCard('meeting', '会议信息', '查看会议时间、地点和待确认事项', this.getVisibleMeetingItems().length)
           }
 
-          SectionBlock({ title: '工作对接', subtitle: this.focus === 'all' ? '快速建立短期工作协作与回复确认' : '仅显示当前筛选下的工作对接项' }) {
-            if (this.getVisibleTaskItems().length === 0) {
-              EmptyState({ title: '暂无工作对接', description: '短期工作请求会显示在这里。' })
-            } else {
-              Column({ space: 10 }) {
-                ForEach(this.getVisibleTaskItems(), (item: CollaborationItem) => {
-                  this.CollaborationCard(item);
-                }, (item: CollaborationItem) => item.id)
-              }
-              .width('100%')
-            }
+          this.CollaborationModuleCard('task', '工作对接', this.focus === 'all' ? '查看短期工作协作与回复确认' : '查看当前筛选下的工作对接项', this.getVisibleTaskItems().length)
+
+          if (this.focus === 'all') {
+            this.CollaborationModuleCard('group', '工作组', '查看稳定协作群组与当前状态', this.getVisibleGroupItems().length)
           }
 
           if (this.focus === 'all') {
-            SectionBlock({ title: '工作组', subtitle: '用于快速建立稳定的小范围协作群组' }) {
-              if (this.getVisibleGroupItems().length === 0) {
-                EmptyState({ title: '暂无工作组', description: '工作组协作入口会显示在这里。' })
-              } else {
-                Column({ space: 10 }) {
-                  ForEach(this.getVisibleGroupItems(), (item: CollaborationItem) => {
-                    this.CollaborationCard(item);
-                  }, (item: CollaborationItem) => item.id)
-                }
-                .width('100%')
-              }
-            }
-          }
-
-          if (this.focus === 'all') {
-            SectionBlock({ title: '工作汇报', subtitle: '长期保持直属负责人和下属的直接联系' }) {
-              Column({ space: 10 }) {
-                if (this.getVisibleChainItems().length === 0) {
-                  EmptyState({ title: '暂无直属关系', description: '当前账号未配置可展示的直属协作关系。' })
-                } else {
-                  ForEach(this.getVisibleChainItems(), (item: CollaborationItem) => {
-                    this.CollaborationCard(item);
-                  }, (item: CollaborationItem) => item.id)
-                }
-
-              }
-              .width('100%')
-            }
+            this.CollaborationModuleCard('chain', '工作汇报', '查看直属负责人和下属的汇报入口', this.getVisibleChainItems().length)
           }
         }
         .width('100%')
@@ -847,6 +898,10 @@ export struct CollaborationPage {
 
       if (this.taskDialogVisible) {
         this.TaskDialog();
+      }
+
+      if (this.collaborationModuleVisible) {
+        this.CollaborationModuleDialog();
       }
     }
     .width('100%')

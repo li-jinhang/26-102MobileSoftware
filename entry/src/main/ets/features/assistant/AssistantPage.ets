@@ -6,6 +6,7 @@ import { Typography } from '../../common/theme/Typography';
 import {
   AssistantFormDraft,
   AssistantHistory,
+  AssistantMailDraft,
   AssistantReply,
   AssistantSelectedImage,
   KnowledgeArticle,
@@ -27,6 +28,7 @@ export struct AssistantPage {
   onClearImage: () => void = () => {};
   onOpenWorkflowWithoutDraft: (templateId: string) => void = () => {};
   onOpenWorkflowWithDraft: (templateId: string, draft: AssistantFormDraft) => void = () => {};
+  onOpenMailComposer: (draft: AssistantMailDraft) => void = () => {};
   onAsk: () => void = () => {};
 
   private getRelatedArticles(): KnowledgeArticle[] {
@@ -57,6 +59,10 @@ export struct AssistantPage {
 
   private canAsk(): boolean {
     return !this.loading && (this.question.trim().length > 0 || this.selectedImage !== null);
+  }
+
+  private hasMailDraft(): boolean {
+    return this.reply !== null && this.reply.action.type === 'mail' && this.reply.action.mailDraft !== null;
   }
 
   build() {
@@ -160,6 +166,37 @@ export struct AssistantPage {
                 .fontColor('#344054')
                 .lineHeight(Typography.bodyLargeLineHeight())
                 .width('100%')
+
+              if (this.hasMailDraft() && this.reply !== null && this.reply.action.mailDraft !== null) {
+                Column({ space: 8 }) {
+                  Text(this.reply.action.mailDraft.receiverNames.length > 0
+                    ? `收件人：${this.reply.action.mailDraft.receiverNames.join('、')}`
+                    : '收件人：请在邮件页选择')
+                    .fontSize(Typography.metaSize())
+                    .fontColor(AppTheme.textSecondary())
+                    .width('100%')
+                  Text(`主题：${this.reply.action.mailDraft.subject}`)
+                    .fontSize(Typography.bodySize())
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(AppTheme.textPrimary())
+                    .maxLines(1)
+                  Button('填写邮件')
+                    .width('100%')
+                    .height(42)
+                    .fontColor('#FFFFFF')
+                    .backgroundColor(AppTheme.primary())
+                    .borderRadius(AppTheme.radiusSmall())
+                    .onClick(() => {
+                      if (this.reply !== null && this.reply.action.mailDraft !== null) {
+                        this.onOpenMailComposer(this.reply.action.mailDraft);
+                      }
+                    })
+                }
+                .width('100%')
+                .padding(12)
+                .backgroundColor(AppTheme.primarySoft())
+                .borderRadius(AppTheme.radiusSmall())
+              }
 
               ForEach(this.getRelatedArticles(), (item: KnowledgeArticle) => {
                 KnowledgeCard({

@@ -1,10 +1,11 @@
 import { AppTopBar } from '../../common/components/AppTopBar';
 import { AppTheme } from '../../common/theme/AppTheme';
-import { EmployeeDirectoryItem, OrganizationProfile } from '../../models/AppModels';
+import { AssistantMailDraft, EmployeeDirectoryItem, OrganizationProfile } from '../../models/AppModels';
 
 @Component
 export struct MailComposerPage {
   @Require @Prop profile: OrganizationProfile | null;
+  @Prop draft: AssistantMailDraft | null = null;
   onBack: () => void = () => {
   };
   onSend: (
@@ -73,13 +74,41 @@ export struct MailComposerPage {
     const matched: EmployeeDirectoryItem | undefined = relatedEmployees.find((employee: EmployeeDirectoryItem) => {
       return description.includes(employee.name) || description.includes(employee.jobTitle);
     });
+    const profile: OrganizationProfile | null = this.profile;
+    const manager: EmployeeDirectoryItem | null = profile === null ? null : profile.manager;
     if (matched !== undefined) {
       this.receiverInput = matched.id;
+    } else if (manager !== null && /上级|领导|经理|直属负责人/.test(description)) {
+      this.receiverInput = manager.id;
+    } else if (profile !== null && /下级|下属/.test(description) && profile.directReports.length > 0) {
+      this.receiverInput = profile.directReports.map((item: EmployeeDirectoryItem) => item.id).join(', ');
+    } else if (profile !== null && /同事|工作组|组员|对接/.test(description)) {
+      const employeeId: string = profile.employee.id;
+      const groupMembers: EmployeeDirectoryItem[] = profile.departmentMembers;
+      this.receiverInput = groupMembers
+        .filter((item: EmployeeDirectoryItem) => item.id !== employeeId)
+        .map((item: EmployeeDirectoryItem) => item.id)
+        .join(', ');
     } else if (this.getReceiverIds().length === 0 && relatedEmployees.length > 0) {
       this.receiverInput = relatedEmployees[0].id;
     }
     this.subjectInput = description.length > 22 ? `${description.slice(0, 22)}...` : description;
     this.contentInput = `您好，\n\n${description}\n\n请查收并确认，谢谢。`;
+  }
+
+  aboutToAppear(): void {
+    if (this.draft === null) {
+      this.receiverInput = '';
+      this.subjectInput = '';
+      this.contentInput = '';
+      this.relatedWorkflowId = '';
+      this.relatedKnowledgeId = '';
+      this.assistantDescription = '';
+      return;
+    }
+    this.receiverInput = this.draft.receiverIds.join(', ');
+    this.subjectInput = this.draft.subject;
+    this.contentInput = this.draft.content;
   }
 
   private getReceiverIds(): string[] {

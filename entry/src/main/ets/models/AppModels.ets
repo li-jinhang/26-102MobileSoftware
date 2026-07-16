@@ -228,7 +228,8 @@ export interface KnowledgeCorrection {
 }
 
 export type AssistantIntent = 'knowledge_query' | 'leave' | 'reimbursement' |
-  'purchase' | 'permission' | 'unknown';
+  'purchase' | 'permission' | 'mail' | 'unknown';
+export type AssistantActionType = 'none' | 'mail' | 'workflow' | 'knowledge';
 
 export interface AssistantFormDraft {
   title: string;
@@ -251,6 +252,19 @@ export interface AssistantSelectedImage {
   imageMimeType: string;
 }
 
+export interface AssistantMailDraft {
+  receiverIds: string[];
+  receiverNames: string[];
+  subject: string;
+  content: string;
+}
+
+export interface AssistantAction {
+  type: AssistantActionType;
+  label: string;
+  mailDraft: AssistantMailDraft | null;
+}
+
 export interface AssistantReply {
   answer: string;
   recognizedText: string;
@@ -260,6 +274,7 @@ export interface AssistantReply {
   confidence: number;
   formDraft: AssistantFormDraft;
   missingFields: string[];
+  action: AssistantAction;
 }
 
 export interface AssistantHistory {

@@ -170,10 +170,13 @@ export struct MailPage {
             }, (item: MailMessage) => item.id)
           }
           .width('100%')
+          .alignItems(HorizontalAlign.Start)
+          .justifyContent(FlexAlign.Start)
         }
         .scrollBar(BarState.Off)
         .layoutWeight(1)
         .width('100%')
+        .align(Alignment.TopStart)
       }
     }
     .width('100%')

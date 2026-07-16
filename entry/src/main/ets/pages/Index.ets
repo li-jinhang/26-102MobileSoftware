@@ -83,6 +83,7 @@ import {
   AssistantAnalyzeInput,
   AssistantFormDraft,
   AssistantHistory,
+  AssistantMailDraft,
   AssistantReply,
   AssistantSelectedImage,
   ApprovalRecord,
@@ -177,6 +178,7 @@ struct Index {
   @State assistantReply: AssistantReply | null = null;
   @State assistantSelectedImage: AssistantSelectedImage | null = null;
   @State assistantLoading: boolean = false;
+  @State mailComposerDraft: AssistantMailDraft | null = null;
   @State readingFontScale: ReadingFontScale = 'standard';
   @State readingFontWeight: ReadingFontWeight = 'standard';
   @State collaborationFocus: 'all' | 'action' | 'waiting' = 'all';
@@ -532,6 +534,7 @@ struct Index {
               void this.openMailDetail(mailId);
             },
             onCompose: () => {
+              this.mailComposerDraft = null;
               this.activeSubPage = 'mailComposer';
             }
           })
@@ -551,6 +554,7 @@ struct Index {
         } else if (this.activeSubPage === 'mailComposer') {
           MailComposerPage({
             profile: this.organizationProfile,
+            draft: this.mailComposerDraft,
             onBack: () => {
               this.activeSubPage = 'mail';
             },
@@ -590,6 +594,10 @@ struct Index {
             },
             onOpenWorkflowWithDraft: (templateId: string, draft: AssistantFormDraft) => {
               this.startWorkflow(templateId, draft);
+            },
+            onOpenMailComposer: (draft: AssistantMailDraft) => {
+              this.mailComposerDraft = draft;
+              this.activeSubPage = 'mailComposer';
             },
             onAsk: () => {
               void this.handleAssistantAsk();
@@ -686,7 +694,10 @@ struct Index {
                   user: this.getCurrentUser(),
                   profile: this.organizationProfile,
                   workflowInstances: this.workflowInstances,
-                  focus: this.collaborationFocus
+                  focus: this.collaborationFocus,
+                  onCreateMeetingInvite: (employeeIds: string[], title: string, timeText: string, placeText: string, summary: string) => {
+                    void this.sendMeetingInvites(employeeIds, title, timeText, placeText, summary);
+                  }
                 })
               } else {
                 ProfilePage({
@@ -1649,6 +1660,7 @@ struct Index {
     this.assistantReply = result.assistantReply;
     this.assistantSelectedImage = null;
     this.assistantLoading = false;
+    this.mailComposerDraft = null;
     this.readingFontScale = result.readingFontScale;
     this.readingFontWeight = 'standard';
     this.collaborationFocus = 'all';
@@ -1681,6 +1693,7 @@ struct Index {
       this.assistantReply = result.assistantReply;
       this.assistantSelectedImage = null;
       this.assistantLoading = false;
+      this.mailComposerDraft = null;
       this.collaborationFocus = 'all';
       this.activeWorkflowModule = 'overview';
       this.workflowPanelVisible = false;
@@ -2039,6 +2052,23 @@ struct Index {
       this.showMessage('邮件已发送。');
     } catch (error) {
       const message: string = error instanceof Error ? error.message : '发送邮件失败。';
+      this.showMessage(message);
+    }
+  }
+
+  private async sendMeetingInvites(
+    employeeIds: string[],
+    title: string,
+    timeText: string,
+    placeText: string,
+    summary: string
+  ): Promise<void> {
+    const content: string = `会议时间：${timeText}\n会议地点：${placeText}\n会议说明：${summary.length > 0 ? summary : '请确认是否参会。'}\n\n请查收并确认参会安排。`;
+    try {
+      await sendInternalMailUseCase(employeeIds, `待确认会议通知：${title}`, content, '', '');
+      await this.loadMailPreview();
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '会议通知发送失败。';
       this.showMessage(message);
     }
   }
