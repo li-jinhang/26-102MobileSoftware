@@ -19,7 +19,6 @@ export struct CollaborationPage {
   @Require @Prop profile: OrganizationProfile | null;
   @Require @Prop workflowInstances: WorkflowInstance[]; 
   @Prop focus: 'all' | 'action' | 'waiting' = 'all';
-  onOpenOrganization: () => void = () => {};
 
   @State customMeetings: CollaborationItem[] = [];
   @State customTasks: CollaborationItem[] = [];
@@ -32,6 +31,7 @@ export struct CollaborationPage {
   @State conversationInput: string = '';
   @State meetingDialogVisible: boolean = false;
   @State taskDialogVisible: boolean = false;
+  @State meetingIdInput: string = '';
   @State meetingTitleInput: string = '';
   @State meetingTimeInput: string = '';
   @State meetingPlaceInput: string = '';
@@ -141,6 +141,42 @@ export struct CollaborationPage {
     return `${prefix}-${new Date().getTime()}`;
   }
 
+  private padDateTimePart(value: number): string {
+    return value < 10 ? `0${value}` : `${value}`;
+  }
+
+  private parseMeetingDateTime(value: string): Date {
+    const parsed: Date = new Date(value.trim().replace(' ', 'T'));
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
+
+  private formatMeetingDateTime(value: Date): string {
+    return `${value.getFullYear()}-${this.padDateTimePart(value.getMonth() + 1)}-${this.padDateTimePart(value.getDate())} ` +
+      `${this.padDateTimePart(value.getHours())}:${this.padDateTimePart(value.getMinutes())}`;
+  }
+
+  private selectMeetingDateTime(): void {
+    const selected: Date = this.parseMeetingDateTime(this.meetingTimeInput);
+    this.getUIContext().showDatePickerDialog({
+      selected,
+      onAccept: (dateResult: DatePickerResult) => {
+        const selectedDate: Date = new Date(selected.getTime());
+        const year: number = dateResult.year === undefined ? selected.getFullYear() : dateResult.year;
+        const month: number = dateResult.month === undefined ? selected.getMonth() : dateResult.month;
+        const day: number = dateResult.day === undefined ? selected.getDate() : dateResult.day;
+        selectedDate.setFullYear(year, month, day);
+        this.getUIContext().showTimePickerDialog({
+          selected: selectedDate,
+          useMilitaryTime: true,
+          onAccept: (timeResult: TimePickerResult) => {
+            selectedDate.setHours(timeResult.hour, timeResult.minute, 0, 0);
+            this.meetingTimeInput = this.formatMeetingDateTime(selectedDate);
+          }
+        });
+      }
+    });
+  }
+
   private showMessage(message: string): void {
     try {
       this.getUIContext().getPromptAction().showToast({ message: message });
@@ -182,6 +218,7 @@ export struct CollaborationPage {
   }
 
   private openMeetingDialog(): void {
+    this.meetingIdInput = '';
     this.meetingTitleInput = '';
     this.meetingTimeInput = '';
     this.meetingPlaceInput = '';
@@ -190,6 +227,7 @@ export struct CollaborationPage {
   }
 
   private createMeeting(): void {
+    const meetingId: string = this.meetingIdInput.trim();
     const title: string = this.meetingTitleInput.trim();
     const timeText: string = this.meetingTimeInput.trim();
     const placeText: string = this.meetingPlaceInput.trim();
@@ -198,9 +236,13 @@ export struct CollaborationPage {
       this.showMessage('请填写会议标题、时间和地点。');
       return;
     }
+    if (meetingId.length > 0 && this.getCombinedMeetingItems().some((item: CollaborationItem) => item.id === meetingId)) {
+      this.showMessage('该会议 ID 已存在，请输入新的 ID。');
+      return;
+    }
 
     const item: CollaborationItem = {
-      id: this.createId('meeting'),
+      id: meetingId.length > 0 ? meetingId : this.createId('meeting'),
       kind: 'meeting',
       title,
       summary: summary.length > 0 ? summary : '新建会议信息已添加。',
@@ -504,6 +546,15 @@ export struct CollaborationPage {
         }
 
         Column({ space: 10 }) {
+          TextInput({ placeholder: '会议 ID（可选，用于初始化本次会议）', text: this.meetingIdInput })
+            .height(44)
+            .borderRadius(AppTheme.radiusSmall())
+            .backgroundColor(AppTheme.surfaceMuted())
+            .padding({ left: 14, right: 14 })
+            .onChange((value: string) => {
+              this.meetingIdInput = value;
+            })
+
           TextInput({ placeholder: '会议标题', text: this.meetingTitleInput })
             .height(44)
             .borderRadius(AppTheme.radiusSmall())
@@ -513,14 +564,29 @@ export struct CollaborationPage {
               this.meetingTitleInput = value;
             })
 
-          TextInput({ placeholder: '会议时间，例如：7月18日 09:30', text: this.meetingTimeInput })
+          Column({ space: 6 }) {
+            Text('会议时间')
+              .fontSize(Typography.captionSize())
+              .fontColor(AppTheme.textSecondary())
+            Row() {
+              Text(this.meetingTimeInput.length > 0 ? this.meetingTimeInput : '请选择日期和时间')
+                .fontSize(Typography.metaSize())
+                .fontColor(this.meetingTimeInput.length > 0 ? AppTheme.textPrimary() : AppTheme.textTertiary())
+                .layoutWeight(1)
+              Text('选择')
+                .fontSize(Typography.metaSize())
+                .fontColor(AppTheme.primary())
+            }
+            .width('100%')
             .height(44)
-            .borderRadius(AppTheme.radiusSmall())
-            .backgroundColor(AppTheme.surfaceMuted())
             .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.meetingTimeInput = value;
+            .backgroundColor(AppTheme.surfaceMuted())
+            .borderRadius(AppTheme.radiusSmall())
+            .onClick(() => {
+              this.selectMeetingDateTime();
             })
+          }
+          .width('100%')
 
           TextInput({ placeholder: '会议地点，例如：A 栋 3 层会议室', text: this.meetingPlaceInput })
             .height(44)
@@ -660,16 +726,6 @@ export struct CollaborationPage {
           SectionBlock({ title: '协作', subtitle: `${this.user.department} · ${this.user.jobTitle}` }) {
             Column({ space: 12 }) {
               Row({ space: 8 }) {
-                this.ActionButton('新建会议', () => {
-                  this.openMeetingDialog();
-                })
-                this.ActionButton('新建对接', () => {
-                  this.openTaskDialog();
-                })
-              }
-              .width('100%')
-
-              Row({ space: 8 }) {
                 this.StatCard('待处理', this.getActionCount(), '#175CD3')
                 this.StatCard('等待中', this.getWaitingCount(), '#B54708')
                 this.StatCard('会议', this.getCombinedMeetingItems().length, '#027A48')
@@ -687,6 +743,32 @@ export struct CollaborationPage {
                 .width('100%')
             }
             .width('100%')
+          }
+
+          if (this.focus === 'all') {
+            SectionBlock({ title: '新建会议', subtitle: '创建带时间、地点和唯一会议 ID 的会议' }) {
+              Button('填写会议信息')
+                .width('100%')
+                .height(42)
+                .fontColor(AppTheme.primary())
+                .backgroundColor(AppTheme.primarySoft())
+                .borderRadius(AppTheme.radiusSmall())
+                .onClick(() => {
+                  this.openMeetingDialog();
+                })
+            }
+
+            SectionBlock({ title: '新建对接', subtitle: '快速发起短期工作协作与回复确认' }) {
+              Button('填写对接信息')
+                .width('100%')
+                .height(42)
+                .fontColor(AppTheme.primary())
+                .backgroundColor(AppTheme.primarySoft())
+                .borderRadius(AppTheme.radiusSmall())
+                .onClick(() => {
+                  this.openTaskDialog();
+                })
+            }
           }
 
           if (this.focus === 'all') {
@@ -743,15 +825,6 @@ export struct CollaborationPage {
                   }, (item: CollaborationItem) => item.id)
                 }
 
-                Button('查看组织关系')
-                  .width('100%')
-                  .height(40)
-                  .fontColor(AppTheme.primary())
-                  .backgroundColor(AppTheme.primarySoft())
-                  .borderRadius(AppTheme.radiusSmall())
-                  .onClick(() => {
-                    this.onOpenOrganization();
-                  })
               }
               .width('100%')
             }

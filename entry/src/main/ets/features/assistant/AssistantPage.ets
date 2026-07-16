@@ -62,7 +62,7 @@ export struct AssistantPage {
   build() {
     Column() {
       AppTopBar({
-        title: '智能知识助手',
+        title: '智能助手',
         subtitle: '文字与图片均由大模型分析',
         onBack: () => this.onBack()
       })

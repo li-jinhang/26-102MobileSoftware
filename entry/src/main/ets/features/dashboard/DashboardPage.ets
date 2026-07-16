@@ -133,7 +133,7 @@ export struct DashboardPage {
       Column({ space: 8 }) {
         Row() {
           Column({ space: 3 }) {
-            Text('智能知识助手')
+            Text('智能助手')
               .fontSize(Typography.sectionTitleSize())
               .fontWeight(FontWeight.Medium)
               .fontColor('#FFFFFF')
