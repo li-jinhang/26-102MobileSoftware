@@ -70,7 +70,7 @@ export struct KnowledgeDetailPage {
       .layoutWeight(1)
       .padding({ top: 9, bottom: 9 })
       .backgroundColor(this.fontScale === scale ? '#246BFD' : '#F2F4F7')
-      .borderRadius(6)
+      .borderRadius(12)
       .onClick(() => {
         this.onFontScaleChange(scale);
       })
@@ -106,7 +106,7 @@ export struct KnowledgeDetailPage {
 
       Scroll() {
         Column({ space: 14 }) {
-          EdgeLightPanel({ radiusValue: 8 }) {
+          EdgeLightPanel({ radiusValue: 16 }) {
             Column({ space: 10 }) {
               Text(this.article.title)
                 .fontSize(Typography.detailTitleSize())
@@ -123,7 +123,7 @@ export struct KnowledgeDetailPage {
             .width('100%')
             .padding(18)
             .backgroundColor('#EAF1FF')
-            .borderRadius(8)
+            .borderRadius(12)
           }
 
           Column({ space: 12 }) {
@@ -158,7 +158,7 @@ export struct KnowledgeDetailPage {
                 .width(64)
                 .padding({ top: 7, bottom: 7 })
                 .backgroundColor('#F2F4F7')
-                .borderRadius(6)
+                .borderRadius(12)
                 .onClick(() => {
                   this.onFontWeightChange(this.fontWeight === 'semiBold' ? 'standard' : 'semiBold');
                 })
@@ -168,7 +168,7 @@ export struct KnowledgeDetailPage {
           .width('100%')
           .padding(16)
           .backgroundColor('#FFFFFF')
-          .borderRadius(8)
+          .borderRadius(12)
 
           Column({ space: 14 }) {
             Text(this.article.content)
@@ -193,7 +193,7 @@ export struct KnowledgeDetailPage {
           .width('100%')
           .padding(18)
           .backgroundColor('#FFFFFF')
-          .borderRadius(8)
+          .borderRadius(12)
 
           Row({ space: 10 }) {
             Button(this.favorite ? '取消收藏' : '收藏')
@@ -201,7 +201,7 @@ export struct KnowledgeDetailPage {
               .height(42)
               .fontColor('#175CD3')
               .backgroundColor('#EAF1FF')
-              .borderRadius(8)
+              .borderRadius(12)
               .onClick(() => {
                 this.onToggleFavorite(this.article.id);
               })
@@ -211,7 +211,7 @@ export struct KnowledgeDetailPage {
               .height(42)
               .fontColor(this.useful ? '#027A48' : '#FFFFFF')
               .backgroundColor(this.useful ? '#ECFDF3' : '#12B76A')
-              .borderRadius(8)
+              .borderRadius(12)
               .enabled(!this.useful)
               .onClick(() => {
                 this.onMarkUseful(this.article.id);
@@ -225,7 +225,7 @@ export struct KnowledgeDetailPage {
               .width('100%')
               .height(44)
               .backgroundColor('#246BFD')
-              .borderRadius(8)
+              .borderRadius(12)
               .onClick(() => {
                 this.onStartWorkflow(this.article.relatedWorkflowIds[0]);
               })
@@ -241,7 +241,7 @@ export struct KnowledgeDetailPage {
             TextArea({ placeholder: '请说明过期内容、错误信息或建议修改位置', text: this.correctionText })
               .height(110)
               .backgroundColor('#F8FAFC')
-              .borderRadius(8)
+              .borderRadius(12)
               .padding(12)
               .onChange((value: string) => {
                 this.correctionText = value;
@@ -251,7 +251,7 @@ export struct KnowledgeDetailPage {
               .width('100%')
               .height(42)
               .backgroundColor('#344054')
-              .borderRadius(8)
+              .borderRadius(12)
               .onClick(() => {
                 void this.submitCorrection();
               })
@@ -259,7 +259,7 @@ export struct KnowledgeDetailPage {
           .width('100%')
           .padding(16)
           .backgroundColor('#FFFFFF')
-          .borderRadius(8)
+          .borderRadius(12)
         }
         .width('100%')
         .padding({ left: 16, right: 16, bottom: 24 })

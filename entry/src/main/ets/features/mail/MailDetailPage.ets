@@ -83,7 +83,7 @@ export struct MailDetailPage {
             .height(40)
             .fontColor('#175CD3')
             .backgroundColor('#EAF1FF')
-            .borderRadius(8)
+            .borderRadius(12)
             .onClick(() => {
               this.onOpenWorkflow(this.mail.relatedWorkflowId);
             })
@@ -94,7 +94,7 @@ export struct MailDetailPage {
             .height(40)
             .fontColor('#175CD3')
             .backgroundColor('#EAF1FF')
-            .borderRadius(8)
+            .borderRadius(12)
             .onClick(() => {
               this.onOpenKnowledge(this.mail.relatedKnowledgeId);
             })

@@ -1,7 +1,7 @@
 import { EmptyState } from '../../common/components/EmptyState';
 import { KnowledgeCard } from '../../common/components/KnowledgeCard';
 import { SectionBlock } from '../../common/components/SectionBlock';
-import { KnowledgeArticle, ReadingFontScale, User } from '../../models/AppModels';
+import { KnowledgeArticle, User } from '../../models/AppModels';
 
 @Component
 export struct ProfilePage {
@@ -14,8 +14,6 @@ export struct ProfilePage {
   @Prop
   unreadCount: number = 0;
   @Prop
-  fontScale: ReadingFontScale = 'standard';
-  @Prop
   mailUnreadCount: number = 0;
   @Prop
   attendanceStatus: string = '未加载';
@@ -27,25 +25,8 @@ export struct ProfilePage {
   };
   onOpenMail: () => void = () => {
   };
-  onFontScaleChange: (scale: ReadingFontScale) => void = () => {
-  };
   onLogout: () => void = () => {
   };
-
-  @Builder
-  private FontOption(scale: ReadingFontScale, label: string) {
-    Text(label)
-      .layoutWeight(1)
-      .textAlign(TextAlign.Center)
-      .fontSize(12)
-      .fontColor(this.fontScale === scale ? '#FFFFFF' : '#475467')
-      .padding({ top: 9, bottom: 9 })
-      .backgroundColor(this.fontScale === scale ? '#246BFD' : '#F2F4F7')
-      .borderRadius(6)
-      .onClick(() => {
-        this.onFontScaleChange(scale);
-      })
-  }
 
   build() {
     Column({ space: 14 }) {
@@ -70,6 +51,23 @@ export struct ProfilePage {
       .width('100%')
       .padding({ top: 20, bottom: 12 })
 
+      SectionBlock({ title: '签到签退' }) {
+        Row() {
+          Text('签到签退')
+            .fontSize(14)
+            .fontColor('#344054')
+          Blank()
+          Text(`${this.attendanceStatus} ›`)
+            .fontSize(13)
+            .fontColor('#175CD3')
+        }
+        .width('100%')
+        .padding({ top: 6, bottom: 6 })
+        .onClick(() => {
+          this.onOpenAttendance();
+        })
+      }
+
       SectionBlock({ title: '角色权限' }) {
         Flex({ wrap: FlexWrap.Wrap }) {
           ForEach(this.user.permissions, (permission: string) => {
@@ -83,6 +81,33 @@ export struct ProfilePage {
           }, (permission: string) => permission)
         }
         .width('100%')
+      }
+
+      SectionBlock({ title: '内部邮件', subtitle: `${this.mailUnreadCount} 封未读` }) {
+        Row() {
+          Column({ space: 4 }) {
+            Text('进入邮件中心')
+              .fontSize(14)
+              .fontColor('#344054')
+              .fontWeight(FontWeight.Medium)
+              .width('100%')
+            Text('查看收件箱、已发送邮件和撰写内部邮件')
+              .fontSize(12)
+              .fontColor('#667085')
+              .width('100%')
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+
+          Text('›')
+            .fontSize(18)
+            .fontColor('#175CD3')
+        }
+        .width('100%')
+        .padding({ top: 6, bottom: 6 })
+        .onClick(() => {
+          this.onOpenMail();
+        })
       }
 
       SectionBlock({ title: '消息与阅读', subtitle: '个人偏好在当前应用会话内生效。' }) {
@@ -102,46 +127,6 @@ export struct ProfilePage {
             this.onOpenMessages();
           })
 
-          Text('知识正文字号')
-            .fontSize(14)
-            .fontColor('#344054')
-            .width('100%')
-          Row({ space: 6 }) {
-            this.FontOption('small', '小')
-            this.FontOption('standard', '标准')
-            this.FontOption('large', '大')
-          }
-          .width('100%')
-
-          Row() {
-            Text('签到签退')
-              .fontSize(14)
-              .fontColor('#344054')
-            Blank()
-            Text(`${this.attendanceStatus} ›`)
-              .fontSize(13)
-              .fontColor('#175CD3')
-          }
-          .width('100%')
-          .padding({ top: 6, bottom: 6 })
-          .onClick(() => {
-            this.onOpenAttendance();
-          })
-
-          Row() {
-            Text('内部邮件')
-              .fontSize(14)
-              .fontColor('#344054')
-            Blank()
-            Text(`${this.mailUnreadCount} 封未读 ›`)
-              .fontSize(13)
-              .fontColor('#175CD3')
-          }
-          .width('100%')
-          .padding({ top: 6, bottom: 6 })
-          .onClick(() => {
-            this.onOpenMail();
-          })
         }
         .width('100%')
       }

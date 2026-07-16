@@ -79,7 +79,7 @@ export struct MailPage {
           .fontSize(Typography.metaSize())
           .fontColor('#175CD3')
           .backgroundColor('#EAF1FF')
-          .borderRadius(8)
+          .borderRadius(12)
           .onClick(() => {
             this.onCompose();
           })
@@ -94,7 +94,7 @@ export struct MailPage {
           .fontColor(this.currentFolder === 'inbox' ? '#FFFFFF' : '#475467')
           .padding({ top: 10, bottom: 10 })
           .backgroundColor(this.currentFolder === 'inbox' ? '#246BFD' : '#F2F4F7')
-          .borderRadius(8)
+          .borderRadius(12)
           .onClick(() => {
             this.currentFolder = 'inbox';
           })
@@ -105,7 +105,7 @@ export struct MailPage {
           .fontColor(this.currentFolder === 'sent' ? '#FFFFFF' : '#475467')
           .padding({ top: 10, bottom: 10 })
           .backgroundColor(this.currentFolder === 'sent' ? '#246BFD' : '#F2F4F7')
-          .borderRadius(8)
+          .borderRadius(12)
           .onClick(() => {
             this.currentFolder = 'sent';
           })

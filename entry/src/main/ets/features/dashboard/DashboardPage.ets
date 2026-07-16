@@ -73,7 +73,7 @@ export struct DashboardPage {
     .height(78)
     .justifyContent(FlexAlign.Center)
     .backgroundColor('#F8FAFC')
-    .borderRadius(8)
+    .borderRadius(12)
     .onClick(() => {
       onClick();
     })
@@ -81,7 +81,11 @@ export struct DashboardPage {
 
   build() {
     Column({ space: 14 }) {
-      EdgeLightPanel({ radiusValue: 8 }) {
+      EdgeLightPanel({
+        radiusValue: 16,
+        todoCount: this.todoCount,
+        unreadCount: this.getUnreadCount()
+      }) {
         SectionBlock({ title: `你好，${this.user.name}`, subtitle: `${this.user.department} · ${this.user.roleLabel}` }) {
           Row({ space: 8 }) {
             this.StatItem('待处理', `${this.todoCount}`, '#246BFD', () => {
@@ -119,7 +123,7 @@ export struct DashboardPage {
             .padding(12)
             .margin({ bottom: 10 })
             .backgroundColor('#F8FAFC')
-            .borderRadius(8)
+            .borderRadius(12)
             .onClick(() => {
               this.onStartWorkflow(item.id);
             })
@@ -151,7 +155,7 @@ export struct DashboardPage {
       .width('100%')
       .padding(18)
       .backgroundColor('#175CD3')
-      .borderRadius(8)
+      .borderRadius(16)
       .onClick(() => {
         this.onOpenAssistant();
       })
@@ -173,7 +177,7 @@ export struct DashboardPage {
           .layoutWeight(1)
           .padding(14)
           .backgroundColor('#F8FAFC')
-          .borderRadius(10)
+          .borderRadius(12)
           .onClick(() => {
             this.onOpenAttendance();
           })
@@ -193,7 +197,7 @@ export struct DashboardPage {
           .layoutWeight(1)
           .padding(14)
           .backgroundColor('#F8FAFC')
-          .borderRadius(10)
+          .borderRadius(12)
           .onClick(() => {
             this.onOpenMail();
           })
@@ -262,7 +266,7 @@ export struct DashboardPage {
             .width('100%')
             .padding(12)
             .backgroundColor(item.read ? '#F8FAFC' : '#EEF4FF')
-            .borderRadius(8)
+            .borderRadius(12)
           }, (item: NotificationItem) => item.id)
 
           Button('查看全部消息')
@@ -270,7 +274,7 @@ export struct DashboardPage {
             .height(40)
             .fontColor('#175CD3')
             .backgroundColor('#EAF1FF')
-            .borderRadius(8)
+            .borderRadius(10)
             .onClick(() => {
               this.onOpenMessages();
             })

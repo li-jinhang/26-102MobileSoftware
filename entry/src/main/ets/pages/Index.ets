@@ -550,7 +550,6 @@ struct Index {
                   user: this.getCurrentUser(),
                   favoriteArticles: this.getFavoriteArticles(),
                   unreadCount: this.getUnreadMessageCount(),
-                  fontScale: this.readingFontScale,
                   mailUnreadCount: this.getUnreadMailCount(),
                   attendanceStatus: this.getAttendanceStatusSummary(),
                   onOpenArticle: (articleId: string) => {
@@ -564,10 +563,6 @@ struct Index {
                   },
                   onOpenMail: () => {
                     void this.openMailPage();
-                  },
-                  onFontScaleChange: (scale: ReadingFontScale) => {
-                    this.readingFontScale = scale;
-                    this.persistReadingSettings();
                   },
                   onLogout: () => {
                     void this.logout();
@@ -1067,7 +1062,7 @@ struct Index {
           this.workflowReasonInput = value;
         })
 
-      TextInput({ placeholder: '附件模拟，例如：发票+截图 / 采购清单 / 权限矩阵表', text: this.workflowAttachmentInput })
+      TextInput({ placeholder: '附件，例：发票+截图 / 采购清单 / 权限矩阵表', text: this.workflowAttachmentInput })
         .height(46)
         .borderRadius(14)
         .backgroundColor('#F8FAFC')

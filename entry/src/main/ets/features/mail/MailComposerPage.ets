@@ -51,7 +51,7 @@ export struct MailComposerPage {
           .width('100%')
           .height(44)
           .backgroundColor('#FFFFFF')
-          .borderRadius(8)
+          .borderRadius(12)
           .onChange((value: string) => {
             this.receiverInput = value;
           })
@@ -60,7 +60,7 @@ export struct MailComposerPage {
           .width('100%')
           .height(44)
           .backgroundColor('#FFFFFF')
-          .borderRadius(8)
+          .borderRadius(12)
           .onChange((value: string) => {
             this.subjectInput = value;
           })
@@ -69,7 +69,7 @@ export struct MailComposerPage {
           .width('100%')
           .height(120)
           .backgroundColor('#FFFFFF')
-          .borderRadius(8)
+          .borderRadius(12)
           .onChange((value: string) => {
             this.contentInput = value;
           })
@@ -78,7 +78,7 @@ export struct MailComposerPage {
           .width('100%')
           .height(44)
           .backgroundColor('#FFFFFF')
-          .borderRadius(8)
+          .borderRadius(12)
           .onChange((value: string) => {
             this.relatedWorkflowId = value;
           })
@@ -87,7 +87,7 @@ export struct MailComposerPage {
           .width('100%')
           .height(44)
           .backgroundColor('#FFFFFF')
-          .borderRadius(8)
+          .borderRadius(12)
           .onChange((value: string) => {
             this.relatedKnowledgeId = value;
           })
@@ -99,7 +99,7 @@ export struct MailComposerPage {
         .height(44)
         .fontColor('#FFFFFF')
         .backgroundColor(this.canSend() ? '#175CD3' : '#D0D5DD')
-        .borderRadius(8)
+        .borderRadius(12)
         .enabled(this.canSend())
         .onClick(() => {
           this.onSend(

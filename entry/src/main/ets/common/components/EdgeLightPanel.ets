@@ -1,46 +1,55 @@
 @Component
 export struct EdgeLightPanel {
   @BuilderParam content: () => void;
-  @Prop radiusValue: number = 8;
-  @State blueShift: number = -120;
-  @State greenShift: number = 220;
+  @Prop radiusValue: number = 16;
+  @Prop todoCount: number = 0;
+  @Prop unreadCount: number = 0;
+  @State pulseStrength: number = 0.12;
 
   aboutToAppear(): void {
-    animateTo({ duration: 2400, iterations: -1, curve: Curve.EaseInOut }, () => {
-      this.blueShift = 230;
-      this.greenShift = -120;
+    animateTo({
+      duration: 1600,
+      iterations: -1,
+      playMode: PlayMode.Alternate,
+      curve: Curve.EaseInOut
+    }, () => {
+      this.pulseStrength = 0.32;
     });
   }
 
+  private hasAttention(): boolean {
+    return this.todoCount > 0 || this.unreadCount > 0;
+  }
+
+  // Unread messages take precedence when both kinds of attention are present.
+  private accentRgb(): string {
+    return this.unreadCount > 0 ? '181, 71, 8' : '36, 107, 253';
+  }
+
+  private accentColor(alpha: number): string {
+    return `rgba(${this.accentRgb()}, ${alpha})`;
+  }
+
+  private borderColor(): string {
+    return this.hasAttention() ? this.accentColor(this.pulseStrength + 0.28) : '#B2CCFF';
+  }
+
+  private glowRadius(): number {
+    return this.hasAttention() ? 8 + this.pulseStrength * 28 : 18;
+  }
+
+  private glowColor(): string {
+    return this.hasAttention() ? this.accentColor(this.pulseStrength) : '#1F246BFD';
+  }
+
   build() {
-    Stack({ alignContent: Alignment.TopStart }) {
-      Column() {
-        this.content()
-      }
-      .width('100%')
-
-      Row()
-        .width(92)
-        .height(4)
-        .backgroundColor('#246BFD')
-        .borderRadius(4)
-        .opacity(0.9)
-        .shadow({ radius: 10, color: '#246BFD', offsetX: 0, offsetY: 1 })
-        .translate({ x: this.blueShift, y: 0 })
-
-      Row()
-        .width(76)
-        .height(4)
-        .backgroundColor('#12B76A')
-        .borderRadius(4)
-        .opacity(0.86)
-        .shadow({ radius: 10, color: '#12B76A', offsetX: 0, offsetY: 1 })
-        .translate({ x: this.greenShift, y: 0 })
+    Column() {
+      this.content()
     }
     .width('100%')
-    .clip(true)
+    .backgroundColor('#FFFFFF')
     .borderRadius(this.radiusValue)
-    .border({ width: 1, color: '#B2CCFF' })
-    .shadow({ radius: 18, color: '#1F246BFD', offsetX: 0, offsetY: 6 })
+    .border({ width: 1, color: this.borderColor() })
+    .shadow({ radius: this.glowRadius(), color: this.glowColor(), offsetX: 0, offsetY: 4 })
   }
 }

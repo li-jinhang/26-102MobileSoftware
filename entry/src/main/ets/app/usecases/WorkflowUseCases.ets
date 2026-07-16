@@ -67,7 +67,7 @@ function validateWorkflowForm(
     return '请填写申请事由。';
   }
   if (attachmentInput.trim().length === 0) {
-    return '请补充附件模拟内容。';
+    return '请补充附件内容。';
   }
   if (templateId === 'wf1' && (extraInput.trim().length === 0 || dateInput.trim().length === 0)) {
     return '请完整填写请假类型和时间。';

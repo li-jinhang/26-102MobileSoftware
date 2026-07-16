@@ -124,7 +124,7 @@ export struct AttendancePage {
           .width('100%')
           .height(44)
           .backgroundColor('#F8FAFC')
-          .borderRadius(8)
+          .borderRadius(12)
           .onChange((value: string) => {
             this.noteInput = value;
           })
@@ -135,7 +135,7 @@ export struct AttendancePage {
             .height(42)
             .fontColor('#FFFFFF')
             .backgroundColor(this.canCheckIn() ? '#175CD3' : '#D0D5DD')
-            .borderRadius(8)
+            .borderRadius(12)
             .enabled(this.canCheckIn())
             .onClick(() => {
               this.onCheckIn(this.noteInput);
@@ -145,7 +145,7 @@ export struct AttendancePage {
             .height(42)
             .fontColor('#FFFFFF')
             .backgroundColor(this.canCheckOut() ? '#027A48' : '#D0D5DD')
-            .borderRadius(8)
+            .borderRadius(12)
             .enabled(this.canCheckOut())
             .onClick(() => {
               this.onCheckOut(this.noteInput);
@@ -195,7 +195,7 @@ export struct AttendancePage {
                   .fontColor(this.getRecordStatusColor(item.status))
                   .padding({ left: 8, right: 8, top: 5, bottom: 5 })
                   .backgroundColor('#F2F4F7')
-                  .borderRadius(8)
+                  .borderRadius(12)
               }
               .width('100%')
               .padding(14)

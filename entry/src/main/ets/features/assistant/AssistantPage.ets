@@ -97,7 +97,7 @@ export struct AssistantPage {
             TextInput({ placeholder: '例如：报销打车费需要什么材料？', text: this.question })
               .height(50)
               .backgroundColor('#FFFFFF')
-              .borderRadius(8)
+              .borderRadius(12)
               .padding({ left: 14, right: 14 })
               .onChange((value: string) => {
                 this.question = value;
@@ -106,7 +106,7 @@ export struct AssistantPage {
               .width('100%')
               .height(44)
               .backgroundColor('#175CD3')
-              .borderRadius(8)
+              .borderRadius(12)
               .onClick(() => {
                 this.ask();
               })
@@ -115,7 +115,7 @@ export struct AssistantPage {
 
           if (this.reply !== null) {
             Column({ space: 12 }) {
-              Text('模拟回答')
+              Text('回答')
                 .fontSize(Typography.metaSize())
                 .fontColor('#175CD3')
                 .width('100%')
@@ -139,7 +139,7 @@ export struct AssistantPage {
                   .width('100%')
                   .height(42)
                   .backgroundColor('#12B76A')
-                  .borderRadius(8)
+                  .borderRadius(12)
                   .onClick(() => {
                     if (this.reply !== null) {
                       this.onStartWorkflow(this.reply.recommendedWorkflowId);
@@ -150,7 +150,7 @@ export struct AssistantPage {
             .width('100%')
             .padding(16)
             .backgroundColor('#FFFFFF')
-            .borderRadius(8)
+            .borderRadius(12)
           }
 
           Column({ space: 10 }) {
@@ -182,7 +182,7 @@ export struct AssistantPage {
                 .width('100%')
                 .padding(14)
                 .backgroundColor('#FFFFFF')
-                .borderRadius(8)
+                .borderRadius(12)
               }, (item: AssistantHistory) => item.id)
             }
           }

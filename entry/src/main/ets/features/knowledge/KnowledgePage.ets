@@ -39,7 +39,7 @@ export struct KnowledgePage {
         Column({ space: 12 }) {
           TextInput({ placeholder: '搜索制度、流程、标签', text: this.searchKeyword })
             .height(48)
-            .borderRadius(8)
+            .borderRadius(12)
             .backgroundColor('#F8FAFC')
             .padding({ left: 14, right: 14 })
             .onChange((value: string) => {
@@ -52,7 +52,7 @@ export struct KnowledgePage {
               .height(42)
               .fontColor('#FFFFFF')
               .backgroundColor('#246BFD')
-              .borderRadius(8)
+              .borderRadius(12)
               .onClick(() => {
                 this.onSelectOcrImage();
               })
@@ -63,7 +63,7 @@ export struct KnowledgePage {
               .fontSize(13)
               .fontColor('#175CD3')
               .backgroundColor('#EAF1FF')
-              .borderRadius(8)
+              .borderRadius(12)
               .onClick(() => {
                 this.onUseOcrDemo();
               })
@@ -78,7 +78,7 @@ export struct KnowledgePage {
                   .fontColor(this.selectedCategoryId === item.id ? '#FFFFFF' : '#475467')
                   .padding({ left: 14, right: 14, top: 9, bottom: 9 })
                   .backgroundColor(this.selectedCategoryId === item.id ? '#246BFD' : '#F2F4F7')
-                  .borderRadius(8)
+                  .borderRadius(12)
                   .onClick(() => {
                     this.selectedCategoryId = item.id;
                   })

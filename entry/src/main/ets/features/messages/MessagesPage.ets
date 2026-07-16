@@ -88,7 +88,7 @@ export struct MessagesPage {
           .fontColor(this.unreadOnly ? '#475467' : '#FFFFFF')
           .padding({ top: 10, bottom: 10 })
           .backgroundColor(this.unreadOnly ? '#F2F4F7' : '#246BFD')
-          .borderRadius(8)
+          .borderRadius(12)
           .onClick(() => {
             this.unreadOnly = false;
           })
@@ -99,7 +99,7 @@ export struct MessagesPage {
           .fontColor(this.unreadOnly ? '#FFFFFF' : '#475467')
           .padding({ top: 10, bottom: 10 })
           .backgroundColor(this.unreadOnly ? '#246BFD' : '#F2F4F7')
-          .borderRadius(8)
+          .borderRadius(12)
           .onClick(() => {
             this.unreadOnly = true;
           })
@@ -129,7 +129,7 @@ export struct MessagesPage {
                       .fontColor('#B42318')
                       .padding({ left: 7, right: 7, top: 4, bottom: 4 })
                       .backgroundColor('#FEE4E2')
-                      .borderRadius(6)
+                      .borderRadius(12)
                   }
                 }
                 .width('100%')
@@ -151,7 +151,7 @@ export struct MessagesPage {
                       .fontSize(11)
                       .fontColor('#175CD3')
                       .backgroundColor('#EAF1FF')
-                      .borderRadius(8)
+                      .borderRadius(12)
                       .onClick(() => {
                         this.onMarkRead(item.id);
                       })
@@ -162,7 +162,7 @@ export struct MessagesPage {
               .width('100%')
               .padding(14)
               .backgroundColor(item.read ? '#FFFFFF' : '#EEF4FF')
-              .borderRadius(8)
+              .borderRadius(12)
               .onClick(() => {
                 this.openMessage(item);
               })

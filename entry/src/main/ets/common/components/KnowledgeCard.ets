@@ -44,7 +44,7 @@ export struct KnowledgeCard {
     .constraintSize({ minHeight: 104 })
     .padding(14)
     .backgroundColor('#F8FAFC')
-    .borderRadius(8)
+    .borderRadius(12)
     .onClick(() => {
       this.onOpen(this.article.id);
     })

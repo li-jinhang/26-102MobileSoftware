@@ -34,12 +34,12 @@ export struct OcrResultPage {
           }
           if (this.result.fallbackReason.length > 0) {
             Text(this.result.fallbackReason).fontSize(Typography.metaSize()).lineHeight(Typography.summaryLineHeight()).fontColor('#B54708').width('100%').padding(12)
-              .backgroundColor('#FFFAEB').borderRadius(8)
+              .backgroundColor('#FFFAEB').borderRadius(12)
           }
           Column({ space: 10 }) {
             Text('识别全文').fontSize(Typography.bodyLargeSize()).fontWeight(Typography.emphasisWeight()).fontColor('#1F2A44').width('100%')
             Text(this.result.text).fontSize(Typography.bodyLargeSize()).lineHeight(Typography.bodyLargeLineHeight()).fontColor('#344054').width('100%')
-          }.width('100%').padding(16).backgroundColor('#FFFFFF').borderRadius(8)
+          }.width('100%').padding(16).backgroundColor('#FFFFFF').borderRadius(12)
 
           if (this.result.keywords.length > 0) {
             Text(`关键词：${this.result.keywords.join('、')}`).fontSize(Typography.metaSize()).fontColor('#175CD3').width('100%')
