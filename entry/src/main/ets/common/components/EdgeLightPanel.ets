@@ -30,7 +30,7 @@ export struct EdgeLightPanel {
     return `rgba(${this.accentRgb()}, ${alpha})`;
   }
 
-  private borderColor(): string {
+  private panelBorderColor(): string {
     return this.hasAttention() ? this.accentColor(this.pulseStrength + 0.28) : '#B2CCFF';
   }
 
@@ -49,7 +49,7 @@ export struct EdgeLightPanel {
     .width('100%')
     .backgroundColor('#FFFFFF')
     .borderRadius(this.radiusValue)
-    .border({ width: 1, color: this.borderColor() })
+    .border({ width: 1, color: this.panelBorderColor() })
     .shadow({ radius: this.glowRadius(), color: this.glowColor(), offsetX: 0, offsetY: 4 })
   }
 }

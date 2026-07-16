@@ -31,39 +31,6 @@ export struct KnowledgePage {
     Column({ space: 14 }) {
       SectionBlock({ title: '知识分类', subtitle: '按分类浏览已发布的公司制度与操作指南。' }) {
         Column({ space: 12 }) {
-          TextInput({ placeholder: '搜索制度、流程、标签', text: this.searchKeyword })
-            .height(48)
-            .borderRadius(12)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.searchKeyword = value;
-            })
-
-          Row({ space: 10 }) {
-            Button('从相册选择')
-              .layoutWeight(1)
-              .height(42)
-              .fontColor('#FFFFFF')
-              .backgroundColor('#246BFD')
-              .borderRadius(12)
-              .onClick(() => {
-                this.onSelectOcrImage();
-              })
-
-            Button('使用内置演示图片')
-              .layoutWeight(1)
-              .height(42)
-              .fontSize(13)
-              .fontColor('#175CD3')
-              .backgroundColor('#EAF1FF')
-              .borderRadius(12)
-              .onClick(() => {
-                this.onUseOcrDemo();
-              })
-          }
-          .width('100%')
-
           Scroll() {
             Row({ space: 8 }) {
               ForEach(this.categories, (item: KnowledgeCategory) => {
