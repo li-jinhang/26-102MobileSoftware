@@ -64,26 +64,24 @@ import {
   saveDashboardSummary,
   saveReadingSettings
 } from '../common/services/ExperienceStateService';
+import { selectAssistantImage } from '../common/services/AssistantMediaService';
 import { SectionBlock } from '../common/components/SectionBlock';
 import { AttendancePage } from '../features/attendance/AttendancePage';
 import { AssistantPage } from '../features/assistant/AssistantPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { KnowledgeDetailPage } from '../features/knowledge/KnowledgeDetailPage';
 import { KnowledgePage } from '../features/knowledge/KnowledgePage';
-import { OcrResultPage } from '../features/knowledge/OcrResultPage';
 import { MailComposerPage } from '../features/mail/MailComposerPage';
 import { MailDetailPage } from '../features/mail/MailDetailPage';
 import { MailPage } from '../features/mail/MailPage';
-import {
-  OcrResult,
-  recognizeBundledDemoImage,
-  selectAndRecognizeImage
-} from '../common/services/OcrService';
 import { MessagesPage } from '../features/messages/MessagesPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 import {
+  AssistantAnalyzeInput,
+  AssistantFormDraft,
   AssistantHistory,
   AssistantReply,
+  AssistantSelectedImage,
   ApprovalRecord,
   AuditLog,
   AttendanceRecord,
@@ -124,7 +122,6 @@ struct Index {
   @State auditLogs: AuditLog[] = [];
   @State activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' = 'none';
   @State detailReturnSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' = 'none';
-  @State ocrResult: OcrResult | null = null;
   @State attendanceSummary: AttendanceTodaySummary = {
     date: '',
     checkedIn: false,
@@ -143,6 +140,8 @@ struct Index {
   @State assistantHistory: AssistantHistory[] = [];
   @State assistantQuestion: string = '';
   @State assistantReply: AssistantReply | null = null;
+  @State assistantSelectedImage: AssistantSelectedImage | null = null;
+  @State assistantLoading: boolean = false;
   @State readingFontScale: ReadingFontScale = 'standard';
   @State readingFontWeight: ReadingFontWeight = 'standard';
   @State activeWorkflowModule: 'overview' | 'apply' | 'mine' = 'overview';
@@ -373,18 +372,6 @@ struct Index {
               this.startWorkflow(templateId);
             }
           })
-        } else if (this.activeSubPage === 'ocrResult' && this.ocrResult !== null) {
-          OcrResultPage({
-            result: this.ocrResult,
-            articles: this.getPublishedArticles(),
-            onBack: () => {
-              this.activeSubPage = 'none';
-              this.activeTab = 1;
-            },
-            onOpenArticle: (articleId: string) => {
-              this.openArticle(articleId);
-            }
-          })
         } else if (this.activeSubPage === 'attendance') {
           AttendancePage({
             todaySummary: this.attendanceSummary,
@@ -448,14 +435,25 @@ struct Index {
             history: $assistantHistory,
             question: $assistantQuestion,
             reply: $assistantReply,
+            selectedImage: this.assistantSelectedImage,
+            loading: this.assistantLoading,
             onBack: () => {
               this.activeSubPage = 'none';
             },
             onOpenArticle: (articleId: string) => {
               this.openArticle(articleId);
             },
-            onStartWorkflow: (templateId: string) => {
-              this.startWorkflow(templateId);
+            onSelectImage: () => {
+              void this.handleAssistantImageSelect();
+            },
+            onClearImage: () => {
+              this.assistantSelectedImage = null;
+            },
+            onOpenWorkflowWithoutDraft: (templateId: string) => {
+              this.openWorkflowComposer(templateId);
+            },
+            onOpenWorkflowWithDraft: (templateId: string, draft: AssistantFormDraft) => {
+              this.startWorkflow(templateId, draft);
             },
             onAsk: () => {
               void this.handleAssistantAsk();
@@ -535,12 +533,6 @@ struct Index {
                   favoriteKnowledgeIds: this.favoriteKnowledgeIds,
                   onOpenArticle: (articleId: string) => {
                     this.openArticle(articleId);
-                  },
-                  onSelectOcrImage: () => {
-                    void this.startAlbumOcr();
-                  },
-                  onUseOcrDemo: () => {
-                    void this.startDemoOcr();
                   }
                 })
               } else if (this.activeTab === 2) {
@@ -1294,34 +1286,6 @@ struct Index {
     this.showMessage(result.message);
   }
 
-  private openOcrResult(result: OcrResult): void {
-    this.ocrResult = result;
-    this.activeSubPage = 'ocrResult';
-  }
-
-  private async startAlbumOcr(): Promise<void> {
-    this.showMessage('请选择一张包含文字的图片。');
-    const result: OcrResult | null = await selectAndRecognizeImage(this.getPublishedArticles());
-    if (result === null) {
-      return;
-    }
-    this.openOcrResult(result);
-  }
-
-  private async startDemoOcr(): Promise<void> {
-    if (this.hostContext === null) {
-      this.showMessage('应用资源尚未准备完成，请稍后重试。');
-      return;
-    }
-    this.showMessage('正在识别内置报销凭证...');
-    const result: OcrResult = await recognizeBundledDemoImage(
-      this.hostContext,
-      $r('app.media.ocr_demo_receipt').id,
-      this.getPublishedArticles()
-    );
-    this.openOcrResult(result);
-  }
-
   private async logout(): Promise<void> {
     try {
       await logoutCurrentAccount();
@@ -1362,9 +1326,10 @@ struct Index {
     this.assistantHistory = result.assistantHistory;
     this.assistantQuestion = result.assistantQuestion;
     this.assistantReply = result.assistantReply;
+    this.assistantSelectedImage = null;
+    this.assistantLoading = false;
     this.readingFontScale = result.readingFontScale;
     this.readingFontWeight = 'standard';
-    this.ocrResult = null;
     this.activeWorkflowModule = 'overview';
     this.workflowPanelVisible = false;
     this.workflowComposerVisible = false;
@@ -1391,7 +1356,8 @@ struct Index {
       this.assistantHistory = result.assistantHistory;
       this.assistantQuestion = result.assistantQuestion;
       this.assistantReply = result.assistantReply;
-      this.ocrResult = null;
+      this.assistantSelectedImage = null;
+      this.assistantLoading = false;
       this.activeWorkflowModule = 'overview';
       this.workflowPanelVisible = false;
       this.workflowComposerVisible = false;
@@ -1431,8 +1397,8 @@ struct Index {
     this.workflowComposerVisible = true;
   }
 
-  private startWorkflow(templateId: string): void {
-    this.applyWorkflowFormState(buildStartWorkflowStateUseCase(templateId));
+  private startWorkflow(templateId: string, draft?: AssistantFormDraft): void {
+    this.applyWorkflowFormState(buildStartWorkflowStateUseCase(templateId, draft));
     this.activeWorkflowModule = 'apply';
     this.workflowComposerVisible = true;
   }
@@ -1563,9 +1529,31 @@ struct Index {
     }
   }
 
-  private async handleAssistantAsk(): Promise<void> {
+  private async handleAssistantImageSelect(): Promise<void> {
     try {
-      const result = await askAssistantUseCase(this.assistantQuestion, this.assistantHistory);
+      const selected: AssistantSelectedImage | null = await selectAssistantImage();
+      if (selected !== null) {
+        this.assistantSelectedImage = selected;
+        this.assistantReply = null;
+      }
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '图片选择失败。';
+      this.showMessage(message);
+    }
+  }
+
+  private async handleAssistantAsk(): Promise<void> {
+    if (this.assistantLoading) {
+      return;
+    }
+    this.assistantLoading = true;
+    try {
+      const input: AssistantAnalyzeInput = {
+        text: this.assistantQuestion,
+        imageBase64: this.assistantSelectedImage === null ? '' : this.assistantSelectedImage.imageBase64,
+        imageMimeType: this.assistantSelectedImage === null ? '' : this.assistantSelectedImage.imageMimeType
+      };
+      const result = await askAssistantUseCase(input, this.assistantHistory);
       if (!result.success) {
         this.showMessage(result.message);
         return;
@@ -1575,6 +1563,8 @@ struct Index {
     } catch (error) {
       const message: string = error instanceof Error ? error.message : '助手暂时不可用。';
       this.showMessage(message);
+    } finally {
+      this.assistantLoading = false;
     }
   }
 

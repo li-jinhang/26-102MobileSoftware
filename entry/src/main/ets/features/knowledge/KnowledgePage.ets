@@ -17,59 +17,20 @@ export struct KnowledgePage {
   favoriteKnowledgeIds: string[];
   onOpenArticle: (articleId: string) => void = () => {
   };
-  onSelectOcrImage: () => void = () => {
-  };
-  onUseOcrDemo: () => void = () => {
-  };
   @State selectedCategoryId: string = 'all';
-  @State searchKeyword: string = '';
 
   private getResults(): KnowledgeArticle[] {
-    return searchKnowledge(this.articles, this.selectedCategoryId, this.searchKeyword);
+    return searchKnowledge(this.articles, this.selectedCategoryId, '');
   }
 
   private clearFilters(): void {
     this.selectedCategoryId = 'all';
-    this.searchKeyword = '';
   }
 
   build() {
     Column({ space: 14 }) {
-      SectionBlock({ title: '知识检索', subtitle: '按分类或关键词查找已发布的公司制度与操作指南。' }) {
+      SectionBlock({ title: '知识分类', subtitle: '按分类浏览已发布的公司制度与操作指南。' }) {
         Column({ space: 12 }) {
-          TextInput({ placeholder: '搜索制度、流程、标签', text: this.searchKeyword })
-            .height(48)
-            .borderRadius(8)
-            .backgroundColor('#F8FAFC')
-            .padding({ left: 14, right: 14 })
-            .onChange((value: string) => {
-              this.searchKeyword = value;
-            })
-
-          Row({ space: 10 }) {
-            Button('从相册选择')
-              .layoutWeight(1)
-              .height(42)
-              .fontColor('#FFFFFF')
-              .backgroundColor('#246BFD')
-              .borderRadius(8)
-              .onClick(() => {
-                this.onSelectOcrImage();
-              })
-
-            Button('使用内置演示图片')
-              .layoutWeight(1)
-              .height(42)
-              .fontSize(13)
-              .fontColor('#175CD3')
-              .backgroundColor('#EAF1FF')
-              .borderRadius(8)
-              .onClick(() => {
-                this.onUseOcrDemo();
-              })
-          }
-          .width('100%')
-
           Scroll() {
             Row({ space: 8 }) {
               ForEach(this.categories, (item: KnowledgeCategory) => {

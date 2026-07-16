@@ -7,6 +7,12 @@ import {
   OCR_DEMO_TEXT
 } from '../../../main/ets/common/services/OcrService';
 import { getMockArticles } from '../../../main/ets/mock/MockData';
+import {
+  buildOpenWorkflowComposerStateUseCase,
+  buildStartWorkflowStateUseCase,
+  WorkflowFormState
+} from '../../../main/ets/app/usecases/WorkflowFormStateUseCases';
+import { AssistantFormDraft } from '../../../main/ets/models/AppModels';
 
 export default function abilityTest() {
   describe('ActsAbilityTest', () => {
@@ -63,6 +69,29 @@ export default function abilityTest() {
       expect(keywords.includes('报销')).assertTrue();
       expect(keywords.includes('发票')).assertTrue();
       expect(articleIds.includes('k2')).assertTrue();
+    })
+
+    it('prefillWorkflowFromAssistantDraft', 0, () => {
+      const draft: AssistantFormDraft = {
+        title: '华南差旅报销',
+        extra: '差旅',
+        date: '',
+        amount: '3680',
+        reason: '客户现场交通费用',
+        attachment: ''
+      };
+      const state: WorkflowFormState = buildStartWorkflowStateUseCase('wf2', draft);
+      expect(state.workflowTitleInput).assertEqual('华南差旅报销');
+      expect(state.workflowAmountInput).assertEqual('3680');
+      expect(state.workflowReasonInput).assertEqual('客户现场交通费用');
+      expect(state.workflowDateInput).assertEqual('');
+      expect(state.workflowAttachmentInput).assertEqual('');
+    })
+
+    it('openWorkflowKeepsCurrentDefaults', 0, () => {
+      const state: WorkflowFormState = buildOpenWorkflowComposerStateUseCase('wf2');
+      expect(state.workflowExtraInput.length > 0).assertTrue();
+      expect(state.workflowAmountInput.length > 0).assertTrue();
     })
   })
 }

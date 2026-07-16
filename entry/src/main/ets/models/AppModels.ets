@@ -152,10 +152,39 @@ export interface KnowledgeCorrection {
   createTime: string;
 }
 
+export type AssistantIntent = 'knowledge_query' | 'leave' | 'reimbursement' |
+  'purchase' | 'permission' | 'unknown';
+
+export interface AssistantFormDraft {
+  title: string;
+  extra: string;
+  date: string;
+  amount: string;
+  reason: string;
+  attachment: string;
+}
+
+export interface AssistantAnalyzeInput {
+  text: string;
+  imageBase64: string;
+  imageMimeType: string;
+}
+
+export interface AssistantSelectedImage {
+  previewUri: string;
+  imageBase64: string;
+  imageMimeType: string;
+}
+
 export interface AssistantReply {
   answer: string;
+  recognizedText: string;
+  intent: AssistantIntent;
   relatedKnowledgeIds: string[];
   recommendedWorkflowId: string;
+  confidence: number;
+  formDraft: AssistantFormDraft;
+  missingFields: string[];
 }
 
 export interface AssistantHistory {

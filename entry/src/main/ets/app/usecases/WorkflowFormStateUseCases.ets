@@ -1,3 +1,5 @@
+import { AssistantFormDraft } from '../../models/AppModels';
+
 export interface WorkflowFormState {
   selectedTemplateId: string;
   activeTab: number;
@@ -55,6 +57,19 @@ export function buildOpenWorkflowComposerStateUseCase(templateId: string): Workf
   return buildWorkflowFormDefaults(templateId);
 }
 
-export function buildStartWorkflowStateUseCase(templateId: string): WorkflowFormState {
-  return buildWorkflowFormDefaults(templateId);
+export function buildStartWorkflowStateUseCase(
+  templateId: string,
+  draft?: AssistantFormDraft
+): WorkflowFormState {
+  const state: WorkflowFormState = buildWorkflowFormDefaults(templateId);
+  if (draft === undefined) {
+    return state;
+  }
+  state.workflowTitleInput = draft.title.trim();
+  state.workflowExtraInput = draft.extra.trim();
+  state.workflowDateInput = draft.date.trim();
+  state.workflowAmountInput = draft.amount.trim();
+  state.workflowReasonInput = draft.reason.trim();
+  state.workflowAttachmentInput = draft.attachment.trim();
+  return state;
 }
