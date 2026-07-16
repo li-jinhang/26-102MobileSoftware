@@ -2,10 +2,9 @@ import http from '@ohos.net.http';
 import { getAccessToken } from '../../app/repositories/BackendSession';
 import { MOBILE_SOFTWARE_BACKEND_BASE_URL } from './ApiConfig';
 
-interface ApiEnvelope<T> {
+interface ApiErrorEnvelope {
   code: number;
   message: string;
-  data: T;
 }
 
 export interface ApiQueryParam {
@@ -78,11 +77,12 @@ async function requestJson<T>(
     };
     const response = await client.request(buildUrl(path, options?.queryParams), requestOptions);
 
-    const payload: ApiEnvelope<T> = JSON.parse(String(response.result));
-    if (response.responseCode < 200 || response.responseCode >= 300 || payload.code !== 0) {
-      throw new Error(payload.message || '请求失败');
+    const payload: T | ApiErrorEnvelope = JSON.parse(String(response.result)) as T | ApiErrorEnvelope;
+    if (response.responseCode < 200 || response.responseCode >= 300) {
+      const errorPayload: ApiErrorEnvelope = payload as ApiErrorEnvelope;
+      throw new Error(errorPayload.message || '请求失败');
     }
-    return payload.data;
+    return payload as T;
   } finally {
     client.destroy();
   }
