@@ -101,16 +101,46 @@ import {
   WorkflowTemplate
 } from '../models/AppModels';
 
+interface DemoAccount {
+  name: string;
+  account: string;
+  department: string;
+  jobTitle: string;
+}
+
 @Entry
 @Component
 struct Index {
   @StorageLink('launchPage') launchPage: string = '';
   private readonly tabLabels: string[] = ['工作台', '知识库', '流程', '我的'];
   private readonly tabMarks: string[] = ['工', '知', '流', '我'];
+  private readonly demoAccounts: DemoAccount[] = [
+    { name: '张晓宁', account: 'employee01', department: '产品研发部', jobTitle: '产品经理' },
+    { name: '李清越', account: 'manager01', department: '产品研发部', jobTitle: '研发部负责人' },
+    { name: '周承安', account: 'admin01', department: '信息化管理部', jobTitle: '系统管理员' },
+    { name: '林知夏', account: 'knowledge01', department: '知识运营组', jobTitle: '知识运营专员' },
+    { name: '王晨曦', account: 'frontend01', department: '前端开发组', jobTitle: '前端开发工程师' },
+    { name: '陈思远', account: 'backend01', department: '后端开发组', jobTitle: '后端开发工程师' },
+    { name: '赵子涵', account: 'qa01', department: '测试与质量组', jobTitle: '测试工程师' },
+    { name: '孙若琳', account: 'itops01', department: '基础设施组', jobTitle: 'IT 运维工程师' },
+    { name: '许景行', account: 'security01', department: '安全合规组', jobTitle: '安全合规专员' },
+    { name: '刘雅琴', account: 'hr01', department: '人力资源部', jobTitle: '人力资源总监' },
+    { name: '郑博文', account: 'finance01', department: '财务部', jobTitle: '财务经理' },
+    { name: '黄思敏', account: 'sales01', department: '销售中心', jobTitle: '销售总监' },
+    { name: '马可', account: 'cs01', department: '客户成功中心', jobTitle: '客户成功中心负责人' },
+    { name: '周子墨', account: 'cs02', department: '客户成功组', jobTitle: '客户成功主管' },
+    { name: '唐雨桐', account: 'procurement01', department: '采购与行政部', jobTitle: '采购与行政部负责人' },
+    { name: '罗嘉', account: 'office01', department: '行政组', jobTitle: '行政主管' },
+    { name: '何子怡', account: 'sales-east01', department: '华东销售组', jobTitle: '区域销售代表' },
+    { name: '叶启明', account: 'sales-south01', department: '华南销售组', jobTitle: '区域销售代表' },
+    { name: '彭晓峰', account: 'knowledgeeditor01', department: '知识运营组', jobTitle: '知识编辑' },
+    { name: '许昭远', account: 'ceo01', department: '总裁办', jobTitle: '总经理' }
+  ];
 
   @State loginAccount: string = 'employee01';
   @State loginPassword: string = '123456';
   @State isLoading: boolean = false;
+  @State demoAccountDialogVisible: boolean = false;
   @State currentUser: User | null = null;
   @State categories: KnowledgeCategory[] = [];
   @State articles: KnowledgeArticle[] = [];
@@ -227,93 +257,179 @@ struct Index {
 
   @Builder
   private LoginView() {
-    Column({ space: 18 }) {
-      Column({ space: 8 }) {
-        Text('智协库')
-          .fontSize(34)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1F2A44')
+    Stack() {
+      Column({ space: 18 }) {
+        Column({ space: 8 }) {
+          Text('智协库')
+            .fontSize(34)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1F2A44')
 
-        Text('面向公司内部的知识库与流程协作鸿蒙应用基础框架')
-          .fontSize(14)
-          .fontColor('#667085')
-          .textAlign(TextAlign.Center)
-      }
-      .margin({ top: 60, bottom: 18 })
+          Text('面向公司内部的知识库与流程协作鸿蒙应用基础框架')
+            .fontSize(14)
+            .fontColor('#667085')
+            .textAlign(TextAlign.Center)
+        }
+        .margin({ top: 60, bottom: 18 })
 
-      Column({ space: 14 }) {
-        TextInput({ placeholder: '请输入账号', text: this.loginAccount })
-          .height(52)
-          .borderRadius(16)
-          .backgroundColor('#FFFFFF')
-          .padding({ left: 16, right: 16 })
-          .onChange((value: string) => {
-            this.loginAccount = value;
-          })
+        Column({ space: 14 }) {
+          TextInput({ placeholder: '请输入账号', text: this.loginAccount })
+            .height(52)
+            .borderRadius(16)
+            .backgroundColor('#FFFFFF')
+            .padding({ left: 16, right: 16 })
+            .onChange((value: string) => {
+              this.loginAccount = value;
+            })
 
-        TextInput({ placeholder: '请输入密码', text: this.loginPassword })
-          .type(InputType.Password)
-          .height(52)
-          .borderRadius(16)
-          .backgroundColor('#FFFFFF')
-          .padding({ left: 16, right: 16 })
-          .onChange((value: string) => {
-            this.loginPassword = value;
-          })
+          TextInput({ placeholder: '请输入密码', text: this.loginPassword })
+            .type(InputType.Password)
+            .height(52)
+            .borderRadius(16)
+            .backgroundColor('#FFFFFF')
+            .padding({ left: 16, right: 16 })
+            .onChange((value: string) => {
+              this.loginPassword = value;
+            })
 
-        Button(this.isLoading ? '正在连接后端...' : '登录并进入工作台')
+          Button(this.isLoading ? '正在连接后端...' : '登录并进入工作台')
+            .width('100%')
+            .height(50)
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .backgroundColor('#246BFD')
+            .borderRadius(16)
+            .enabled(!this.isLoading)
+            .onClick(() => {
+              void this.handleLogin();
+            })
+        }
+        .width('100%')
+        .padding(20)
+        .backgroundColor('#FDFEFF')
+        .borderRadius(24)
+
+        Column({ space: 10 }) {
+          Row() {
+            Column({ space: 4 }) {
+              Text('课程演示账号')
+                .fontSize(15)
+                .fontWeight(FontWeight.Medium)
+                .fontColor('#1F2A44')
+                .width('100%')
+
+              Text(this.getDemoAccountSummary())
+                .fontSize(12)
+                .fontColor('#667085')
+                .width('100%')
+            }
+            .layoutWeight(1)
+            .alignItems(HorizontalAlign.Start)
+
+            Button('选择')
+              .width(72)
+              .height(36)
+              .fontSize(13)
+              .backgroundColor('#E9F0FF')
+              .fontColor('#246BFD')
+              .borderRadius(12)
+              .onClick(() => {
+                this.demoAccountDialogVisible = true;
+              })
+          }
           .width('100%')
-          .height(50)
-          .fontSize(16)
-          .fontWeight(FontWeight.Medium)
-          .backgroundColor('#246BFD')
-          .borderRadius(16)
-          .enabled(!this.isLoading)
-          .onClick(() => {
-            void this.handleLogin();
-          })
+          .padding(16)
+          .backgroundColor('#FFFFFF')
+          .borderRadius(18)
+          .alignItems(VerticalAlign.Center)
+
+          Text(`共 ${this.demoAccounts.length} 个演示账号，默认密码：123456`)
+            .fontSize(12)
+            .fontColor('#98A2B3')
+            .width('100%')
+        }
+        .width('100%')
       }
       .width('100%')
-      .padding(20)
-      .backgroundColor('#FDFEFF')
-      .borderRadius(24)
+      .height('100%')
+      .padding({ left: 20, right: 20, bottom: 24 })
+      .justifyContent(FlexAlign.Center)
 
-      Column({ space: 10 }) {
-        Text('课程演示账号')
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#1F2A44')
-          .width('100%')
-
-        this.DemoAccountCard('employee01', '普通员工', '查看知识、发起流程、跟踪进度');
-        this.DemoAccountCard('manager01', '审批人', '处理待办、查看关联制度');
-        this.DemoAccountCard('admin01', '系统管理员', '管理模板、二次确认与操作日志');
-        this.DemoAccountCard('knowledge01', '知识管理员', '维护分类、发布知识与查看审计摘要');
+      if (this.demoAccountDialogVisible) {
+        this.DemoAccountDialog();
       }
-      .width('100%')
-
-      Text('默认密码：123456')
-        .fontSize(12)
-        .fontColor('#98A2B3')
-        .margin({ top: 6 })
     }
     .width('100%')
     .height('100%')
-    .padding({ left: 20, right: 20, bottom: 24 })
-    .justifyContent(FlexAlign.Center)
   }
 
   @Builder
-  private DemoAccountCard(account: string, roleLabel: string, description: string) {
+  private DemoAccountDialog() {
+    Column() {
+      Column({ space: 14 }) {
+        Row() {
+          Column({ space: 4 }) {
+            Text('选择演示账号')
+              .fontSize(18)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#1F2A44')
+              .width('100%')
+
+            Text('选择后自动填入账号与默认密码')
+              .fontSize(12)
+              .fontColor('#667085')
+              .width('100%')
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+
+          Button('关闭')
+            .height(34)
+            .fontSize(12)
+            .backgroundColor('#EEF2F6')
+            .fontColor('#344054')
+            .borderRadius(10)
+            .onClick(() => {
+              this.demoAccountDialogVisible = false;
+            })
+        }
+
+        Scroll() {
+          Column({ space: 10 }) {
+            ForEach(this.demoAccounts, (item: DemoAccount) => {
+              this.DemoAccountCard(item);
+            }, (item: DemoAccount) => item.account)
+          }
+          .width('100%')
+          .padding({ right: 2 })
+        }
+        .scrollBar(BarState.Off)
+        .layoutWeight(1)
+      }
+      .width('100%')
+      .height('78%')
+      .padding(18)
+      .backgroundColor('#FFFFFF')
+      .borderRadius(24)
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .padding(20)
+    .backgroundColor('#660B1220')
+  }
+
+  @Builder
+  private DemoAccountCard(item: DemoAccount) {
     Row({ space: 12 }) {
       Column({ space: 4 }) {
-        Text(account)
+        Text(`${item.name} / ${item.account}`)
           .fontSize(15)
           .fontWeight(FontWeight.Medium)
           .fontColor('#1F2A44')
           .width('100%')
 
-        Text(`${roleLabel} · ${description}`)
+        Text(`${item.department} · ${item.jobTitle}`)
           .fontSize(12)
           .fontColor('#667085')
           .width('100%')
@@ -329,15 +445,17 @@ struct Index {
         .fontColor('#246BFD')
         .borderRadius(12)
         .onClick(() => {
-          this.loginAccount = account;
-          this.loginPassword = '123456';
+          this.selectDemoAccount(item.account);
         })
     }
     .width('100%')
     .padding(16)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor(item.account === this.loginAccount ? '#EEF4FF' : '#F8FAFF')
     .borderRadius(18)
     .alignItems(VerticalAlign.Center)
+    .onClick(() => {
+      this.selectDemoAccount(item.account);
+    })
   }
 
   @Builder
@@ -1345,6 +1463,20 @@ struct Index {
     } catch (error) {
       console.error(`Index toast failed: ${error}`);
     }
+  }
+
+  private getDemoAccountSummary(): string {
+    const account: DemoAccount | undefined = this.demoAccounts.find((item: DemoAccount) => item.account === this.loginAccount);
+    if (account === undefined) {
+      return `当前：${this.loginAccount}`;
+    }
+    return `当前：${account.name} / ${account.account} · ${account.department}`;
+  }
+
+  private selectDemoAccount(account: string): void {
+    this.loginAccount = account;
+    this.loginPassword = '123456';
+    this.demoAccountDialogVisible = false;
   }
 
   private applyBootstrapData(data: AppBootstrapData): void {
