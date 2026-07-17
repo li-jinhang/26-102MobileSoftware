@@ -82,7 +82,7 @@ export struct AssistantPage {
         Column({ space: 14 }) {
           Column({ space: 10 }) {
             TextArea({
-              placeholder: '输入制度问题，或描述需要办理的请假、报销、采购、权限事项',
+              placeholder: '描述工作需求，例如给上级发邮件说明新功能已完成',
               text: this.question
             })
               .width('100%')

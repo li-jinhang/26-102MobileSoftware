@@ -25,9 +25,13 @@ export struct CollaborationPage {
   @Require @Prop workflowInstances: WorkflowInstance[]; 
   @Prop focus: 'all' | 'action' | 'waiting' = 'all';
   onCreateMeetingInvite: (employeeIds: string[], title: string, timeText: string, placeText: string, summary: string) => void = () => {};
+  onCloseGroup: (memberIds: string[], groupTitle: string) => void = () => {};
 
   @State customMeetings: CollaborationItem[] = [];
   @State customTasks: CollaborationItem[] = [];
+  @State closedTasks: CollaborationItem[] = [];
+  @State closedTaskIds: string[] = [];
+  @State closedGroupIds: string[] = [];
   @State conversationMessages: CollaborationMessage[] = [];
   @State activeThreadId: string = '';
   @State activeThreadTitle: string = '';
@@ -44,12 +48,15 @@ export struct CollaborationPage {
   @State meetingTimeInput: string = '';
   @State meetingPlaceInput: string = '';
   @State meetingSummaryInput: string = '';
+  @State meetingRelationshipPickerVisible: boolean = false;
   @State taskTitleInput: string = '';
-  @State taskTargetInput: string = '';
+  @State taskParticipantIdsInput: string = '';
   @State taskTimeInput: string = '';
   @State taskSummaryInput: string = '';
+  @State taskRelationshipPickerVisible: boolean = false;
   @State collaborationModuleVisible: boolean = false;
   @State activeCollaborationModule: CollaborationKind = 'meeting';
+  @State taskListView: 'active' | 'closed' = 'active';
 
   private getBoard(): CollaborationBoard {
     return buildCollaborationBoardUseCase(this.user, this.profile, this.workflowInstances);
@@ -64,11 +71,11 @@ export struct CollaborationPage {
   private getCombinedTaskItems(): CollaborationItem[] {
     const items: CollaborationItem[] = this.getBoard().taskItems.slice();
     this.customTasks.forEach((item: CollaborationItem) => items.unshift(item));
-    return items;
+    return items.filter((item: CollaborationItem) => !this.closedTaskIds.includes(item.id));
   }
 
   private getCombinedGroupItems(): CollaborationItem[] {
-    return this.getBoard().groupItems;
+    return this.getBoard().groupItems.filter((item: CollaborationItem) => !this.closedGroupIds.includes(item.id));
   }
 
   private getCombinedChainItems(): CollaborationItem[] {
@@ -88,6 +95,61 @@ export struct CollaborationPage {
       return items.filter((item: CollaborationItem) => !item.needsAction);
     }
     return items;
+  }
+
+  private getClosedTaskItems(): CollaborationItem[] {
+    return this.closedTasks;
+  }
+
+  private getRelatedEmployees(): EmployeeDirectoryItem[] {
+    if (this.profile === null) {
+      return [];
+    }
+    const employees: EmployeeDirectoryItem[] = [];
+    if (this.profile.manager !== null) {
+      employees.push(this.profile.manager);
+    }
+    this.profile.directReports.forEach((item: EmployeeDirectoryItem) => {
+      if (!employees.some((employee: EmployeeDirectoryItem) => employee.id === item.id)) {
+        employees.push(item);
+      }
+    });
+    this.profile.departmentMembers.forEach((item: EmployeeDirectoryItem) => {
+      if (item.id !== this.user.id && !employees.some((employee: EmployeeDirectoryItem) => employee.id === item.id)) {
+        employees.push(item);
+      }
+    });
+    return employees;
+  }
+
+  private getRelationshipLabel(employee: EmployeeDirectoryItem): string {
+    if (this.profile !== null && this.profile.manager !== null && this.profile.manager.id === employee.id) {
+      return '上级';
+    }
+    if (this.profile !== null && this.profile.directReports.some((item: EmployeeDirectoryItem) => item.id === employee.id)) {
+      return '下级';
+    }
+    return '工作组 / 对接';
+  }
+
+  private getParticipantIds(value: string): string[] {
+    return value
+      .split(',')
+      .map((item: string) => item.trim())
+      .filter((item: string) => item.length > 0);
+  }
+
+  private addParticipant(employee: EmployeeDirectoryItem, target: 'meeting' | 'task'): void {
+    const input: string = target === 'meeting' ? this.meetingParticipantIdsInput : this.taskParticipantIdsInput;
+    const participantIds: string[] = this.getParticipantIds(input);
+    if (!participantIds.includes(employee.id)) {
+      participantIds.push(employee.id);
+      if (target === 'meeting') {
+        this.meetingParticipantIdsInput = participantIds.join(', ');
+      } else {
+        this.taskParticipantIdsInput = participantIds.join(', ');
+      }
+    }
   }
 
   private getVisibleGroupItems(): CollaborationItem[] {
@@ -258,19 +320,17 @@ export struct CollaborationPage {
     this.meetingTimeInput = '';
     this.meetingPlaceInput = '';
     this.meetingSummaryInput = '';
+    this.meetingRelationshipPickerVisible = false;
     this.meetingDialogVisible = true;
   }
 
   private createMeeting(): void {
-    const employeeIds: string[] = this.meetingParticipantIdsInput
-      .split(',')
-      .map((item: string) => item.trim())
-      .filter((item: string) => item.length > 0);
+    const employeeIds: string[] = this.getParticipantIds(this.meetingParticipantIdsInput);
     const title: string = this.meetingTitleInput.trim();
     const timeText: string = this.meetingTimeInput.trim();
     const placeText: string = this.meetingPlaceInput.trim();
     const summary: string = this.meetingSummaryInput.trim();
-    const participants: EmployeeDirectoryItem[] = this.profile === null ? [] : this.profile.departmentMembers.filter(
+    const participants: EmployeeDirectoryItem[] = this.getRelatedEmployees().filter(
       (item: EmployeeDirectoryItem) => employeeIds.includes(item.id)
     );
     if (title.length === 0 || timeText.length === 0 || placeText.length === 0 || employeeIds.length === 0) {
@@ -303,22 +363,23 @@ export struct CollaborationPage {
 
   private openTaskDialog(): void {
     this.taskTitleInput = '';
-    this.taskTargetInput = '';
+    this.taskParticipantIdsInput = '';
     this.taskTimeInput = '';
     this.taskSummaryInput = '';
+    this.taskRelationshipPickerVisible = false;
     this.taskDialogVisible = true;
   }
 
   private createTask(): void {
     const title: string = this.taskTitleInput.trim();
-    const target: string = this.taskTargetInput.trim();
+    const participantIds: string[] = this.getParticipantIds(this.taskParticipantIdsInput);
     const timeText: string = this.taskTimeInput.trim();
     const summary: string = this.taskSummaryInput.trim();
-    const targetMembers: EmployeeDirectoryItem[] = this.profile === null ? [] : this.profile.departmentMembers.filter(
-      (item: EmployeeDirectoryItem) => item.id === target || item.account === target || item.name === target
+    const targetMembers: EmployeeDirectoryItem[] = this.getRelatedEmployees().filter(
+      (item: EmployeeDirectoryItem) => participantIds.includes(item.id)
     );
-    if (title.length === 0 || target.length === 0 || timeText.length === 0) {
-      this.showMessage('请填写对接标题、对象和时间。');
+    if (title.length === 0 || participantIds.length === 0 || timeText.length === 0) {
+      this.showMessage('请填写对接标题、关联人员和时间。');
       return;
     }
 
@@ -326,7 +387,7 @@ export struct CollaborationPage {
       id: this.createId('task'),
       kind: 'task',
       title,
-      summary: summary.length > 0 ? summary : `对接对象：${target}`,
+      summary: summary.length > 0 ? summary : `对接人员：${targetMembers.map((item: EmployeeDirectoryItem) => item.name).join('、')}`,
       ownerName: this.user.name,
       ownerDepartment: this.user.department,
       timeText,
@@ -334,7 +395,7 @@ export struct CollaborationPage {
       statusText: '等待回复',
       state: 'waiting',
       needsAction: false,
-      participantIds: targetMembers.map((item: EmployeeDirectoryItem) => item.id),
+      participantIds,
       members: targetMembers
     };
     const nextItems: CollaborationItem[] = this.customTasks.slice();
@@ -342,6 +403,46 @@ export struct CollaborationPage {
     this.customTasks = nextItems;
     this.taskDialogVisible = false;
     this.showMessage('已新建工作对接。');
+  }
+
+  private closeTask(item: CollaborationItem): void {
+    if (this.closedTaskIds.includes(item.id)) {
+      return;
+    }
+    this.closedTaskIds = this.closedTaskIds.concat([item.id]);
+    const closedItem: CollaborationItem = {
+      id: item.id,
+      kind: item.kind,
+      title: item.title,
+      summary: `${item.summary}（已由 ${this.user.name} 关闭）`,
+      ownerName: item.ownerName,
+      ownerDepartment: item.ownerDepartment,
+      timeText: item.timeText,
+      placeText: item.placeText,
+      statusText: '已关闭',
+      state: 'active',
+      needsAction: false,
+      participantIds: item.participantIds,
+      members: item.members
+    };
+    const nextClosedTasks: CollaborationItem[] = this.closedTasks.slice();
+    nextClosedTasks.unshift(closedItem);
+    this.closedTasks = nextClosedTasks;
+    this.showMessage('工作对接已关闭。');
+  }
+
+  private isGroupLeader(item: CollaborationItem): boolean {
+    return item.kind === 'group' && item.ownerName === this.user.name;
+  }
+
+  private closeGroup(item: CollaborationItem): void {
+    if (!this.isGroupLeader(item)) {
+      return;
+    }
+    this.closedGroupIds = this.closedGroupIds.concat([item.id]);
+    const memberIds: string[] = item.participantIds.filter((id: string) => id !== this.user.id);
+    this.onCloseGroup(memberIds, item.title);
+    this.showMessage(memberIds.length > 0 ? '工作组已关闭，已通知组员。' : '工作组已关闭。');
   }
 
   @Builder
@@ -495,6 +596,32 @@ export struct CollaborationPage {
         .borderRadius(AppTheme.radiusSmall())
       }
 
+      if (item.kind === 'task' && !this.closedTaskIds.includes(item.id)) {
+        Button('关闭对接')
+          .width('100%')
+          .height(36)
+          .fontSize(Typography.metaSize())
+          .fontColor('#B42318')
+          .backgroundColor('#FEF3F2')
+          .borderRadius(AppTheme.radiusSmall())
+          .onClick(() => {
+            this.closeTask(item);
+          })
+      }
+
+      if (this.isGroupLeader(item)) {
+        Button('关闭工作组')
+          .width('100%')
+          .height(36)
+          .fontSize(Typography.metaSize())
+          .fontColor('#B42318')
+          .backgroundColor('#FEF3F2')
+          .borderRadius(AppTheme.radiusSmall())
+          .onClick(() => {
+            this.closeGroup(item);
+          })
+      }
+
     }
     .width('100%')
     .padding(14)
@@ -593,7 +720,7 @@ export struct CollaborationPage {
     }
     .width('100%')
     .height('100%')
-    .justifyContent(FlexAlign.Center)
+    .justifyContent(FlexAlign.Start)
     .padding(20)
     .backgroundColor('#660B1220')
   }
@@ -627,6 +754,20 @@ export struct CollaborationPage {
         }
 
         Column({ space: 10 }) {
+          Row() {
+            Text('参会人员')
+              .fontSize(Typography.captionSize())
+              .fontColor(AppTheme.textSecondary())
+            Blank()
+            Text('从关联人员选择')
+              .fontSize(Typography.metaSize())
+              .fontColor(AppTheme.primary())
+              .onClick(() => {
+                this.meetingRelationshipPickerVisible = !this.meetingRelationshipPickerVisible;
+              })
+          }
+          .width('100%')
+
           TextInput({ placeholder: '参会员工 ID，多个用英文逗号分隔', text: this.meetingParticipantIdsInput })
             .height(44)
             .borderRadius(AppTheme.radiusSmall())
@@ -635,6 +776,43 @@ export struct CollaborationPage {
             .onChange((value: string) => {
               this.meetingParticipantIdsInput = value;
             })
+
+          if (this.meetingRelationshipPickerVisible) {
+            if (this.getRelatedEmployees().length === 0) {
+              Text('暂无可选的关联人员。')
+                .fontSize(Typography.captionSize())
+                .fontColor(AppTheme.textSecondary())
+            } else {
+              ForEach(this.getRelatedEmployees(), (item: EmployeeDirectoryItem) => {
+                Row() {
+                  Column({ space: 2 }) {
+                    Text(`${item.name} · ${item.jobTitle}`)
+                      .fontSize(Typography.metaSize())
+                      .fontColor(AppTheme.textPrimary())
+                      .maxLines(1)
+                    Text(`${this.getRelationshipLabel(item)} · ${item.departmentName} · ${item.id}`)
+                      .fontSize(Typography.captionSize())
+                      .fontColor(AppTheme.textSecondary())
+                      .maxLines(1)
+                  }
+                  .layoutWeight(1)
+                  .alignItems(HorizontalAlign.Start)
+                  Button('添加')
+                    .height(30)
+                    .fontSize(Typography.captionSize())
+                    .fontColor(AppTheme.primary())
+                    .backgroundColor(AppTheme.primarySoft())
+                    .borderRadius(AppTheme.radiusSmall())
+                    .onClick(() => {
+                      this.addParticipant(item, 'meeting');
+                    })
+                }
+                .width('100%')
+                .padding({ top: 8, bottom: 8 })
+                .border({ width: { bottom: 1 }, color: AppTheme.divider() })
+              }, (item: EmployeeDirectoryItem) => item.id)
+            }
+          }
 
           TextInput({ placeholder: '会议标题', text: this.meetingTitleInput })
             .height(44)
@@ -706,7 +884,7 @@ export struct CollaborationPage {
     }
     .width('100%')
     .height('100%')
-    .justifyContent(FlexAlign.Center)
+    .justifyContent(FlexAlign.Start)
     .padding(20)
     .backgroundColor('#660B1220')
   }
@@ -742,6 +920,9 @@ export struct CollaborationPage {
     .borderRadius(AppTheme.radiusSmall())
     .onClick(() => {
       this.activeCollaborationModule = kind;
+      if (kind === 'task') {
+        this.taskListView = 'active';
+      }
       this.collaborationModuleVisible = true;
     })
   }
@@ -751,7 +932,7 @@ export struct CollaborationPage {
       return this.getCombinedMeetingItems();
     }
     if (this.activeCollaborationModule === 'task') {
-      return this.getVisibleTaskItems();
+      return this.taskListView === 'closed' ? this.getClosedTaskItems() : this.getVisibleTaskItems();
     }
     if (this.activeCollaborationModule === 'group') {
       return this.getCombinedGroupItems();
@@ -794,6 +975,32 @@ export struct CollaborationPage {
         }
         .width('100%')
 
+        if (this.activeCollaborationModule === 'task') {
+          Row({ space: 8 }) {
+            Button('进行中')
+              .layoutWeight(1)
+              .height(34)
+              .fontSize(Typography.metaSize())
+              .fontColor(this.taskListView === 'active' ? '#FFFFFF' : AppTheme.textSecondary())
+              .backgroundColor(this.taskListView === 'active' ? AppTheme.primary() : AppTheme.surfaceMuted())
+              .borderRadius(AppTheme.radiusSmall())
+              .onClick(() => {
+                this.taskListView = 'active';
+              })
+            Button(`关闭的对接 ${this.getClosedTaskItems().length}`)
+              .layoutWeight(1)
+              .height(34)
+              .fontSize(Typography.metaSize())
+              .fontColor(this.taskListView === 'closed' ? '#FFFFFF' : AppTheme.textSecondary())
+              .backgroundColor(this.taskListView === 'closed' ? AppTheme.primary() : AppTheme.surfaceMuted())
+              .borderRadius(AppTheme.radiusSmall())
+              .onClick(() => {
+                this.taskListView = 'closed';
+              })
+          }
+          .width('100%')
+        }
+
         Scroll() {
           if (this.getActiveCollaborationItems().length === 0) {
             EmptyState({ title: '暂无内容', description: '当前模块还没有可展示的协作事项。' })
@@ -817,7 +1024,7 @@ export struct CollaborationPage {
     }
     .width('100%')
     .height('100%')
-    .justifyContent(FlexAlign.Center)
+    .justifyContent(FlexAlign.Start)
     .padding(20)
     .backgroundColor('#660B1220')
   }
@@ -860,14 +1067,65 @@ export struct CollaborationPage {
               this.taskTitleInput = value;
             })
 
-          TextInput({ placeholder: '对接对象，例如：李清远 / 项目协同组', text: this.taskTargetInput })
+          Row() {
+            Text('关联人员')
+              .fontSize(Typography.captionSize())
+              .fontColor(AppTheme.textSecondary())
+            Blank()
+            Text('从关联人员选择')
+              .fontSize(Typography.metaSize())
+              .fontColor(AppTheme.primary())
+              .onClick(() => {
+                this.taskRelationshipPickerVisible = !this.taskRelationshipPickerVisible;
+              })
+          }
+          .width('100%')
+
+          TextInput({ placeholder: '关联人员 ID，多个用英文逗号分隔', text: this.taskParticipantIdsInput })
             .height(44)
             .borderRadius(AppTheme.radiusSmall())
             .backgroundColor(AppTheme.surfaceMuted())
             .padding({ left: 14, right: 14 })
             .onChange((value: string) => {
-              this.taskTargetInput = value;
+              this.taskParticipantIdsInput = value;
             })
+
+          if (this.taskRelationshipPickerVisible) {
+            if (this.getRelatedEmployees().length === 0) {
+              Text('暂无可选的关联人员。')
+                .fontSize(Typography.captionSize())
+                .fontColor(AppTheme.textSecondary())
+            } else {
+              ForEach(this.getRelatedEmployees(), (item: EmployeeDirectoryItem) => {
+                Row() {
+                  Column({ space: 2 }) {
+                    Text(`${item.name} · ${item.jobTitle}`)
+                      .fontSize(Typography.metaSize())
+                      .fontColor(AppTheme.textPrimary())
+                      .maxLines(1)
+                    Text(`${this.getRelationshipLabel(item)} · ${item.departmentName} · ${item.id}`)
+                      .fontSize(Typography.captionSize())
+                      .fontColor(AppTheme.textSecondary())
+                      .maxLines(1)
+                  }
+                  .layoutWeight(1)
+                  .alignItems(HorizontalAlign.Start)
+                  Button('添加')
+                    .height(30)
+                    .fontSize(Typography.captionSize())
+                    .fontColor(AppTheme.primary())
+                    .backgroundColor(AppTheme.primarySoft())
+                    .borderRadius(AppTheme.radiusSmall())
+                    .onClick(() => {
+                      this.addParticipant(item, 'task');
+                    })
+                }
+                .width('100%')
+                .padding({ top: 8, bottom: 8 })
+                .border({ width: { bottom: 1 }, color: AppTheme.divider() })
+              }, (item: EmployeeDirectoryItem) => item.id)
+            }
+          }
 
           TextInput({ placeholder: '计划时间，例如：今天 18:00 前', text: this.taskTimeInput })
             .height(44)
@@ -906,7 +1164,7 @@ export struct CollaborationPage {
     }
     .width('100%')
     .height('100%')
-    .justifyContent(FlexAlign.Center)
+    .justifyContent(FlexAlign.Start)
     .padding(20)
     .backgroundColor('#660B1220')
   }

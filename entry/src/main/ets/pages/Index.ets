@@ -4,7 +4,7 @@ import {
   submitAttendanceCheckInUseCase,
   submitAttendanceCheckOutUseCase
 } from '../app/usecases/AttendanceUseCases';
-import { askAssistantUseCase } from '../app/usecases/AssistantUseCases';
+import { askAssistantUseCase, buildCompatibilityMailDraftUseCase } from '../app/usecases/AssistantUseCases';
 import { loadAppBootstrapData, AppBootstrapData } from '../app/usecases/AppBootstrapUseCases';
 import { loadMyOrganizationUseCase } from '../app/usecases/OrganizationUseCases';
 import { loginWithAccount, logoutCurrentAccount } from '../app/usecases/AuthUseCases';
@@ -556,7 +556,9 @@ struct Index {
             profile: this.organizationProfile,
             draft: this.mailComposerDraft,
             onBack: () => {
-              this.activeSubPage = 'mail';
+              const returnToAssistant: boolean = this.mailComposerDraft !== null;
+              this.mailComposerDraft = null;
+              this.activeSubPage = returnToAssistant ? 'assistant' : 'mail';
             },
             onSend: (
               receiverIds: string[],
@@ -697,6 +699,9 @@ struct Index {
                   focus: this.collaborationFocus,
                   onCreateMeetingInvite: (employeeIds: string[], title: string, timeText: string, placeText: string, summary: string) => {
                     void this.sendMeetingInvites(employeeIds, title, timeText, placeText, summary);
+                  },
+                  onCloseGroup: (memberIds: string[], groupTitle: string) => {
+                    void this.sendGroupClosureNotifications(memberIds, groupTitle);
                   }
                 })
               } else {
@@ -1927,6 +1932,40 @@ struct Index {
       }
       this.assistantReply = result.reply;
       this.assistantHistory = result.history;
+      const hasUsableMailDraft: boolean = result.reply !== null && result.reply.action.type === 'mail' &&
+        result.reply.action.mailDraft !== null;
+      const compatibilityDraft: AssistantMailDraft | null = hasUsableMailDraft
+        ? null
+        : buildCompatibilityMailDraftUseCase(this.assistantQuestion, this.organizationProfile);
+      if (compatibilityDraft !== null && result.reply !== null) {
+        this.assistantReply = {
+          answer: `已识别邮件需求，正在为你填写发送给${compatibilityDraft.receiverNames.join('、')}的邮件。`,
+          recognizedText: result.reply.recognizedText,
+          intent: 'mail',
+          relatedKnowledgeIds: [],
+          recommendedWorkflowId: '',
+          confidence: result.reply.confidence,
+          formDraft: result.reply.formDraft,
+          missingFields: [],
+          action: { type: 'mail', label: '填写邮件', mailDraft: compatibilityDraft }
+        };
+        if (this.assistantHistory.length > 0) {
+          this.assistantHistory[0].answer = this.assistantReply.answer;
+        }
+      }
+      if (result.reply !== null && result.reply.action.type === 'mail' && result.reply.action.mailDraft !== null) {
+        this.mailComposerDraft = result.reply.action.mailDraft;
+        this.activeSubPage = 'mailComposer';
+        return;
+      }
+      if (compatibilityDraft !== null) {
+        this.mailComposerDraft = compatibilityDraft;
+        this.activeSubPage = 'mailComposer';
+        return;
+      }
+      if (result.reply !== null && result.reply.action.type === 'workflow' && result.reply.recommendedWorkflowId.length > 0) {
+        this.startWorkflow(result.reply.recommendedWorkflowId, result.reply.formDraft);
+      }
     } catch (error) {
       const message: string = error instanceof Error ? error.message : '助手暂时不可用。';
       this.showMessage(message);
@@ -2070,6 +2109,25 @@ struct Index {
       await this.loadMailPreview();
     } catch (error) {
       const message: string = error instanceof Error ? error.message : '会议通知发送失败。';
+      this.showMessage(message);
+    }
+  }
+
+  private async sendGroupClosureNotifications(memberIds: string[], groupTitle: string): Promise<void> {
+    if (memberIds.length === 0) {
+      return;
+    }
+    try {
+      await sendInternalMailUseCase(
+        memberIds,
+        `工作组已关闭：${groupTitle}`,
+        `组长已关闭工作组“${groupTitle}”。该工作组不再接受新的协作消息。`,
+        '',
+        ''
+      );
+      await this.loadMailPreview();
+    } catch (error) {
+      const message: string = error instanceof Error ? error.message : '工作组关闭通知发送失败。';
       this.showMessage(message);
     }
   }

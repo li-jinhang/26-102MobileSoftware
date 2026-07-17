@@ -1,4 +1,11 @@
-import { AssistantAnalyzeInput, AssistantHistory, AssistantMailDraft, AssistantReply } from '../../models/AppModels';
+import {
+  AssistantAnalyzeInput,
+  AssistantHistory,
+  AssistantMailDraft,
+  AssistantReply,
+  EmployeeDirectoryItem,
+  OrganizationProfile
+} from '../../models/AppModels';
 import { repositories } from '../repositories/RepositoryProvider';
 
 export interface AssistantAskResult {
@@ -47,14 +54,56 @@ export async function askAssistantUseCase(
   };
 }
 
-export async function generateMailDraftUseCase(description: string): Promise<AssistantMailDraft> {
-  const reply: AssistantReply = await repositories.assistantRepository.analyze({
-    text: description.trim(),
-    imageBase64: '',
-    imageMimeType: ''
+function isExplicitMailRequest(text: string): boolean {
+  return /邮件|写信|发信|发邮件|写邮件/.test(text);
+}
+
+function getMailMatter(text: string, receiverNames: string[]): string {
+  let matter: string = text;
+  receiverNames.forEach((name: string) => {
+    matter = matter.split(name).join('');
   });
-  if (reply.action.type !== 'mail' || reply.action.mailDraft === null) {
-    throw new Error('未识别为邮件请求，请补充收件人或邮件事项。');
+  return matter
+    .replace(/请?给(?:我的)?(?:上级|领导|经理|直属负责人|下级|下属|同事|工作组|组员|对接人)?/g, '')
+    .replace(/发送?(?:一封)?(?:邮件|信)|发(?:一封)?(?:邮件|信)|写(?:一封)?(?:邮件|信)/g, '')
+    .replace(/(?:告诉|告知|通知|说明)(?:他|她|对方|一下)?/g, '')
+    .replace(/[，。；;！!？?]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Compatibility fallback for an older assistant endpoint that returns prose but no structured mail action.
+ */
+export function buildCompatibilityMailDraftUseCase(
+  text: string,
+  profile: OrganizationProfile | null
+): AssistantMailDraft | null {
+  if (!isExplicitMailRequest(text) || profile === null) {
+    return null;
   }
-  return reply.action.mailDraft;
+  const candidates: EmployeeDirectoryItem[] = [];
+  if (profile.manager !== null) {
+    candidates.push(profile.manager);
+  }
+  profile.directReports.concat(profile.departmentMembers).forEach((item: EmployeeDirectoryItem) => {
+    if (item.id !== profile.employee.id && !candidates.some((candidate: EmployeeDirectoryItem) => candidate.id === item.id)) {
+      candidates.push(item);
+    }
+  });
+  const receiver: EmployeeDirectoryItem | undefined = candidates.find((item: EmployeeDirectoryItem) => text.includes(item.name)) ??
+    (profile.manager !== null && /上级|领导|经理|直属负责人/.test(text) ? profile.manager : undefined);
+  if (receiver === undefined) {
+    return null;
+  }
+  const matter: string = getMailMatter(text, [receiver.name]);
+  const subject: string = /新(?:的)?功能.*(?:完成|上线)|(?:完成|上线).*新(?:的)?功能/.test(matter)
+    ? '新功能开发完成'
+    : '工作事项沟通';
+  return {
+    receiverIds: [receiver.id],
+    receiverNames: [receiver.name],
+    subject,
+    content: `您好，\n\n${matter.length > 0 ? matter : '相关工作事项已处理完毕，现向您汇报。'}\n\n特此向您汇报，请查收。如需进一步说明或配合，我会及时跟进。\n\n谢谢。`
+  };
 }

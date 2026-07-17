@@ -98,11 +98,19 @@ let AssistantService = class AssistantService {
         if (!allowed.includes(intentValue)) {
             return fallback;
         }
-        return {
+        const llmDecision = {
             intent: intentValue,
             recipientHint: stringValue(parsed, 'recipientHint'),
             recipientName: stringValue(parsed, 'recipientName')
         };
+        if (fallback.intent === 'mail' && llmDecision.intent !== 'mail') {
+            return {
+                intent: 'mail',
+                recipientHint: `${fallback.recipientHint} ${llmDecision.recipientHint}`.trim(),
+                recipientName: llmDecision.recipientName
+            };
+        }
+        return llmDecision;
     }
     async buildMailDraft(text, profile, decision) {
         const candidates = [
@@ -128,7 +136,7 @@ let AssistantService = class AssistantService {
         const matter = describeMailMatter(text);
         const fallbackSubject = /上班|到岗/.test(text)
             ? '到岗通知'
-            : (/新功能.*(?:完成|上线)|(?:完成|上线).*新功能/.test(matter) ? '新功能开发完成' : '工作事项沟通');
+            : (/新(?:的)?功能.*(?:完成|上线)|(?:完成|上线).*新(?:的)?功能/.test(matter) ? '新功能开发完成' : '工作事项沟通');
         const fallbackContent = /上班|到岗/.test(text)
             ? '您好，\n\n我已到岗上班，特此告知。\n\n谢谢。'
             : `您好，\n\n${matter.length > 0 ? matter : '相关工作事项已处理完毕，现向您汇报。'}\n\n特此向您汇报，请查收。如需进一步说明或配合，我会及时跟进。\n\n谢谢。`;

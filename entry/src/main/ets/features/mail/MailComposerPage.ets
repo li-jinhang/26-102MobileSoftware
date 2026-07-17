@@ -1,7 +1,6 @@
 import { AppTopBar } from '../../common/components/AppTopBar';
 import { AppTheme } from '../../common/theme/AppTheme';
 import { AssistantMailDraft, EmployeeDirectoryItem, OrganizationProfile } from '../../models/AppModels';
-import { generateMailDraftUseCase } from '../../app/usecases/AssistantUseCases';
 
 @Component
 export struct MailComposerPage {
@@ -22,9 +21,6 @@ export struct MailComposerPage {
   @State contentInput: string = '';
   @State relatedWorkflowId: string = '';
   @State relatedKnowledgeId: string = '';
-  @State assistantDescription: string = '';
-  @State assistantLoading: boolean = false;
-  @State assistantError: string = '';
   @State relationshipPickerVisible: boolean = false;
 
   private getRelatedEmployees(): EmployeeDirectoryItem[] {
@@ -68,25 +64,6 @@ export struct MailComposerPage {
     return '工作组 / 对接';
   }
 
-  private async fillMailWithAssistant(): Promise<void> {
-    const description: string = this.assistantDescription.trim();
-    if (description.length === 0 || this.assistantLoading) {
-      return;
-    }
-    this.assistantLoading = true;
-    this.assistantError = '';
-    try {
-      const draft: AssistantMailDraft = await generateMailDraftUseCase(description);
-      this.receiverInput = draft.receiverIds.join(', ');
-      this.subjectInput = draft.subject;
-      this.contentInput = draft.content;
-    } catch (error) {
-      this.assistantError = error instanceof Error ? error.message : '智能填写失败，请稍后重试。';
-    } finally {
-      this.assistantLoading = false;
-    }
-  }
-
   aboutToAppear(): void {
     if (this.draft === null) {
       this.receiverInput = '';
@@ -94,9 +71,6 @@ export struct MailComposerPage {
       this.contentInput = '';
       this.relatedWorkflowId = '';
       this.relatedKnowledgeId = '';
-      this.assistantDescription = '';
-      this.assistantLoading = false;
-      this.assistantError = '';
       return;
     }
     this.receiverInput = this.draft.receiverIds.join(', ');
@@ -121,43 +95,6 @@ export struct MailComposerPage {
 
       Scroll() {
         Column({ space: 12 }) {
-        Column({ space: 8 }) {
-          Text('智能助手')
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(AppTheme.textPrimary())
-          TextArea({ placeholder: '描述邮件目的、收件人或需要跟进的事项', text: this.assistantDescription })
-            .width('100%')
-            .height(78)
-            .backgroundColor('#F8FAFC')
-            .border({ width: 1, color: AppTheme.border() })
-            .borderRadius(8)
-            .padding(10)
-            .onChange((value: string) => {
-              this.assistantDescription = value;
-            })
-          Button(this.assistantLoading ? '正在生成...' : '自动填写邮件')
-            .height(36)
-            .fontSize(13)
-            .fontColor(AppTheme.primary())
-            .backgroundColor(AppTheme.primarySoft())
-            .borderRadius(8)
-            .enabled(this.assistantDescription.trim().length > 0 && !this.assistantLoading)
-            .onClick(() => {
-              void this.fillMailWithAssistant();
-            })
-          if (this.assistantError.length > 0) {
-            Text(this.assistantError)
-              .fontSize(12)
-              .fontColor('#B42318')
-              .width('100%')
-          }
-        }
-        .width('100%')
-        .padding(12)
-        .backgroundColor('#FFFFFF')
-        .borderRadius(8)
-
         Column({ space: 6 }) {
           Row() {
             Text('收件人')
