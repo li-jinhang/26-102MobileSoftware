@@ -952,7 +952,7 @@ function cloneDirectoryItem(item) {
     };
 }
 function getVisibleDirectoryUsers(user, scope) {
-    if (scope === 'all') {
+    if (user.role === 'systemAdmin' && scope === 'all') {
         return users.filter((item) => item.employmentStatus === 'active');
     }
     return users.filter((item) => {

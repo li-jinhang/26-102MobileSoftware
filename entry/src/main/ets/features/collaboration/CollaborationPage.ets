@@ -37,6 +37,8 @@ export struct CollaborationPage {
 
   @State customGroups: CollaborationItem[] = [];
   @State managedGroups: CollaborationItem[] = [];
+  @State locallyConfirmedMeetingIds: string[] = [];
+  @State locallyAcceptedTaskIds: string[] = [];
   @State closedTasks: CollaborationItem[] = [];
   @State closedTaskIds: string[] = [];
   @State closedGroupIds: string[] = [];
@@ -82,10 +84,18 @@ export struct CollaborationPage {
       this.profile,
       this.workflowInstances,
       this.customMeetingItems,
-      this.confirmedMeetingIds,
+      this.getConfirmedMeetingIds(),
       this.customTaskItems,
-      this.acceptedTaskIds
+      this.getAcceptedTaskIds()
     );
+  }
+
+  private getConfirmedMeetingIds(): string[] {
+    return this.confirmedMeetingIds.concat(this.locallyConfirmedMeetingIds);
+  }
+
+  private getAcceptedTaskIds(): string[] {
+    return this.acceptedTaskIds.concat(this.locallyAcceptedTaskIds);
   }
 
   private getCombinedMeetingItems(): CollaborationItem[] {
@@ -423,9 +433,10 @@ export struct CollaborationPage {
   }
 
   private confirmMeeting(item: CollaborationItem): void {
-    if (this.confirmedMeetingIds.includes(item.id)) {
+    if (this.getConfirmedMeetingIds().includes(item.id)) {
       return;
     }
+    this.locallyConfirmedMeetingIds = this.locallyConfirmedMeetingIds.concat([item.id]);
     this.onConfirmMeeting(item.id);
     this.showMessage('已确认参会安排。');
   }
@@ -481,9 +492,10 @@ export struct CollaborationPage {
   }
 
   private acceptTask(item: CollaborationItem): void {
-    if (this.acceptedTaskIds.includes(item.id)) {
+    if (this.getAcceptedTaskIds().includes(item.id)) {
       return;
     }
+    this.locallyAcceptedTaskIds = this.locallyAcceptedTaskIds.concat([item.id]);
     this.onAcceptTask(item.id);
     this.showMessage('已同意工作对接。');
   }

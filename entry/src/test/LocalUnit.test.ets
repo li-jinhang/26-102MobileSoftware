@@ -10,6 +10,8 @@ import {
   filterNotifications,
   markNotificationRead
 } from '../main/ets/common/services/MessageService';
+import { buildCollaborationBoardUseCase } from '../main/ets/app/usecases/CollaborationUseCases';
+import { User } from '../main/ets/models/AppModels';
 
 export default function localUnitTest() {
   describe('memberAServiceTest', () => {
@@ -76,6 +78,29 @@ export default function localUnitTest() {
       expect(filterNotifications([message], true).length).assertEqual(1);
       expect(markNotificationRead([message], 'n1')[0].read).assertTrue();
       expect(message.read).assertFalse();
+    });
+
+    it('updates meeting and task statuses from linked collaboration state', 0, () => {
+      const user: User = {
+        id: 'u1',
+        name: '张晓宁',
+        account: 'employee01',
+        department: '产品研发部',
+        departmentId: 'd-product',
+        jobTitle: '产品专员',
+        managerId: 'u2',
+        employmentStatus: 'active',
+        role: 'employee',
+        roleLabel: '普通员工'
+      };
+      const board = buildCollaborationBoardUseCase(user, null, [], [], ['meet-1'], [], ['task-1']);
+      const meeting = board.meetingItems.find((item) => item.id === 'meet-1');
+      const task = board.taskItems.find((item) => item.id === 'task-1');
+
+      expect(meeting === undefined ? '' : meeting.statusText).assertEqual('已确认');
+      expect(meeting === undefined ? true : meeting.needsAction).assertFalse();
+      expect(task === undefined ? '' : task.statusText).assertEqual('已同意');
+      expect(task === undefined ? true : task.needsAction).assertFalse();
     });
   });
 }
