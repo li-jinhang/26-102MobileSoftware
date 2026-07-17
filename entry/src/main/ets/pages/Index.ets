@@ -52,6 +52,7 @@ import {
   applyWorkflowSecurityConfirmUseCase,
   createWorkflowUseCase
 } from '../app/usecases/WorkflowUseCases';
+import { buildCollaborationBoardUseCase } from '../app/usecases/CollaborationUseCases';
 import {
   buildOpenWorkflowComposerStateUseCase,
   buildStartWorkflowStateUseCase,
@@ -90,6 +91,7 @@ import {
   AuditLog,
   AttendanceRecord,
   AttendanceTodaySummary,
+  CollaborationItem,
   KnowledgeArticle,
   KnowledgeCategory,
   KnowledgeCorrection,
@@ -153,6 +155,10 @@ struct Index {
   @State usefulKnowledgeIds: string[] = [];
   @State corrections: KnowledgeCorrection[] = [];
   @State workflowInstances: WorkflowInstance[] = [];
+  @State customMeetingItems: CollaborationItem[] = [];
+  @State confirmedMeetingIds: string[] = [];
+  @State customTaskItems: CollaborationItem[] = [];
+  @State acceptedTaskIds: string[] = [];
   @State notifications: NotificationItem[] = [];
   @State auditLogs: AuditLog[] = [];
   @State activeSubPage: 'none' | 'knowledgeDetail' | 'assistant' | 'messages' | 'ocrResult' | 'attendance' | 'mail' | 'mailDetail' | 'mailComposer' | 'organization' = 'none';
@@ -697,8 +703,28 @@ struct Index {
                   profile: this.organizationProfile,
                   workflowInstances: this.workflowInstances,
                   focus: this.collaborationFocus,
-                  onCreateMeetingInvite: (employeeIds: string[], title: string, timeText: string, placeText: string, summary: string) => {
-                    void this.sendMeetingInvites(employeeIds, title, timeText, placeText, summary);
+                  customMeetingItems: this.customMeetingItems,
+                  confirmedMeetingIds: this.confirmedMeetingIds,
+                  customTaskItems: this.customTaskItems,
+                  acceptedTaskIds: this.acceptedTaskIds,
+                  onCreateMeeting: (item: CollaborationItem) => {
+                    this.addMeeting(item);
+                    void this.sendMeetingInvites(
+                      item.participantIds,
+                      item.title,
+                      item.timeText,
+                      item.placeText,
+                      item.summary
+                    );
+                  },
+                  onConfirmMeeting: (meetingId: string) => {
+                    this.confirmMeeting(meetingId);
+                  },
+                  onCreateTask: (item: CollaborationItem) => {
+                    this.addTask(item);
+                  },
+                  onAcceptTask: (taskId: string) => {
+                    this.acceptTask(taskId);
                   },
                   onCloseGroup: (memberIds: string[], groupTitle: string) => {
                     void this.sendGroupClosureNotifications(memberIds, groupTitle);
@@ -921,7 +947,7 @@ struct Index {
               .fontWeight(FontWeight.Bold)
               .fontColor(AppTheme.textPrimary())
             Text(this.workflowTaskListType === 'todo'
-              ? '当前等待你处理的全部流程业务'
+              ? '当前等待你处理的全部流程、会议与工作对接'
               : '当前由其他人处理、等待结果的全部流程业务')
               .fontSize(12)
               .fontColor(AppTheme.textSecondary())
@@ -942,13 +968,23 @@ struct Index {
         .width('100%')
 
         Scroll() {
-          if (this.getWorkflowTaskListItems().length === 0) {
+          if (this.getWorkflowTaskListItems().length === 0
+            && (this.workflowTaskListType === 'waiting'
+              || (this.getPendingMeetingItems().length === 0 && this.getPendingTaskItems().length === 0))) {
             EmptyState({
               title: this.workflowTaskListType === 'todo' ? '暂无待处理业务' : '暂无等待中业务',
-              description: this.workflowTaskListType === 'todo' ? '当前没有需要你处理的流程。' : '当前没有等待他人处理的流程。'
+              description: this.workflowTaskListType === 'todo' ? '当前没有需要你处理的流程、会议或工作对接。' : '当前没有等待他人处理的流程。'
             })
           } else {
             Column({ space: 10 }) {
+              if (this.workflowTaskListType === 'todo') {
+                ForEach(this.getPendingMeetingItems(), (item: CollaborationItem) => {
+                  this.MeetingTodoCard(item);
+                }, (item: CollaborationItem) => item.id)
+                ForEach(this.getPendingTaskItems(), (item: CollaborationItem) => {
+                  this.TaskTodoCard(item);
+                }, (item: CollaborationItem) => item.id)
+              }
               ForEach(this.getWorkflowTaskListItems(), (item: WorkflowInstance) => {
                 this.WorkflowCard(item, this.workflowTaskListType === 'todo' && this.canHandleWorkflow(item));
               }, (item: WorkflowInstance) => item.id)
@@ -970,6 +1006,118 @@ struct Index {
     .justifyContent(FlexAlign.Center)
     .padding(20)
     .backgroundColor('#660B1220')
+  }
+
+  @Builder
+  private MeetingTodoCard(item: CollaborationItem) {
+    Column({ space: 8 }) {
+      Row() {
+        Column({ space: 3 }) {
+          Text('待确认会议')
+            .fontSize(11)
+            .fontColor('#175CD3')
+          Text(item.title)
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(AppTheme.textPrimary())
+            .maxLines(1)
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        Text(item.statusText)
+          .fontSize(11)
+          .fontColor('#B54708')
+          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+          .backgroundColor('#FEF0C7')
+          .borderRadius(AppTheme.radiusSmall())
+      }
+      .width('100%')
+
+      Text(item.summary)
+        .fontSize(12)
+        .fontColor(AppTheme.textSecondary())
+        .lineHeight(18)
+        .width('100%')
+        .maxLines(2)
+
+      Text(`${item.timeText} · ${item.placeText}`)
+        .fontSize(12)
+        .fontColor(AppTheme.textSecondary())
+        .width('100%')
+
+      Button('确认会议')
+        .width('100%')
+        .height(36)
+        .fontSize(13)
+        .fontColor('#FFFFFF')
+        .backgroundColor(AppTheme.primary())
+        .borderRadius(AppTheme.radiusSmall())
+        .onClick(() => {
+          this.confirmMeeting(item.id);
+        })
+    }
+    .width('100%')
+    .padding(14)
+    .backgroundColor('#F8FAFC')
+    .borderRadius(AppTheme.radiusSmall())
+    .border({ width: 1, color: AppTheme.divider() })
+  }
+
+  @Builder
+  private TaskTodoCard(item: CollaborationItem) {
+    Column({ space: 8 }) {
+      Row() {
+        Column({ space: 3 }) {
+          Text('待同意对接')
+            .fontSize(11)
+            .fontColor('#175CD3')
+          Text(item.title)
+            .fontSize(15)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(AppTheme.textPrimary())
+            .maxLines(1)
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+
+        Text(item.statusText)
+          .fontSize(11)
+          .fontColor('#B54708')
+          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+          .backgroundColor('#FEF0C7')
+          .borderRadius(AppTheme.radiusSmall())
+      }
+      .width('100%')
+
+      Text(item.summary)
+        .fontSize(12)
+        .fontColor(AppTheme.textSecondary())
+        .lineHeight(18)
+        .width('100%')
+        .maxLines(2)
+
+      Text(`${item.ownerName} · ${item.timeText}`)
+        .fontSize(12)
+        .fontColor(AppTheme.textSecondary())
+        .width('100%')
+
+      Button('同意对接')
+        .width('100%')
+        .height(36)
+        .fontSize(13)
+        .fontColor('#FFFFFF')
+        .backgroundColor(AppTheme.primary())
+        .borderRadius(AppTheme.radiusSmall())
+        .onClick(() => {
+          this.acceptTask(item.id);
+        })
+    }
+    .width('100%')
+    .padding(14)
+    .backgroundColor('#F8FAFC')
+    .borderRadius(AppTheme.radiusSmall())
+    .border({ width: 1, color: AppTheme.divider() })
   }
 
   @Builder
@@ -1644,6 +1792,8 @@ struct Index {
     this.usefulKnowledgeIds = result.usefulKnowledgeIds;
     this.corrections = [];
     this.workflowInstances = [];
+    this.customMeetingItems = [];
+    this.confirmedMeetingIds = [];
     this.notifications = [];
     this.auditLogs = [];
     this.attendanceSummary = {
@@ -1705,6 +1855,8 @@ struct Index {
       this.workflowPanelVisible = false;
       this.workflowComposerVisible = false;
       this.workflowTaskListVisible = false;
+      this.customMeetingItems = [];
+      this.confirmedMeetingIds = [];
       this.applyBootstrapData(bootstrapData);
       await this.loadAttendancePreview();
       await this.loadMailPreview();
@@ -2171,7 +2323,67 @@ struct Index {
   }
 
   private getDashboardTodoCount(): number {
-    return this.getTodoWorkflows().length;
+    return this.getTodoWorkflows().length + this.getPendingMeetingCount() + this.getPendingTaskItems().length;
+  }
+
+  private getPendingMeetingCount(): number {
+    return this.getPendingMeetingItems().length;
+  }
+
+  private getPendingMeetingItems(): CollaborationItem[] {
+    return buildCollaborationBoardUseCase(
+      this.currentUser,
+      this.organizationProfile,
+      this.workflowInstances,
+      this.customMeetingItems,
+      this.confirmedMeetingIds,
+      this.customTaskItems,
+      this.acceptedTaskIds
+    ).meetingItems.filter((item: CollaborationItem) => item.needsAction);
+  }
+
+  private getPendingTaskItems(): CollaborationItem[] {
+    return buildCollaborationBoardUseCase(
+      this.currentUser,
+      this.organizationProfile,
+      this.workflowInstances,
+      this.customMeetingItems,
+      this.confirmedMeetingIds,
+      this.customTaskItems,
+      this.acceptedTaskIds
+    ).taskItems.filter((item: CollaborationItem) => item.needsAction);
+  }
+
+  private addMeeting(item: CollaborationItem): void {
+    const nextItems: CollaborationItem[] = this.customMeetingItems.slice();
+    nextItems.unshift(item);
+    this.customMeetingItems = nextItems;
+    this.persistDashboardSummary();
+  }
+
+  private confirmMeeting(meetingId: string): void {
+    if (!this.confirmedMeetingIds.includes(meetingId)) {
+      const nextConfirmedMeetingIds: string[] = this.confirmedMeetingIds.slice();
+      nextConfirmedMeetingIds.push(meetingId);
+      this.confirmedMeetingIds = nextConfirmedMeetingIds;
+      this.persistDashboardSummary();
+    }
+  }
+
+  private addTask(item: CollaborationItem): void {
+    const nextItems: CollaborationItem[] = this.customTaskItems.slice();
+    nextItems.unshift(item);
+    this.customTaskItems = nextItems;
+    this.persistDashboardSummary();
+  }
+
+  private acceptTask(taskId: string): void {
+    if (!this.acceptedTaskIds.includes(taskId)) {
+      const nextAcceptedTaskIds: string[] = this.acceptedTaskIds.slice();
+      nextAcceptedTaskIds.push(taskId);
+      this.acceptedTaskIds = nextAcceptedTaskIds;
+      this.persistDashboardSummary();
+    }
   }
 
   private getWaitingWorkflowCount(): number {

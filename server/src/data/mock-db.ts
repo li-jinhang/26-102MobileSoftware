@@ -1151,7 +1151,7 @@ function cloneDirectoryItem(item: DirectoryItem): DirectoryItem {
 }
 
 function getVisibleDirectoryUsers(user: UserProfile, scope: string): UserProfile[] {
-  if (user.role === 'systemAdmin' && scope === 'all') {
+  if (scope === 'all') {
     return users.filter((item: UserProfile) => item.employmentStatus === 'active');
   }
   return users.filter((item: UserProfile) => {

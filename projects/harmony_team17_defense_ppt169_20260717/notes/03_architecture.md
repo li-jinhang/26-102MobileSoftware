@@ -1,0 +1,1 @@
+在鸿蒙端，我们使用 ArkTS 和 ArkUI 组织组件化页面，并通过 UseCase、Repository 和 HTTP Adapter 分层。这样页面不直接绑定数据来源，可以从本地 Mock 平滑切换到后端接口。

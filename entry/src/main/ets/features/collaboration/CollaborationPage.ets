@@ -25,11 +25,16 @@ export struct CollaborationPage {
   @Require @Prop profile: OrganizationProfile | null;
   @Require @Prop workflowInstances: WorkflowInstance[]; 
   @Prop focus: 'all' | 'action' | 'waiting' = 'all';
-  onCreateMeetingInvite: (employeeIds: string[], title: string, timeText: string, placeText: string, summary: string) => void = () => {};
+  @Require @Prop customMeetingItems: CollaborationItem[];
+  @Require @Prop confirmedMeetingIds: string[];
+  @Require @Prop customTaskItems: CollaborationItem[];
+  @Require @Prop acceptedTaskIds: string[];
+  onCreateMeeting: (item: CollaborationItem) => void = () => {};
+  onConfirmMeeting: (meetingId: string) => void = () => {};
+  onCreateTask: (item: CollaborationItem) => void = () => {};
+  onAcceptTask: (taskId: string) => void = () => {};
   onCloseGroup: (memberIds: string[], groupTitle: string) => void = () => {};
 
-  @State customMeetings: CollaborationItem[] = [];
-  @State customTasks: CollaborationItem[] = [];
   @State customGroups: CollaborationItem[] = [];
   @State managedGroups: CollaborationItem[] = [];
   @State closedTasks: CollaborationItem[] = [];
@@ -72,19 +77,23 @@ export struct CollaborationPage {
   @State taskListView: 'active' | 'closed' = 'active';
 
   private getBoard(): CollaborationBoard {
-    return buildCollaborationBoardUseCase(this.user, this.profile, this.workflowInstances);
+    return buildCollaborationBoardUseCase(
+      this.user,
+      this.profile,
+      this.workflowInstances,
+      this.customMeetingItems,
+      this.confirmedMeetingIds,
+      this.customTaskItems,
+      this.acceptedTaskIds
+    );
   }
 
   private getCombinedMeetingItems(): CollaborationItem[] {
-    const items: CollaborationItem[] = this.getBoard().meetingItems.slice();
-    this.customMeetings.forEach((item: CollaborationItem) => items.unshift(item));
-    return items;
+    return this.getBoard().meetingItems;
   }
 
   private getCombinedTaskItems(): CollaborationItem[] {
-    const items: CollaborationItem[] = this.getBoard().taskItems.slice();
-    this.customTasks.forEach((item: CollaborationItem) => items.unshift(item));
-    return items.filter((item: CollaborationItem) => !this.closedTaskIds.includes(item.id));
+    return this.getBoard().taskItems.filter((item: CollaborationItem) => !this.closedTaskIds.includes(item.id));
   }
 
   private getCombinedGroupItems(): CollaborationItem[] {
@@ -107,7 +116,14 @@ export struct CollaborationPage {
   }
 
   private getVisibleMeetingItems(): CollaborationItem[] {
-    return this.focus === 'all' ? this.getCombinedMeetingItems() : [];
+    const items: CollaborationItem[] = this.getCombinedMeetingItems();
+    if (this.focus === 'action') {
+      return items.filter((item: CollaborationItem) => item.needsAction);
+    }
+    if (this.focus === 'waiting') {
+      return [];
+    }
+    return items;
   }
 
   private getVisibleTaskItems(): CollaborationItem[] {
@@ -163,6 +179,26 @@ export struct CollaborationPage {
       .filter((item: string) => item.length > 0);
   }
 
+  private async resolveEmployeesById(employeeIds: string[]): Promise<EmployeeDirectoryItem[] | null> {
+    const employees: EmployeeDirectoryItem[] = [];
+    for (let index: number = 0; index < employeeIds.length; index += 1) {
+      const employeeId: string = employeeIds[index];
+      const employee: EmployeeDirectoryItem | null = await findEmployeeByIdUseCase(employeeId);
+      if (employee === null) {
+        this.showMessage(`未找到员工 ID：${employeeId}。`);
+        return null;
+      }
+      if (employee.id === this.user.id) {
+        this.showMessage('组长无需重复添加。');
+        return null;
+      }
+      if (!employees.some((item: EmployeeDirectoryItem) => item.id === employee.id)) {
+        employees.push(employee);
+      }
+    }
+    return employees;
+  }
+
   private addParticipant(employee: EmployeeDirectoryItem, target: 'meeting' | 'task' | 'group'): void {
     const input: string = target === 'meeting'
       ? this.meetingParticipantIdsInput
@@ -189,11 +225,11 @@ export struct CollaborationPage {
   }
 
   private getActionCount(): number {
-    return this.getBoard().actionCount + this.customTasks.filter((item: CollaborationItem) => item.needsAction).length;
+    return this.getBoard().actionCount;
   }
 
   private getWaitingCount(): number {
-    return this.getBoard().waitingCount + this.customTasks.filter((item: CollaborationItem) => !item.needsAction).length;
+    return this.getBoard().waitingCount;
   }
 
   private getThreadId(item: CollaborationItem): string {
@@ -376,17 +412,22 @@ export struct CollaborationPage {
       timeText,
       placeText,
       statusText: '待确认',
-      state: 'active',
-      needsAction: false,
+      state: 'action',
+      needsAction: true,
       participantIds: employeeIds,
       members: participants
     };
-    const nextItems: CollaborationItem[] = this.customMeetings.slice();
-    nextItems.unshift(item);
-    this.customMeetings = nextItems;
     this.meetingDialogVisible = false;
-    this.onCreateMeetingInvite(employeeIds, title, timeText, placeText, summary);
+    this.onCreateMeeting(item);
     this.showMessage('已新建会议并发送待确认通知。');
+  }
+
+  private confirmMeeting(item: CollaborationItem): void {
+    if (this.confirmedMeetingIds.includes(item.id)) {
+      return;
+    }
+    this.onConfirmMeeting(item.id);
+    this.showMessage('已确认参会安排。');
   }
 
   private openTaskDialog(): void {
@@ -428,28 +469,35 @@ export struct CollaborationPage {
       ownerDepartment: this.user.department,
       timeText,
       placeText: '工作对接',
-      statusText: '等待回复',
+      statusText: '等待同意',
       state: 'waiting',
       needsAction: false,
       participantIds,
       members: targetMembers
     };
-    const nextItems: CollaborationItem[] = this.customTasks.slice();
-    nextItems.unshift(item);
-    this.customTasks = nextItems;
     this.taskDialogVisible = false;
+    this.onCreateTask(item);
     this.showMessage('已新建工作对接。');
   }
 
-  private createGroup(): void {
+  private acceptTask(item: CollaborationItem): void {
+    if (this.acceptedTaskIds.includes(item.id)) {
+      return;
+    }
+    this.onAcceptTask(item.id);
+    this.showMessage('已同意工作对接。');
+  }
+
+  private async createGroup(): Promise<void> {
     const title: string = this.groupTitleInput.trim();
     const selectedMemberIds: string[] = this.getParticipantIds(this.groupMemberIdsInput);
-    const selectedMembers: EmployeeDirectoryItem[] = this.getRelatedEmployees().filter(
-      (item: EmployeeDirectoryItem) => selectedMemberIds.includes(item.id)
-    );
     const summary: string = this.groupSummaryInput.trim();
     if (title.length === 0 || selectedMemberIds.length === 0) {
       this.showMessage('请填写工作组名称并选择至少一位组员。');
+      return;
+    }
+    const selectedMembers: EmployeeDirectoryItem[] | null = await this.resolveEmployeesById(selectedMemberIds);
+    if (selectedMembers === null) {
       return;
     }
     const owner: EmployeeDirectoryItem = {
@@ -476,7 +524,7 @@ export struct CollaborationPage {
       statusText: '活跃',
       state: 'active',
       needsAction: false,
-      participantIds: [this.user.id].concat(selectedMemberIds),
+      participantIds: [this.user.id].concat(selectedMembers.map((member: EmployeeDirectoryItem) => member.id)),
       members
     };
     const nextGroups: CollaborationItem[] = this.customGroups.slice();
@@ -523,7 +571,7 @@ export struct CollaborationPage {
       ownerDepartment: item.ownerDepartment,
       timeText: item.timeText,
       placeText: item.placeText,
-      statusText: '已关闭',
+      statusText: '已完成',
       state: 'active',
       needsAction: false,
       participantIds: item.participantIds,
@@ -532,7 +580,7 @@ export struct CollaborationPage {
     const nextClosedTasks: CollaborationItem[] = this.closedTasks.slice();
     nextClosedTasks.unshift(closedItem);
     this.closedTasks = nextClosedTasks;
-    this.showMessage('工作对接已关闭。');
+    this.showMessage('工作对接已完成。');
   }
 
   private isGroupLeader(item: CollaborationItem): boolean {
@@ -603,11 +651,11 @@ export struct CollaborationPage {
       return;
     }
     try {
-      const employee: EmployeeDirectoryItem | null = await findEmployeeByIdUseCase(employeeId);
-      if (employee === null) {
-        this.showMessage('未找到该员工 ID。');
+      const employees: EmployeeDirectoryItem[] | null = await this.resolveEmployeesById([employeeId]);
+      if (employees === null || employees.length === 0) {
         return;
       }
+      const employee: EmployeeDirectoryItem = employees[0];
       if (employee.id === this.user.id) {
         this.showMessage('组长已在工作组中。');
         return;
@@ -633,7 +681,7 @@ export struct CollaborationPage {
   }
 
   private getCloseConfirmTitle(): string {
-    return this.pendingGroupToClose === null ? '确认关闭对接' : '确认关闭工作组';
+    return this.pendingGroupToClose === null ? '确认完成对接' : '确认关闭工作组';
   }
 
   private getCloseConfirmDescription(): string {
@@ -642,7 +690,7 @@ export struct CollaborationPage {
       return '';
     }
     return this.pendingGroupToClose === null
-      ? `关闭“${item.title}”后，对接将移入“关闭的对接”。`
+      ? `完成“${item.title}”后，对接将移入“完成的对接”。`
       : `关闭“${item.title}”后，组员将收到关闭通知，且无法继续在该工作组协作。`;
   }
 
@@ -901,8 +949,34 @@ export struct CollaborationPage {
         }
       }
 
-      if (item.kind === 'task' && !this.closedTaskIds.includes(item.id)) {
-        Button('关闭对接')
+      if (item.kind === 'meeting' && item.needsAction) {
+        Button('确认会议')
+          .width('100%')
+          .height(36)
+          .fontSize(Typography.metaSize())
+          .fontColor('#FFFFFF')
+          .backgroundColor(AppTheme.primary())
+          .borderRadius(AppTheme.radiusSmall())
+          .onClick(() => {
+            this.confirmMeeting(item);
+        })
+      }
+
+      if (item.kind === 'task' && item.needsAction) {
+        Button('同意对接')
+          .width('100%')
+          .height(36)
+          .fontSize(Typography.metaSize())
+          .fontColor('#FFFFFF')
+          .backgroundColor(AppTheme.primary())
+          .borderRadius(AppTheme.radiusSmall())
+          .onClick(() => {
+            this.acceptTask(item);
+          })
+      }
+
+      if (item.kind === 'task' && item.state === 'active' && !this.closedTaskIds.includes(item.id)) {
+        Button('完成对接')
           .width('100%')
           .height(36)
           .fontSize(Typography.metaSize())
@@ -1234,7 +1308,7 @@ export struct CollaborationPage {
 
   private getActiveCollaborationItems(): CollaborationItem[] {
     if (this.activeCollaborationModule === 'meeting') {
-      return this.getCombinedMeetingItems();
+      return this.getVisibleMeetingItems();
     }
     if (this.activeCollaborationModule === 'task') {
       return this.taskListView === 'closed' ? this.getClosedTaskItems() : this.getVisibleTaskItems();
@@ -1292,7 +1366,7 @@ export struct CollaborationPage {
               .onClick(() => {
                 this.taskListView = 'active';
               })
-            Button(`关闭的对接 ${this.getClosedTaskItems().length}`)
+            Button(`完成的对接 ${this.getClosedTaskItems().length}`)
               .layoutWeight(1)
               .height(34)
               .fontSize(Typography.metaSize())
@@ -1498,7 +1572,7 @@ export struct CollaborationPage {
             .onClick(() => {
               this.cancelTaskClose();
             })
-          Button('确认关闭')
+          Button(this.pendingGroupToClose === null ? '确认完成' : '确认关闭')
             .layoutWeight(1)
             .height(40)
             .fontColor('#FFFFFF')
@@ -1574,7 +1648,7 @@ export struct CollaborationPage {
           }
           .width('100%')
 
-          TextInput({ placeholder: '组员 ID，多个用英文逗号分隔', text: this.groupMemberIdsInput })
+          TextInput({ placeholder: '组员 ID，可输入跨部门员工，多个用英文逗号分隔', text: this.groupMemberIdsInput })
             .height(44)
             .borderRadius(AppTheme.radiusSmall())
             .backgroundColor(AppTheme.surfaceMuted())
@@ -1638,7 +1712,7 @@ export struct CollaborationPage {
           .backgroundColor(AppTheme.primary())
           .borderRadius(AppTheme.radiusSmall())
           .onClick(() => {
-            this.createGroup();
+            void this.createGroup();
           })
       }
       .width('100%')
@@ -1660,10 +1734,10 @@ export struct CollaborationPage {
           SectionBlock({ title: '协作', subtitle: `${this.user.department} · ${this.user.jobTitle}` }) {
             Column({ space: 12 }) {
               Row({ space: 8 }) {
-                this.StatCard('待处理', this.getActionCount(), '#175CD3')
-                this.StatCard('等待中', this.getWaitingCount(), '#B54708')
                 this.StatCard('会议', this.getCombinedMeetingItems().length, '#027A48')
+                this.StatCard('工作对接', this.getCombinedTaskItems().length, '#175CD3')
                 this.StatCard('工作组', this.getCombinedGroupItems().length, '#6941C6')
+                this.StatCard('工作汇报', this.getCombinedChainItems().length, '#B54708')
               }
               .width('100%')
 
@@ -1717,7 +1791,7 @@ export struct CollaborationPage {
             }
           }
 
-          if (this.focus === 'all') {
+          if (this.focus !== 'waiting') {
             this.CollaborationModuleCard('meeting', '会议信息', '查看会议时间、地点和待确认事项', this.getVisibleMeetingItems().length)
           }
 

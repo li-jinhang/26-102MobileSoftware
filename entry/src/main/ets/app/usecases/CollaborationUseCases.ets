@@ -102,6 +102,48 @@ function buildTaskItems(currentUser: User, profile: OrganizationProfile | null, 
   ];
 }
 
+function copyTaskWithStatus(
+  item: CollaborationItem,
+  statusText: string,
+  state: 'action' | 'waiting' | 'active',
+  needsAction: boolean
+): CollaborationItem {
+  return {
+    id: item.id,
+    kind: item.kind,
+    title: item.title,
+    summary: item.summary,
+    ownerName: item.ownerName,
+    ownerDepartment: item.ownerDepartment,
+    timeText: item.timeText,
+    placeText: item.placeText,
+    statusText,
+    state,
+    needsAction,
+    participantIds: item.participantIds,
+    members: item.members
+  };
+}
+
+function buildCustomTaskItems(
+  currentUser: User,
+  customTaskItems: CollaborationItem[],
+  acceptedTaskIds: string[]
+): CollaborationItem[] {
+  const items: CollaborationItem[] = [];
+  customTaskItems.forEach((item: CollaborationItem) => {
+    const accepted: boolean = acceptedTaskIds.includes(item.id);
+    if (item.ownerName === currentUser.name) {
+      items.push(copyTaskWithStatus(item, accepted ? '已同意' : '等待同意', accepted ? 'active' : 'waiting', false));
+      return;
+    }
+    if (item.participantIds.includes(currentUser.id)) {
+      items.push(copyTaskWithStatus(item, accepted ? '已同意' : '待同意', accepted ? 'active' : 'action', !accepted));
+    }
+  });
+  return items;
+}
+
 function buildGroupItems(currentUser: User, profile: OrganizationProfile | null): CollaborationItem[] {
   const membersText: string = profile === null ? '0 人' : `${profile.departmentMembers.length} 人`;
   const members: EmployeeDirectoryItem[] = profile === null ? [] : profile.departmentMembers;
@@ -174,7 +216,11 @@ function buildChainItems(currentUser: User, profile: OrganizationProfile | null)
 export function buildCollaborationBoardUseCase(
   currentUser: User | null,
   profile: OrganizationProfile | null,
-  workflowInstances: WorkflowInstance[]
+  workflowInstances: WorkflowInstance[],
+  customMeetingItems: CollaborationItem[] = [],
+  confirmedMeetingIds: string[] = [],
+  customTaskItems: CollaborationItem[] = [],
+  acceptedTaskIds: string[] = []
 ): CollaborationBoard {
   if (currentUser === null) {
     return {
@@ -189,14 +235,44 @@ export function buildCollaborationBoardUseCase(
     };
   }
 
-  const meetingItems: CollaborationItem[] = buildMeetingItems(currentUser, profile);
-  const taskItems: CollaborationItem[] = buildTaskItems(currentUser, profile, workflowInstances);
+  const meetingItems: CollaborationItem[] = customMeetingItems
+    .concat(buildMeetingItems(currentUser, profile))
+    .map((item: CollaborationItem) => {
+      if (!confirmedMeetingIds.includes(item.id)) {
+        return item;
+      }
+      return {
+        id: item.id,
+        kind: item.kind,
+        title: item.title,
+        summary: item.summary,
+        ownerName: item.ownerName,
+        ownerDepartment: item.ownerDepartment,
+        timeText: item.timeText,
+        placeText: item.placeText,
+        statusText: '已确认',
+        state: 'active',
+        needsAction: false,
+        participantIds: item.participantIds,
+        members: item.members
+      };
+    });
+  const taskItems: CollaborationItem[] = buildCustomTaskItems(currentUser, customTaskItems, acceptedTaskIds)
+    .concat(buildTaskItems(currentUser, profile, workflowInstances))
+    .map((item: CollaborationItem) => {
+      if (!acceptedTaskIds.includes(item.id)) {
+        return item;
+      }
+      return copyTaskWithStatus(item, '已同意', 'active', false);
+    });
   const groupItems: CollaborationItem[] = buildGroupItems(currentUser, profile);
   const chainItems: CollaborationItem[] = buildChainItems(currentUser, profile);
 
   const actionWorkflowCount: number = countActionWorkflows(currentUser, workflowInstances);
   const waitingWorkflowCount: number = countMyPendingWorkflows(currentUser, workflowInstances);
-  const actionCount: number = actionWorkflowCount + taskItems.filter((item: CollaborationItem) => item.needsAction).length;
+  const actionCount: number = actionWorkflowCount
+    + meetingItems.filter((item: CollaborationItem) => item.needsAction).length
+    + taskItems.filter((item: CollaborationItem) => item.needsAction).length;
   const waitingCount: number = waitingWorkflowCount + taskItems.filter((item: CollaborationItem) => item.state === 'waiting').length;
 
   return {

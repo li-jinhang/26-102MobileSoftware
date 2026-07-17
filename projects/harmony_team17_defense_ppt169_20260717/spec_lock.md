@@ -15,7 +15,7 @@
 - success: #18A38A
 
 ## typography
-- font_family: "Microsoft YaHei", Arial, sans-serif
+- font_family: Microsoft YaHei, Arial, sans-serif
 - code_family: Consolas, "Courier New", monospace
 - body: 22
 - title: 40
