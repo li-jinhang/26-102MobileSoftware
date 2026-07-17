@@ -1391,7 +1391,8 @@ export function searchOrganizationUsers(
       if (normalizedKeyword.length === 0) {
         return true;
       }
-      return item.name.toLowerCase().includes(normalizedKeyword) ||
+      return item.id.toLowerCase().includes(normalizedKeyword) ||
+        item.name.toLowerCase().includes(normalizedKeyword) ||
         item.account.toLowerCase().includes(normalizedKeyword) ||
         item.jobTitle.toLowerCase().includes(normalizedKeyword);
     })

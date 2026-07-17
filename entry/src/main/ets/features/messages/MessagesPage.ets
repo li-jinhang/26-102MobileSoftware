@@ -1,6 +1,5 @@
 import { EmptyState } from '../../common/components/EmptyState';
 import { AppTopBar } from '../../common/components/AppTopBar';
-import { filterNotifications } from '../../common/services/MessageService';
 import { AppTheme } from '../../common/theme/AppTheme';
 import { NotificationItem } from '../../models/AppModels';
 
@@ -22,9 +21,23 @@ export struct MessagesPage {
   onOpenMail: (mailId: string) => void = () => {
   };
   @State unreadOnly: boolean = false;
+  @State locallyReadIds: string[] = [];
 
   private getItems(): NotificationItem[] {
-    return filterNotifications(this.notifications, this.unreadOnly);
+    return this.notifications.filter((item: NotificationItem) => {
+      return !this.unreadOnly || !this.isRead(item);
+    });
+  }
+
+  private isRead(item: NotificationItem): boolean {
+    return item.read || this.locallyReadIds.includes(item.id);
+  }
+
+  private markRead(notificationId: string): void {
+    if (!this.locallyReadIds.includes(notificationId)) {
+      this.locallyReadIds = this.locallyReadIds.concat([notificationId]);
+    }
+    this.onMarkRead(notificationId);
   }
 
   private showMessage(message: string): void {
@@ -36,7 +49,7 @@ export struct MessagesPage {
   }
 
   private openMessage(item: NotificationItem): void {
-    this.onMarkRead(item.id);
+    this.markRead(item.id);
     if (item.targetType === 'knowledge' && item.targetId.length > 0) {
       this.onOpenKnowledge(item.targetId);
       return;
@@ -107,7 +120,7 @@ export struct MessagesPage {
                     .fontWeight(FontWeight.Medium)
                     .fontColor('#1F2A44')
                     .layoutWeight(1)
-                  if (!item.read) {
+          if (!this.isRead(item)) {
                     Text('未读')
                       .fontSize(10)
                       .fontColor('#B42318')
@@ -129,7 +142,7 @@ export struct MessagesPage {
                     .fontSize(10)
                     .fontColor('#98A2B3')
                   Blank()
-                  if (!item.read) {
+                  if (!this.isRead(item)) {
                     Button('标记已读')
                       .height(32)
                       .fontSize(11)
@@ -137,7 +150,7 @@ export struct MessagesPage {
                       .backgroundColor('#EAF1FF')
                       .borderRadius(12)
                       .onClick(() => {
-                        this.onMarkRead(item.id);
+                        this.markRead(item.id);
                       })
                   }
                 }
@@ -145,7 +158,7 @@ export struct MessagesPage {
               }
               .width('100%')
               .padding(14)
-              .backgroundColor(item.read ? '#FFFFFF' : '#EEF4FF')
+              .backgroundColor(this.isRead(item) ? '#FFFFFF' : '#EEF4FF')
               .borderRadius(12)
               .onClick(() => {
                 this.openMessage(item);
