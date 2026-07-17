@@ -26,6 +26,15 @@ function stringValue(source, key) {
     const value = source[key];
     return typeof value === 'string' ? value.trim() : '';
 }
+function describeMailMatter(text) {
+    return text
+        .replace(/请?给(?:我的)?(?:上级|领导|经理|直属负责人|下级|下属|同事|工作组|组员|对接人)?/g, '')
+        .replace(/发送?(?:一封)?(?:邮件|信)|发(?:一封)?(?:邮件|信)|写(?:一封)?(?:邮件|信)/g, '')
+        .replace(/(?:告诉|告知|通知|说明)(?:他|她|对方|一下)?/g, '')
+        .replace(/[，。；;！!？?]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
 let AssistantService = class AssistantService {
     async analyze(token, input) {
         const text = input.text.trim();
@@ -116,13 +125,16 @@ let AssistantService = class AssistantService {
                 recipientNames.push(item.name);
             }
         });
-        const fallbackSubject = /上班|到岗/.test(text) ? '到岗通知' : '工作沟通';
+        const matter = describeMailMatter(text);
+        const fallbackSubject = /上班|到岗/.test(text)
+            ? '到岗通知'
+            : (/新功能.*(?:完成|上线)|(?:完成|上线).*新功能/.test(matter) ? '新功能开发完成' : '工作事项沟通');
         const fallbackContent = /上班|到岗/.test(text)
             ? '您好，\n\n我已到岗上班，特此告知。\n\n谢谢。'
-            : `您好，\n\n${text}\n\n请查收并确认，谢谢。`;
+            : `您好，\n\n${matter.length > 0 ? matter : '相关工作事项已处理完毕，现向您汇报。'}\n\n特此向您汇报，请查收。如需进一步说明或配合，我会及时跟进。\n\n谢谢。`;
         const content = await this.callLlm([
-            { role: 'system', content: '你是企业邮件草稿助手。仅返回 JSON：{"subject":"不超过20字","content":"完整礼貌邮件正文"}，不要编造收件人。' },
-            { role: 'user', content: `用户需求：${text}\n收件人：${recipientNames.join('、') || '待人工选择'}` }
+            { role: 'system', content: '你是企业邮件草稿助手。将用户的自然语言请求改写为可直接发送的中文内部邮件。仅返回 JSON：{"subject":"不超过20字","content":"完整、礼貌且不复述操作指令的邮件正文"}。不要编造收件人、事项或完成状态。' },
+            { role: 'user', content: `用户需求：${text}\n已由系统关系库确定的收件人：${recipientNames.join('、') || '待人工选择'}` }
         ]);
         const parsed = content === null ? null : parseJsonObject(content);
         return {

@@ -1,4 +1,4 @@
-import { AssistantAnalyzeInput, AssistantHistory, AssistantReply } from '../../models/AppModels';
+import { AssistantAnalyzeInput, AssistantHistory, AssistantMailDraft, AssistantReply } from '../../models/AppModels';
 import { repositories } from '../repositories/RepositoryProvider';
 
 export interface AssistantAskResult {
@@ -45,4 +45,16 @@ export async function askAssistantUseCase(
     ],
     message: ''
   };
+}
+
+export async function generateMailDraftUseCase(description: string): Promise<AssistantMailDraft> {
+  const reply: AssistantReply = await repositories.assistantRepository.analyze({
+    text: description.trim(),
+    imageBase64: '',
+    imageMimeType: ''
+  });
+  if (reply.action.type !== 'mail' || reply.action.mailDraft === null) {
+    throw new Error('未识别为邮件请求，请补充收件人或邮件事项。');
+  }
+  return reply.action.mailDraft;
 }

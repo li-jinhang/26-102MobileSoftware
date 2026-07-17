@@ -1,6 +1,7 @@
 import { AppTopBar } from '../../common/components/AppTopBar';
 import { AppTheme } from '../../common/theme/AppTheme';
 import { AssistantMailDraft, EmployeeDirectoryItem, OrganizationProfile } from '../../models/AppModels';
+import { generateMailDraftUseCase } from '../../app/usecases/AssistantUseCases';
 
 @Component
 export struct MailComposerPage {
@@ -22,6 +23,8 @@ export struct MailComposerPage {
   @State relatedWorkflowId: string = '';
   @State relatedKnowledgeId: string = '';
   @State assistantDescription: string = '';
+  @State assistantLoading: boolean = false;
+  @State assistantError: string = '';
   @State relationshipPickerVisible: boolean = false;
 
   private getRelatedEmployees(): EmployeeDirectoryItem[] {
@@ -65,35 +68,23 @@ export struct MailComposerPage {
     return '工作组 / 对接';
   }
 
-  private fillMailWithAssistant(): void {
+  private async fillMailWithAssistant(): Promise<void> {
     const description: string = this.assistantDescription.trim();
-    if (description.length === 0) {
+    if (description.length === 0 || this.assistantLoading) {
       return;
     }
-    const relatedEmployees: EmployeeDirectoryItem[] = this.getRelatedEmployees();
-    const matched: EmployeeDirectoryItem | undefined = relatedEmployees.find((employee: EmployeeDirectoryItem) => {
-      return description.includes(employee.name) || description.includes(employee.jobTitle);
-    });
-    const profile: OrganizationProfile | null = this.profile;
-    const manager: EmployeeDirectoryItem | null = profile === null ? null : profile.manager;
-    if (matched !== undefined) {
-      this.receiverInput = matched.id;
-    } else if (manager !== null && /上级|领导|经理|直属负责人/.test(description)) {
-      this.receiverInput = manager.id;
-    } else if (profile !== null && /下级|下属/.test(description) && profile.directReports.length > 0) {
-      this.receiverInput = profile.directReports.map((item: EmployeeDirectoryItem) => item.id).join(', ');
-    } else if (profile !== null && /同事|工作组|组员|对接/.test(description)) {
-      const employeeId: string = profile.employee.id;
-      const groupMembers: EmployeeDirectoryItem[] = profile.departmentMembers;
-      this.receiverInput = groupMembers
-        .filter((item: EmployeeDirectoryItem) => item.id !== employeeId)
-        .map((item: EmployeeDirectoryItem) => item.id)
-        .join(', ');
-    } else if (this.getReceiverIds().length === 0 && relatedEmployees.length > 0) {
-      this.receiverInput = relatedEmployees[0].id;
+    this.assistantLoading = true;
+    this.assistantError = '';
+    try {
+      const draft: AssistantMailDraft = await generateMailDraftUseCase(description);
+      this.receiverInput = draft.receiverIds.join(', ');
+      this.subjectInput = draft.subject;
+      this.contentInput = draft.content;
+    } catch (error) {
+      this.assistantError = error instanceof Error ? error.message : '智能填写失败，请稍后重试。';
+    } finally {
+      this.assistantLoading = false;
     }
-    this.subjectInput = description.length > 22 ? `${description.slice(0, 22)}...` : description;
-    this.contentInput = `您好，\n\n${description}\n\n请查收并确认，谢谢。`;
   }
 
   aboutToAppear(): void {
@@ -104,6 +95,8 @@ export struct MailComposerPage {
       this.relatedWorkflowId = '';
       this.relatedKnowledgeId = '';
       this.assistantDescription = '';
+      this.assistantLoading = false;
+      this.assistantError = '';
       return;
     }
     this.receiverInput = this.draft.receiverIds.join(', ');
@@ -143,16 +136,22 @@ export struct MailComposerPage {
             .onChange((value: string) => {
               this.assistantDescription = value;
             })
-          Button('自动填写邮件')
+          Button(this.assistantLoading ? '正在生成...' : '自动填写邮件')
             .height(36)
             .fontSize(13)
             .fontColor(AppTheme.primary())
             .backgroundColor(AppTheme.primarySoft())
             .borderRadius(8)
-            .enabled(this.assistantDescription.trim().length > 0)
+            .enabled(this.assistantDescription.trim().length > 0 && !this.assistantLoading)
             .onClick(() => {
-              this.fillMailWithAssistant();
+              void this.fillMailWithAssistant();
             })
+          if (this.assistantError.length > 0) {
+            Text(this.assistantError)
+              .fontSize(12)
+              .fontColor('#B42318')
+              .width('100%')
+          }
         }
         .width('100%')
         .padding(12)
